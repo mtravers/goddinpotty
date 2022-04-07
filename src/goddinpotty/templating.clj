@@ -1,5 +1,6 @@
 (ns goddinpotty.templating
   (:require [clojure.string :as s]
+            [clojure.java.io :as io]
             [goddinpotty.rendering :as render]
             [goddinpotty.config :as config]
             [goddinpotty.utils :as utils]
@@ -51,6 +52,9 @@
 
   gtag('config', '%s');
 " (config/config :google-analytics))]))
+
+(u/def-lazy comment-script
+  (slurp (io/resource "remarkbox.js")))
 
 ;;; TODO much of this should be configurable
 (defn page-hiccup
@@ -110,9 +114,17 @@
         [:div.ptitle
          [:h1 ~title-hiccup]
          ~contents
-
-         ]]
-       ]]
+         ]
+        ;; Comments TODO config flag
+        [:div.card
+         [:h5.card-header {:style "margin-bottom:-12px;"} "Comments"]
+         [:div.card-body
+         [:div#remarkbox-div
+          [:noscript
+           [:iframe#remarkbox-iframe {:src "https://my.remarkbox.com/embed?nojs=true"
+                                      :style "height:600px;width:100%;border:none!important"
+                                      :tabindex 0}]]]]]
+        ]]]
      "<!-- Footer -->"
      [:footer.py-5.footer
       [:div.container
@@ -126,6 +138,9 @@
      [:script {:src "https://cdn.jsdelivr.net/npm/bootstrap@5.1.1/dist/js/bootstrap.bundle.min.js"
                :integrity "sha384-/bQdsTh/da6pkI1MST/rWKFNjaCP5gBSY4sEBT38Q/9RBh9AH40zEOg7Hlq2THRZ"
                :crossorigin "anonymous"}]
+     ;; Comments TODO under a config fflag
+     [:script {:src "https://my.remarkbox.com/static/js/iframe-resizer/iframeResizer.min.js"}]
+     [:script ~(deref comment-script)]
      ]])
 
 (defn map-page
