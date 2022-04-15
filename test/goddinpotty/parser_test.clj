@@ -147,3 +147,24 @@ And its fallen Emanation, the Spectre and its cruel Shadow.")))))
          (parse-to-ast "a **b** c **d** e")))
   (is (= [:block "a " [:bold "b"] " c " [:bold "d"] " e " [:bold "f"] " g"]
          (parse-to-ast "a **b** c **d** e **f** g"))))
+
+;;; Issue here, chars have to be matched by parser class "textier"
+(deftest parse-highlighted-punc
+  ;; the basic case
+  (is (= [:block "Lord " [:bold "CrappingtonGoober"] " of Thrashwick"]
+         (parse-to-ast "Lord **CrappingtonGoober** of Thrashwick")))
+  (is (= [:block "Lord " [:bold "Crappington-Goober"] " of Thrashwick"]
+         (parse-to-ast "Lord **Crappington-Goober** of Thrashwick")))
+  (is (= [:block "Lord " [:bold "Crappington$Goober"] " of Thrashwick"]
+         (parse-to-ast "Lord **Crappington$Goober** of Thrashwick")))
+  (is (= [:block "Lord " [:bold "Crappington Goober"] " of Thrashwick"]
+         (parse-to-ast "Lord **Crappington Goober** of Thrashwick")))
+  ;; Similarly for italics
+
+  (is (= [:block "Lord " [:italic "Crappington-Goober"] " of Thrashwick"]
+         (parse-to-ast "Lord _Crappington-Goober_ of Thrashwick")))
+  ;; This rencers as italic in Logseq, but I don't use it and don't parse it
+  #_
+  (is (= [:block "Lord " [:italic "Crappington-Goober"] " of Thrashwick"]
+         (parse-to-ast "Lord *Crappington-Goober* of Thrashwick")))
+  )

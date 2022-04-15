@@ -4,7 +4,6 @@
             [org.parkerici.multitool.core :as u]
             [clojure.set :as set]
             [clojure.string :as str]
-            [taoensso.truss :as truss :refer (have have! have?)]
             ))
 
 ;;; Database accessors. The name is a PROTEST against the feature of Clojure I hate most, rigid limits on namespace reference
@@ -18,8 +17,9 @@
   (or (block? x)
       (throw (ex-info "Not a block" {:thing x}))))
 
-;;; included? means reachable from an entry point
-;;; displayed? means actually generated. Usually these are the same, except when the :unexcluded? config is set, meaning we want to see everything, included or not.
+;;; included? means reachable from an entry point displayed? means actually generated. Usually these
+;;; are the same, except when the :unexcluded? config is set, meaning we want to see everything,
+;;; included or not.
 
 (defn included?
   ([block]
@@ -356,17 +356,16 @@
            (re-find #"^(.*)/(.*?)$" (:title page)))
       (get (page-hierarchies bm) (:title page))))  ;top page
 
-;;; Table o' contents
+;;; Table of contents
 
-;;; This must exist? core.match, but not quite
-;;; https://github.com/dcolthorp/matchure
-
-;;; Note: this is minimal, and in some cases just wrong, but good enoug
 ;;; → multitool
 (defn extend-seq
+  "Extend a sequence with infinite nils. Sometimes useful for arguments to map"
   [seq]
   (concat seq (repeat nil)))
 
+;;; This must exist? core.match, but not quite
+;;; https://github.com/dcolthorp/matchure
 ;;; → multitool
 (defn str-match
   [pat thing]
@@ -402,9 +401,5 @@
 (defn toc
   [block]
   (partition 2 (flatten (toc-1 block))))
-
-
           
-          
-          
-        
+  
