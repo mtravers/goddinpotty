@@ -60,13 +60,6 @@
              (re-find #"^(.*)/(.*?)$" (:title page)))]
     parent))
 
-
-(defn trim-string
-  [s n]
-  (and s
-       (subs s 0 (min n (count s)))))
-
-
 ;;; New version computes degree as well as acctually the map
 ;;; Seems to compute the same set as other method
 (defn compute-depths
@@ -95,7 +88,7 @@
 (defn compute-includes
   [block-map]
   (u/map-values #(assoc % :include? (and (not (nil? (:depth %)))
-                                         (not (empty? %)))) ;NEW checking this here
+                                         (not (empty? %))))
                 block-map))
 
 (defn parse-block

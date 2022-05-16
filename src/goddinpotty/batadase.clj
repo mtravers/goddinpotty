@@ -126,15 +126,18 @@
   [block-map]
   (filter included? (pages block-map)))
 
+(declare page-empty?)
+
 (defn displayed-pages
   [block-map]
-  (filter displayed? (pages block-map)))
+  (->> block-map
+       pages
+       (filter displayed?)
+       (remove page-empty?)))           ;new but makes sense I think
 
 (defn displayed-blocks
   [block-map]
   (filter displayed? (vals block-map)))
-
-
 
 (defn displayed-regular-pages
   [block-map]
@@ -237,7 +240,8 @@
 (defn page-empty?
   [page]
   (and (not (:special? page))
-       (< (size page)                   ;TODO might need tweaking, used to take title size into account?
+       (< (- (size page)
+             (count (:title page)))
           10)))
 
 (defn expand-to [block-map block minsize]

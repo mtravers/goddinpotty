@@ -123,10 +123,10 @@ And its fallen Emanation, the Spectre and its cruel Shadow.") {}))))
 
 (deftest page-alias-test
   (mc/with-mock [utils/html-file-title "link-url"]
-    (is (= [:span "A show about " [:a {:href "link-url" :class "empty"} "The Big Nada"] ]
+    (is (= [:span "A show about " [:span.empty "The Big Nada"] ]
            (block-hiccup (fake-block "A show about {{alias:[[nihilism]]The Big Nada}}")
                          {"nihilism" {:id "nihilism" :page? true :include? true :content "foo"}})))
-    (is (= [:span "A show about " [:a {:href "link-url"} "The Big Nada"] ]
+    (is (= [:span "A show about " [:span.empty "The Big Nada"] ]
            (block-hiccup (fake-block "A show about {{alias:[[nihilism]]The Big Nada}}")
                          {"nihilism" {:id "nihilism" :page? true :include? true :content (str (range 1000))}})))))
 

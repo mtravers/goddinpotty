@@ -135,6 +135,10 @@
 (defmethod post-generation :logseq [_ _]
   (logseq/post-generation))
 
+(defn get-page
+  [name]
+  (bd/get-with-aliases @last-bm name))
+
 (defn main
   [config-or-path]
   (if (map? config-or-path)
@@ -147,10 +151,6 @@
     (html-gen/generate-index-redir (config/config  :output-dir))
     (post-generation (config/config) bm)
     ))
-
-(defn get-page
-  [name]
-  (bd/get-with-aliases @last-bm name))
 
 (defn -main
   [& [config-or-path]]
