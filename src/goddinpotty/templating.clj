@@ -153,7 +153,7 @@
    ;; TODO tweak css so long things look rightish
    ;; whitespace: nowrap (but needs to truncate or something)
    [:ul
-    (for [child (sort (keys page-struct))] ;Sort imposes some order, better than random I guess
+    (for [child (utils/sort-with-numerals (keys page-struct))] ;Sort imposes some order, better than random I guess
       (if (map? (get page-struct child))
         (render-page-hierarchy-1 (conj path child)
                                  (get page-struct child)

@@ -12,7 +12,7 @@
 
 (def indexes
   [{:name "Title"
-    :sort-key (comp s/upper-case :title)
+    :sort-key (comp s/upper-case :title) ;TODO utils/sort-with-numerals
     :render render/page-link
     :page-title "Index"                 ;kludge to match block-map and links
     :col-width "65%"

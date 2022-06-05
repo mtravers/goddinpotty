@@ -135,9 +135,19 @@
 (defmethod post-generation :logseq [_ _]
   (logseq/post-generation))
 
+;;; Debugging/curation related
+
 (defn get-page
   [name]
   (bd/get-with-aliases @last-bm name))
+
+(defn page-name
+  [id]
+  (:title (get-page id)))
+
+(defn page-refs
+  [name]
+  (map page-name (bd/all-refs (get-page "The version of me"))))
 
 (defn main
   [config-or-path]

@@ -144,7 +144,11 @@
   [smap]
   (s/join " " (map (fn [[prop val]] (format "%s: %s;" (name prop) val)) smap)))
   
+(defn- n-leading-digits
+  [s]
+  (count (second (re-matches #"^([0-9]*).*" s))))
 
-
-
-
+;;; → multitool
+(defn sort-with-numerals
+  [seq]
+  (sort-by (juxt n-leading-digits identity) seq))
