@@ -66,6 +66,15 @@
     (and (:parent block)
          (get block-map (:parent block)))))
 
+;;; Like block parent, but navigates page hierarchies.
+;;; So #Private in page [[foo]] will hide page [[foo/bar]].
+(defn block-page-parent
+  [block-map block]
+  (let [block (coerce-block block block-map)]
+    (or (and (:parent block)
+             (get block-map (:parent block)))
+        (page-parent block block-map))))
+
 (defn ancestors0
   [block-map block]
   (cons block (if-let [parent (block-parent block-map block)]
@@ -156,11 +165,12 @@
       (some #(contains? (:refs %) tag-id)
             (block-children block-map block)))))
 
+;;; True if block or any of its containers have tag. Including parent pasges in page hierarchy
 (defn tagged-or-contained?
   [block-map block tag]
   (and block
        (or (tagged? block-map block tag)
-           (tagged-or-contained? block-map (block-parent block-map block) tag))))
+           (tagged-or-contained? block-map (block-page-parent block-map block) tag))))
 
 ;;; These are the top-level entrypoints, other than those defined by tags. Crude at the moment
 (defn advertised-page-names
@@ -256,6 +266,7 @@
   [block]
   (empty? (:children block)))
 
+;;; Important fn that defines the inclusion graph.
 (defn all-refs [block]
   (set/union
    (set (:children block))
@@ -363,11 +374,20 @@
   (page-hierarchies-1 (map :title (pages bm))))
 
 
+(defn page-parent
+  [page bm]
+  (let [parent-title (and (:title page) (second (re-find #"^(.*)/(.*?)$" (:title page))))]
+    (get-with-aliases bm parent-title)))
+
 (defn page-in-hierarchy?
   [page bm]
-  (or (and (:title page)
-           (re-find #"^(.*)/(.*?)$" (:title page)))
+  (or (page-parent page bm)
       (get (page-hierarchies bm) (:title page))))  ;top page
+
+
+    
+
+
 
 ;;; Table o' contents
 

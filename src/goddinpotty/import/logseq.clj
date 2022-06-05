@@ -99,7 +99,7 @@
        (str query))
   (let [{:keys [exit out err]}
         ;; TODO ugly and maybe antiperformant that this returns a string. But sh/sh is incapable of
-        ;; writing to a file. Takes about a minute for my big graph, but most of that is in nbb, not
+        ;; writing to a file? Takes about a minute for my big graph, but most of that is in nbb, not
         ;; parse.
         (sh/sh "nbb-logseq"
                "resources/nbb-query.cljs" 

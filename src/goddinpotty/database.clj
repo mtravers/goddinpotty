@@ -60,8 +60,11 @@
              (re-find #"^(.*)/(.*?)$" (:title page)))]
     parent))
 
-;;; New version computes degree as well as acctually the map
-;;; Seems to compute the same set as other method
+;;; Computes depth and inclusion, based on:
+;;; - Entry points
+;;; - Exit points
+;;; - the graph defined by bd
+
 (defn compute-depths
   "Computes depths from entry points"
   [block-map]
@@ -82,9 +85,7 @@
               block-map
               (map :id (bd/entry-points block-map))))))
 
-
-
-;;; This is where inclusion is computed.
+;;; Computes :include? from :depth. Seems dumb and redundant. TODO
 (defn compute-includes
   [block-map]
   (u/map-values #(assoc % :include? (and (not (nil? (:depth %)))
@@ -126,6 +127,7 @@
     (ju/pmap-values #(assoc % :refs (block-refs % aliases))
                     db)))
 
+;;; TODO :linked-by should have a better name that indicates it is the inverse of :refs, like :reffed-by maybe.
 (defn generate-inverse-refs
   [db]
   (u/self-label :id
