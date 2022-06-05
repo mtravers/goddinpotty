@@ -185,6 +185,30 @@
   (when-let [block (bd/get-with-aliases bm about-block-title)]
     (render/block-full-hiccup about-block-title bm)))
 
+(defn about-widget
+  [bm]
+  (when-let [about-content (about-content bm)]
+          [:div.card.my-3
+           [:h5.card-header "About"]
+           [:div.card-body.minicard-body
+            about-content]]))
+
+(defn search-widget
+  [bm#]
+  [:div.card.my-3
+   [:h5.card-header
+    [:span#searchh
+     "Search"]
+    [:input#searcht.form-control {:type "text"
+                                  ;; :placeholder "Search for..."
+                                  :onkeyup "keypress(event)"
+                                  }]
+    ]
+   [:div#searchb.card-body
+    ;; output goes here
+    [:div#searcho] 
+    ]])
+
 (defn block-page-hiccup
   [block-id block-map output-dir]
   (let [block (get block-map block-id)
@@ -201,27 +225,8 @@
          (render/page-hiccup block-id block-map)
          [:hr {}]]
 
-        search-widget
-        [:div.card.my-3
-         [:h5.card-header
-          [:span#searchh
-           "Search"]
-          [:input#searcht.form-control {:type "text"
-                                        ;; :placeholder "Search for..."
-                                        :onkeyup "keypress(event)"
-                                        }]
-          ]
-         [:div#searchb.card-body
-          ;; output goes here
-          [:div#searcho] 
-          ]]
-        about-widget
-        (when-let [about-content (about-content block-map)]
-          [:div.card.my-3
-           [:h5.card-header "About"]
-           [:div.card-body.minicard-body
-            about-content]])
-
+        search-widget (search-widget block-map)
+        about-widget (about-widget block-map)
         map-widget
         [:div.card.my-3
          [:h5.card-header

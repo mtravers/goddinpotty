@@ -66,6 +66,8 @@
     (and (:parent block)
          (get block-map (:parent block)))))
 
+(declare page-parent)
+
 ;;; Like block parent, but navigates page hierarchies.
 ;;; So #Private in page [[foo]] will hide page [[foo/bar]].
 (defn block-page-parent
