@@ -2,9 +2,9 @@
 (* TODO should make more use of instaparse compositionality *)
 (* TODO I suppose there should be separate versions of this for Roam and Logseq. *)
 
-block = block-property* (tweet | heading | hiccup | blockquote | prop-block | (syntax-in-block / text)*) block-property*
+block = block-property* (heading | hiccup | blockquote | prop-block | (syntax-in-block / text)*) block-property*
 
-<syntax-in-block> = (todo | done | image | alias | block-embed | hashtag | page-link | block-ref | code-line | code-block | youtube | bold | italic | bare-url | page-alias | hr | latex ) (* add query later*)
+<syntax-in-block> = (todo | done | image | alias | block-embed | hashtag | page-link | block-ref | code-line | code-block | video | bold | italic | bare-url | page-alias | hr | latex | tweet ) (* add query later*)
 
 (* page links do not want their innards parsed *)
 page-link = #"\[\[.*?\]\]" 
@@ -17,7 +17,6 @@ block-property =  #"(\n)?.+?:: .+(\n)?"
 code-line = #"\`.*?\`"
 code-block = #"(?is)^```.*```"
 (* query = #"\{\{query: .*?:.*?\}\}" | #"\{\{[[query]]: .*?:.*?\}\}" *)
-youtube = #"\{\{youtube .*?\}\}" | #"\{\{\[\[youtube\]\]: .*?:.*?\}\}" | #"\{\{\[\[video\]\]: .*?:.*?\}\}"
 page-alias = #"\{\{alias\:\[\[.+\]\].*\}\}"
 
 (* Logseq also uses *foo* for italic, but no real need for it *)
@@ -49,5 +48,6 @@ heading = #"#{1,3}" block
 prop-block = #"---\n(.|\n)*---\n\n"
 
 tweet = <"{{tweet ">, bare-url, <"}}">
+video = <"{{video ">, bare-url, <"}}">
 
 hiccup = #"(?s)\[\:[a-z]+.*"

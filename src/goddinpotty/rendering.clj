@@ -272,7 +272,7 @@
             :done [:input {:type "checkbox" :disabled "disabled" :checked "checked"}]
             :code-line [:code (utils/remove-n-surrounding-delimiters 1 ele-content)]
             :code-block (format-codeblock ele-content)
-            :youtube (if-let [youtube-id (get-youtube-id ele-content)]
+            :video (if-let [youtube-id (get-youtube-id (second ele-content))] ;TODO check that this is [:bare-url <url]
                        (youtube-vid-embed youtube-id)
                        [:span "Non-youtube video" ele-content]) ;TODO temp, do something better
             :bare-url (make-content-from-url ele-content)
