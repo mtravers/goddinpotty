@@ -308,25 +308,12 @@
        block))
    bm))
 
-;;;  in multiool 0.19
-(defn merge-recursive
-  "Merge two arbitrariy nested map structures. Terminal seqs are concatentated, terminal sets are merged."
-  [m1 m2]
-  (cond (and (map? m1) (map? m2))
-        (merge-with merge-recursive m1 m2)
-        (and (set? m1) (set? m2))
-        (set/union m1 m2)
-        (and (sequential? m1) (sequential? m2))
-        (concat m1 m2)
-        (nil? m2) m1
-        :else m2))
-
 ;;; → multitool
 (defn collecting-merge
   "Exec is a fn of one argument, which is called and passed another fn it can use to collect values which are merged with merge-recursive; the result is returned. See tests for example TODO" 
   [exec]
   (let [acc (atom {})
-        collect #(swap! acc merge-recursive %)]
+        collect #(swap! acc u/merge-recursive %)]
     (exec collect)
     @acc))
 

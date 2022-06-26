@@ -239,7 +239,8 @@
     (f file out)
     (fs/rename out file)))
 
-;;; TODO this can alter EOF newlines, causing spurious git modifications. Argh
+;;; TODO this can alter EOF newlines, causing spurious git modifications. Argh.
+;;; There is some git flag that fixes it...
 ;;; → multitool (update existing)
 (defn process-file-lines
   ([f in out]

@@ -85,7 +85,7 @@
               block-map
               (map :id (bd/entry-points block-map))))))
 
-;;; Computes :include? from :depth. Seems dumb and redundant. TODO
+;;; Computes :include? from :depth. TODO Seems dumb and redundant. 
 (defn compute-includes
   [block-map]
   (u/map-values #(assoc % :include? (and (not (nil? (:depth %)))
@@ -127,11 +127,10 @@
     (ju/pmap-values #(assoc % :refs (block-refs % aliases))
                     db)))
 
-;;; TODO :linked-by should have a better name that indicates it is the inverse of :refs, like :reffed-by maybe.
 (defn generate-inverse-refs
   [db]
   (u/self-label :id
-                (u/add-inverse-multiple db :refs :linked-by)))    ;I don't like this name, but easier to leave it for now
+                (u/add-inverse-multiple db :refs :ref-by)))   
 
 ;;; Trick for memoizing a local recursive fn, see https://quanttype.net/posts/2020-09-20-local-memoized-recursive-functions.html
 (defn fix [f] (fn g [& args] (apply f g args)))
