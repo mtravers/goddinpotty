@@ -178,14 +178,19 @@
 ;;; Yes this is global state and bad practice. Shoot me.
 (def sidenotes (atom #{}))
 
+;;; This is used to suppress sidenotes in the Incoming links panel
+(def ^{:dynamic true} *no-sidenotes* false)
+
+;;; Render a sidenote
 (defn sidenote
   [block-map sidenote-block]
-  (swap! sidenotes conj (:id sidenote-block))
-  [:span
-   [:span.superscript]
-   [:div.sidenote                     ;TODO option to render on left/right, but
-    [:span.superscript.side]
-    (block-full-hiccup-sidenotes (:id sidenote-block) block-map)]])
+  (when-not *no-sidenotes*
+    (swap! sidenotes conj (:id sidenote-block))
+    [:span.sidenote-container
+     [:span.superscript]
+     [:div.sidenote                     ;TODO option to render on left/right
+      [:span.superscript.side]
+      (block-full-hiccup-sidenotes (:id sidenote-block) block-map)]]))
 
 ;;; Not strictly necessary, but makes tests come out better
 (defn- maybe-conc-string
@@ -248,8 +253,9 @@
             :page-alias (let [[_ page alias] (re-matches #"\{\{alias\:\[\[(.+)\]\](.*)\}\}"
                                                          ele-content)]
                           (page-link-by-name block-map page :alias alias))
-            :block-ref (let [ref-block (get (uid-indexed block-map) (utils/remove-double-delimiters ele-content))]
-                         ;; ARGh can't work because of fucking namespace rules. POS!
+            :block-ref (let [ref-block (get (uid-indexed block-map) (-> ele-content
+                                                                        str/trim
+                                                                        utils/remove-double-delimiters))]
                          (try 
                            (if (and block (= (bd/block-page block-map ref-block)
                                              (bd/block-page block-map block)))
@@ -363,6 +369,11 @@
   [block-id block-map & [depth]]
   (when-not (sidenote? block-id)
     (block-full-hiccup-sidenotes block-id block-map depth)))
+
+(defn block-full-hiccup-no-sidenotes
+  [& args]
+  (binding [*no-sidenotes* true]
+    (apply block-full-hiccup args)))
 
 (defn page-hiccup
   [block-id block-map]

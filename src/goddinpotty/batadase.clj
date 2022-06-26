@@ -40,7 +40,7 @@
 (defn- get-linked-references
   [block-id block-map]
   (filter #(get-in block-map [% :id])      ;trying to filter out bogus entries, not working
-          (get-in block-map [block-id :linked-by])))
+          (get-in block-map [block-id :ref-by])))
 
 (defn get-displayed-linked-references
   [block-id block-map]
@@ -118,7 +118,7 @@
   (map :id
        (filter displayed?
                (map (comp (partial block-page bm) bm)
-                    (:linked-by page)))))
+                    (:ref-by page)))))
 
 (defn page-refs
   [bm page]
@@ -273,7 +273,7 @@
   (set/union
    (set (:children block))
    (set (:refs block))
-   (set (:linked-by block))
+   (set (:ref-by block))
    (set (and (:parent block) (list (:parent block))))))
 
 ;;; Special tag handling. Here for no very good reason
@@ -300,7 +300,7 @@
               (not (:parent block))
               (not (:page? block)))
               ;; If there arent multiple incoming links, really no point in having a page
-       (if (> (count (:linked-by block)) 1)
+       (if (> (count (:ref-by block)) 1)
          (do
            (prn :add-empty-page (:id block))
            (assoc block :page? true :title (:id block)))
