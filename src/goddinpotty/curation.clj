@@ -232,34 +232,11 @@
                (not (re-find #"\{\{tweet" l)))
       (str/replace l  #"http.*twitter.com/\S*" (format "{{tweet %s}}" link)))))
 
-;;; → multitool
-(defn transform-file
-  [f file]
-  (let [out (fs/temp-name (str f))]
-    (f file out)
-    (fs/rename out file)))
-
-;;; TODO this can alter EOF newlines, causing spurious git modifications. Argh.
-;;; There is some git flag that fixes it...
-;;; → multitool (update existing)
-(defn process-file-lines
-  ([f in out]
-   (ju/file-lines-out out (map f (ju/file-lines in))))
-  ([f file]
-   (transform-file
-    (fn [in out] (ju/file-lines-out out (map f (ju/file-lines in))))
-    file)))
-
-(defn process-file
-  [file f]
-  (process-file-lines
-   (fn [l] (or (f l) l))
-   file))
 
 (defn process-files
   [line-function]
   (doseq [f (all-content-pages)]
-    (process-file f line-function)))
+    (ju/process-file f line-function)))
 
 ;;; Run once.
 #_

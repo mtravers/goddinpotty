@@ -6,6 +6,7 @@
             [goddinpotty.config :as config]
             [me.raynes.fs :as fs]
             [org.parkerici.multitool.core :as u]
+            [org.parkerici.multitool.cljcore :as ju]
             [clojure.string :as str]
             [clojure.java.shell :as sh]
             [goddinpotty.endure :as e]
@@ -63,40 +64,33 @@
   [blocks]
   (->> blocks
        (map (fn [block]
-              {:title (or
-                       (get-in block [:block/properties :title])
-                       (:block/original-name block) ;??? Not sure what actual semnatics are, but this is often better TODO should name be alias?
-                       (:block/name block))
-               :id (:db/id block) ;note: has to be id so refs work
-               :uid (str (:block/uuid block))
-               :content (:block/content block) ;TODO strip out properties
-               :edit-time (utils/coerce-time (or (get block :block/updated-at)
-                                                 (get-in block [:block/properties :updated-at])))
-               :create-time (utils/coerce-time (or (get block :block/updated-at)
-                                                   (get-in block [:block/properties :created-at])))
+              (merge
+               {:title (or
+                        (get-in block [:block/properties :title])
+                        (:block/original-name block) ;??? Not sure what actual semnatics are, but this is often better TODO should name be alias?
+                        (:block/name block))
+                :id (:db/id block) ;note: has to be id so refs work
+                :uid (str (:block/uuid block))
+                :content (:block/content block) ;TODO strip out properties
+                :edit-time (utils/coerce-time (or (get block :block/updated-at)
+                                                  (get-in block [:block/properties :updated-at])))
+                :create-time (utils/coerce-time (or (get block :block/updated-at)
+                                                    (get-in block [:block/properties :created-at])))
 
-               :parent (get-in block [:block/parent :db/id])
-               :left (get-in block [:block/left :db/id])
-               :page? (boolean (:block/name block)) ;???
-               ;; Support Logseq publish tag
-               ;; TODO make this more general
-               :public? (get-in block [:block/properties :public])
-               :alias (get-in block [:block/properties :alias])
-               :class (get-in block [:block/properties :class])
-               }))
+                :parent (get-in block [:block/parent :db/id])
+                :left (get-in block [:block/left :db/id])
+                :page? (boolean (:block/name block)) ;???
+                }
+               (dissoc (get block :block/properties) :id) ; includes :alias and :class The :id here seems useless and conflicts with the :db/id from datomic
+               )))
        (u/index-by :id)
        (add-children :parent :children)
        (order-children)
        ))
 
-
 ;;; Requires nbb-logseq to be installed
 (defn nbb-query
   [graph-name query]
-  (prn :nbb-logseq
-       "resources/nbb-query.cljs" 
-       graph-name
-       (str query))
   (let [{:keys [exit out err]}
         ;; TODO ugly and maybe antiperformant that this returns a string. But sh/sh is incapable of
         ;; writing to a file? Takes about a minute for my big graph, but most of that is in nbb, not
@@ -109,11 +103,15 @@
       (read-string out)
       (throw (ex-info err {:exit exit :err err})))))
 
+(def extract-query
+  ;; Note :file/content is also available, not really needed so not extracted here.
+  '[:find (pull ?b [* {:block/file [:db/id :file/path]}])
+    :where [?b :block/uuid _]])
 
 (defn nbb-extract
   [graph-name]
   (map first
-       (nbb-query graph-name '[:find (pull ?b [*]) :where [?b :block/uuid _]])))
+       (nbb-query graph-name extract-query)))
 
 ;;; dev only for now
 (defn nbb-datoms
@@ -121,11 +119,17 @@
   (group-by first (nbb-query graph-name '[:find ?a ?b ?c :where [?a ?b ?c]])))
 
 
+(defn snapshot
+  [thing file]
+  (ju/schppit file thing)
+  thing)
+
 (defn produce-bm
   [config]
   (-> config
       (get-in [:source :graph])
       nbb-extract
+      (snapshot "nbb-extract.edn")
       logseq-nbb->blocks-base
       db/roam-db-1
       ;; Disabled for now

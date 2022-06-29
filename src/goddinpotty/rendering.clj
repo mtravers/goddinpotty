@@ -7,6 +7,7 @@
             [clojure.data.json :as json]
             [clojure.string :as str]
             [org.parkerici.multitool.core :as u]
+            [org.parkerici.multitool.dev :as udev]
             [taoensso.truss :as truss :refer (have have! have?)]
             )
   )
@@ -221,7 +222,7 @@
 ;;; Does most of the real work of rendering.
 (defn ele->hiccup
   [ast-ele block-map & [block]]
-  (utils/debuggable                     ;TODO for dev, but for production it should just render an error box rather than crapping out. 
+  (udev/debuggable                     ;TODO for dev, but for production it should just render an error box rather than crapping out. 
    :ele->hiccup [ast-ele]
    ;; TODO this approach is broken, it hides page-refs within italics. 
    (letfn [(recurse [s]                 ;TODO probably needs a few more uses

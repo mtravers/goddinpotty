@@ -70,6 +70,7 @@
 
 ;;; Like block parent, but navigates page hierarchies.
 ;;; So #Private in page [[foo]] will hide page [[foo/bar]].
+;;; TODO Stopped working!? Problem: page "the version of me" is not real, it's one of those synthetic pages....ok it's a case-folding issue, pkm. real page is "the version of me", fake one has capitalized...ok for now will just fix the fucking page names.
 (defn block-page-parent
   [block-map block]
   (let [block (coerce-block block block-map)]
@@ -308,14 +309,7 @@
        block))
    bm))
 
-;;; → multitool
-(defn collecting-merge
-  "Exec is a fn of one argument, which is called and passed another fn it can use to collect values which are merged with merge-recursive; the result is returned. See tests for example TODO" 
-  [exec]
-  (let [acc (atom {})
-        collect #(swap! acc u/merge-recursive %)]
-    (exec collect)
-    @acc))
+
 
 ;;; All legit names of block, main and aliases
 (defn block-names
@@ -327,7 +321,7 @@
 (u/defn-memoized alias-map
   "Return map of aliases to real page ids"
   [bm]
-  (collecting-merge
+  (u/collecting-merge
    (fn [collect]
      (doseq [block (vals bm)]
          (doseq [alias (block-names block)]
@@ -351,11 +345,11 @@
 ;;; Handles multilevel 
 (defn- page-hierarchies-1
   [page-names]
-  (collecting-merge
+  (u/collecting-merge
    (fn [collect]
      (doseq [title page-names]
        (when (re-find #"/" title)
-         (prn  (vec->maps (str/split title #"/")))
+         (prn (vec->maps (str/split title #"/")))
          (collect (vec->maps (str/split title #"/"))))))))
 
 (u/defn-memoized page-hierarchies ;only need to compute this once
@@ -383,7 +377,7 @@
 ;;; This must exist? core.match, but not quite
 ;;; https://github.com/dcolthorp/matchure
 
-;;; Note: this is minimal, and in some cases just wrong, but good enoug
+;;; Note: this is minimal, and in some cases just wrong, but good enough
 ;;; → multitool
 (defn extend-seq
   [seq]
