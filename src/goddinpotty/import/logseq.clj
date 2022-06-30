@@ -45,17 +45,23 @@
              db
              db))
 
-;;; Uses the :left property to order the children properly. Relies that :left of leftmost child points to parent.
+;;; Uses the :left property to order the children properly. Relies that :left of leftmost child
+;;; points to parent.
 (defn- order-children
   ([db]
-   (u/map-values (fn [block]
-                   (update block :children #(order-children db (set %) (:id block))))
-                 db))
+   (u/map-values
+    (fn [block]
+      (update block :children #(order-children db (set %) (:id block))))
+    db))
   ([db child-ids left]
-   (if (empty? child-ids)
-     []
-     (let [next (u/some-thing (fn [child-id] (= left (get-in db [child-id :left]))) child-ids)]
-       (cons next (order-children db (disj child-ids next) next))))))
+   (cond (nil? left) child-ids
+         (empty? child-ids) []
+         :else
+         (let [next (u/some-thing (fn [child-id]
+                                    (= left (get-in db [child-id :left])))
+                                  child-ids)]
+           (cons next (order-children db (disj child-ids next) next))
+         ))))
 
              
 ;;; TODO do something with :block/refs and/or :block/path-refs probably?
