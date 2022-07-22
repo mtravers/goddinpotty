@@ -65,29 +65,60 @@
 ;;; - Exit points
 ;;; - the graph defined by bd
 
+;;; TODO use transient datastructures, this is kind of slow
+;;; This was the old depth-first technique...had issues
+#_
 (defn compute-depths
   "Computes depths from entry points"
   [block-map]
-  (let [exit-point? (u/memoize-named :exit-point #(bd/exit-point? block-map %))
-        alias-map (bd/alias-map block-map)] ;performance hack
+  (let [exit-point? (u/memoize-named :exit-point #(bd/exit-point? block-map %))]
     (letfn [(propagate [depth block-map from]
-              (let [from-block (bd/get-with-aliases block-map alias-map from)
+              (let [from-block (bd/get-with-aliases block-map from)
                     from-depth (get from-block :depth 1000)]
                 (if (and from-block
                          (< depth from-depth)
                          (not (exit-point? from-block)))
+                  ;; recurse over all references
                   (reduce (fn [bm r]
                             (propagate (+ depth 1) bm r))
                           (assoc-in block-map [(:id from-block) :depth] depth)
                           (bd/all-refs from-block))
                   block-map)))]
+      ;; Process all entry points (note: ammdi only has one currently)
       (reduce (partial propagate 0)
               block-map
               (map :id (bd/entry-points block-map))))))
 
+;;; Reimplement to use breadth-first
+(defn compute-depths
+  "Computes depths from entry points"
+  [block-map]
+  (prn :computing-depths)
+  (let [exit-point? (u/memoize-named :exit-point #(bd/exit-point? block-map (get block-map %)))]
+    (loop [block-map (reduce (fn [bm entry-point]
+                               (assoc-in bm [(:id entry-point) :depth] 0))
+                             block-map (bd/entry-points block-map))
+           depth 0]
+      (let [current (filter #(= (:depth %) depth) (vals block-map))
+            refs (apply clojure.set/union (map bd/all-refs current))
+            nbm (reduce (fn [bm ref]
+                          (if (or (get-in bm [ref :depth])
+                                  (exit-point? ref))
+                            bm
+                            (assoc-in bm [ref :depth] (+ depth 1))))
+                        block-map
+                        refs)]
+        (prn :x depth (count current) (count refs))
+        (if (= block-map nbm)
+          block-map
+          (recur nbm
+                 (+ depth 1)))))))
+
+
 ;;; Computes :include? from :depth. TODO Seems dumb and redundant. 
 (defn compute-includes
   [block-map]
+  (prn :computing-includes)
   (u/map-values #(assoc % :include? (and (not (nil? (:depth %)))
                                          (not (empty? %))))
                 block-map))
@@ -102,7 +133,7 @@
 
 ;;; Computes the value of the :refs attribute
 (defn block-refs
-  [block aliases]
+  [block]
   (letfn [(struct-entities [struct]
             (if (string? struct)
               []
@@ -117,26 +148,35 @@
                          [v] [])
                 ;; default
                 (mapcat struct-entities (rest struct)))))]
-    (let [base (conj (struct-entities (:parsed block))  (page-hierarchy-ref block))]
-      (set (filter identity (map #(get aliases % %) base))))))
+    (let [base (conj (struct-entities (:parsed block))
+                     (page-hierarchy-ref block))]
+      (filter identity base) #_ (u/mapf #(get aliases % %) base))))
 
 
+;;; Adds forward :refs field. Does
+;;; Now does nothing with aliases, which are resolved
 (defn generate-refs
   [db]
-  (let [aliases (bd/alias-map db)]
-    (ju/pmap-values #(assoc % :refs (block-refs % aliases))
+  (let [aliases (bd/with-aliases db)]
+    (ju/pmap-values (fn [block]
+                      (assoc block :refs (set
+                                          (map (partial bd/resolve-alias aliases)
+                                               (block-refs block)))))
                     db)))
 
 (defn generate-inverse-refs
   [db]
-  (u/self-label :id
-                (u/add-inverse-multiple db :refs :ref-by)))   
+  (dissoc
+   (u/self-label :id
+                 (u/add-inverse-multiple db :refs :ref-by))
+   nil))                                ;TODO a nil entry causes problems so removing it...should figure out where it is coming from
 
 ;;; Trick for memoizing a local recursive fn, see https://quanttype.net/posts/2020-09-20-local-memoized-recursive-functions.html
 (defn fix [f] (fn g [& args] (apply f g args)))
 
 (defn add-direct-children
   [block-map]
+  (prn :add-direct-children)
   (let [direct-children
         (fn [direct-children block]
           (assoc block :dchildren 
@@ -153,6 +193,7 @@
 ;;; Mostly blocks can be rendered indpendently, but if there are references (and now sidenotes) there are dependencies
 
 
+;;; TODO rename, what have the Roamans done for us?
 (defn roam-db-1
   [db]
   (-> db

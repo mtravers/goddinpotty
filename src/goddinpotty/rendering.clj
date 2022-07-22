@@ -302,7 +302,8 @@
             ;; See https://www.mathjax.org/ This produces an inline LaTex rendering.
             :latex [:span.math.display (str "\\(" (utils/remove-double-delimiters ele-content) "\\)")]
             :tweet (embed-twitter (second (second ast-ele)))
-            :hiccup (hiccup-fixups (read-string ele-content)))))))))
+            ;; TODO better error handling
+            :hiccup (hiccup-fixups (u/ignore-report (read-string ele-content))))))))))
 
 ;;; Used for converting things like italics in blocknames
 (defn block-content->hiccup

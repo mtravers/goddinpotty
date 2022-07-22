@@ -144,21 +144,21 @@
   [:div.date (utils/render-time from) " - " (utils/render-time to)])
 
 
-;;; Note: not as elegant as it could be, but works
 (defn render-page-hierarchy-1
   [path page-struct bm this]
   (let [top (clojure.string/join "/" path)]
-    [:div
-     (render/page-link top :bm bm :alias (last path))
-   ;; TODO tweak css so long things look rightish
-   ;; whitespace: nowrap (but needs to truncate or something)
-   [:ul
-    (for [child (u/sort-with-numeric-prefix (keys page-struct))] ;Sort imposes some order, better than random I guess
-      (if (map? (get page-struct child))
-        (render-page-hierarchy-1 (conj path child)
-                                 (get page-struct child)
-                                 bm this)
-        [:li (render/page-link (str top "/" child) :bm bm :alias child :current this)]))]]))
+    (when (bd/displayed? (bd/get-with-aliases bm top))
+      [:div
+       [:li (render/page-link top :bm bm :alias (last path))]
+       ;; TODO tweak css so long things look rightish
+       ;; whitespace: nowrap (but needs to truncate or something)
+       (when (map? page-struct)
+         [:ul
+          (for [child (u/sort-with-numeric-prefix (keys page-struct))] ;Sort imposes some order, better than random I guess
+            (render-page-hierarchy-1 (conj path child)
+                                     (get page-struct child)
+                                     bm this)
+            )])])))
 
 
 (defn render-page-hierarchy

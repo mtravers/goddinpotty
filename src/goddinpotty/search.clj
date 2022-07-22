@@ -13,7 +13,7 @@
 
 (defn index
   [bm]
-  (let [aliases (u/map-invert-multiple (bd/alias-map bm))]
+  (let [aliases (u/map-invert-multiple (bd/with-aliases bm))]
   (u/for* [page (bd/displayed-pages bm)
            index (range)]
    (u/clean-map          

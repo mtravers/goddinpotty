@@ -8,6 +8,7 @@
             [goddinpotty.index :as index]
             [goddinpotty.import.logseq :as logseq]
             [me.raynes.fs :as fs]
+            [clojure.string :as str]
             [org.parkerici.multitool.core :as u]
             [org.parkerici.multitool.cljcore :as ju]))
 
@@ -144,6 +145,12 @@
 (defn page-name
   [id]
   (:title (get-page id)))
+
+(defn find-pages
+  [substring]
+  (->> (bd/with-aliases @last-bm)
+       keys
+       (filter #(str/includes? % substring))))
 
 (defn page-refs
   [name]

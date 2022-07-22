@@ -111,7 +111,10 @@
   [block-map block]
   (let [block (coerce-block block block-map)]
     (if-let [parent (block-parent block-map block)]
-      (block-page block-map parent)
+      (do
+        ;; This can happen, solution I think is to rebuild logseq db
+        (assert (not (= parent (:id block))) (str "Block is its own parent: " parent))
+        (block-page block-map parent))
       block)))
 
 (defn backward-page-refs
@@ -155,18 +158,18 @@
   [block-map]
   (remove :special? (displayed-pages block-map)))
 
-(declare alias-map)
+(declare with-aliases)
 
 (defn tagged?
   [block-map block tag]
-  (let [tag-id (get (alias-map block-map) tag)]
-  (or (contains? (:refs block) tag-id)
-      ;; This implements the somewhat weird convention that tags are done in contained elts, eg
-      ;; - Some private stuff
-      ;;   - #Private
-      ;; partly for historical reasons and partly so pages can be tagged
-      (some #(contains? (:refs %) tag-id)
-            (block-children block-map block)))))
+  (let [tag-id (:id (get (with-aliases block-map) tag))]
+    (or (contains? (:refs block) tag-id)
+        ;; This implements the somewhat weird convention that tags are done in contained elts, eg
+        ;; - Some private stuff
+        ;;   - #Private
+        ;; partly for historical reasons and partly so pages can be tagged
+        (some #(contains? (:refs %) tag-id)
+              (block-children block-map block)))))
 
 ;;; True if block or any of its containers have tag. Including parent pasges in page hierarchy
 (defn tagged-or-contained?
@@ -319,21 +322,27 @@
     (:alias block)))
 
 (u/defn-memoized alias-map
-  "Return map of aliases to real page ids"
+  "Return map of aliases to page blocks"
   [bm]
   (u/collecting-merge
    (fn [collect]
      (doseq [block (vals bm)]
-         (doseq [alias (block-names block)]
-           (collect {alias (:id (block-page bm block))})
-           )))))
+       (doseq [alias (block-names block)]
+         (collect {alias (block-page bm block)})
+         )))))
+
+
+(u/defn-memoized with-aliases
+  [bm]
+  (merge bm (alias-map bm)))
+
+(defn resolve-alias
+  [bm alias]
+  (:id (get (with-aliases bm) alias)))
 
 (defn get-with-aliases
-  ([bm page-name]
-   (get-with-aliases bm  (alias-map bm) page-name))
-  ([bm aliases page-name]
-   (or (get bm page-name)
-       (get bm (get aliases page-name)))))
+  [bm page-name]
+  (get (with-aliases bm) page-name))
 
 ;;; → Multitool? 
 (defn vec->maps

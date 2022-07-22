@@ -6,4 +6,4 @@
 (deftest content-refs-test
   (is (= #{"wizards" "light"}
          ;; This is trick for referring to non-public fn, good to know...
-         (#'block-refs {:parsed (parser/parse-to-ast "Do not meddle in the affairs of #wizards, because they become soggy and hard to #light.")} {}  ))))
+         (set (#'block-refs {:parsed (parser/parse-to-ast "Do not meddle in the affairs of #wizards, because they become soggy and hard to #light.")}  )))))
