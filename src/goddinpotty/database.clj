@@ -5,6 +5,7 @@
             [goddinpotty.config :as config]
             [org.parkerici.multitool.core :as u]
             [org.parkerici.multitool.cljcore :as ju]
+            [clojure.set :as set]
             [clojure.walk :as walk]
             [taoensso.truss :as truss :refer (have have! have?)]
             ))
@@ -97,10 +98,11 @@
   (let [exit-point? (u/memoize-named :exit-point #(bd/exit-point? block-map (get block-map %)))]
     (loop [block-map (reduce (fn [bm entry-point]
                                (assoc-in bm [(:id entry-point) :depth] 0))
-                             block-map (bd/entry-points block-map))
+                             block-map
+                             (bd/entry-points block-map))
            depth 0]
       (let [current (filter #(= (:depth %) depth) (vals block-map))
-            refs (apply clojure.set/union (map bd/all-refs current))
+            refs (apply set/union (map bd/all-refs current))
             nbm (reduce (fn [bm ref]
                           (if (or (get-in bm [ref :depth])
                                   (exit-point? ref))
@@ -157,12 +159,11 @@
 ;;; Now does nothing with aliases, which are resolved
 (defn generate-refs
   [db]
-  (let [aliases (bd/with-aliases db)]
-    (ju/pmap-values (fn [block]
-                      (assoc block :refs (set
-                                          (map (partial bd/resolve-alias aliases)
-                                               (block-refs block)))))
-                    db)))
+  (ju/pmap-values (fn [block]
+                    (assoc block :refs (set
+                                        (u/mapf (partial bd/resolve-page-name db)
+                                                (block-refs block)))))
+                  db))
 
 (defn generate-inverse-refs
   [db]

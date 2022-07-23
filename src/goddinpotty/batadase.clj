@@ -163,13 +163,14 @@
 (defn tagged?
   [block-map block tag]
   (let [tag-id (:id (get (with-aliases block-map) tag))]
-    (or (contains? (:refs block) tag-id)
-        ;; This implements the somewhat weird convention that tags are done in contained elts, eg
-        ;; - Some private stuff
-        ;;   - #Private
-        ;; partly for historical reasons and partly so pages can be tagged
-        (some #(contains? (:refs %) tag-id)
-              (block-children block-map block)))))
+    (when tag-id
+      (or (contains? (:refs block) tag-id)
+          ;; This implements the somewhat weird convention that tags are done in contained elts, eg
+          ;; - Some private stuff
+          ;;   - #Private
+          ;; partly for historical reasons and partly so pages can be tagged
+          (some #(contains? (:refs %) tag-id)
+                (block-children block-map block))))))
 
 ;;; True if block or any of its containers have tag. Including parent pasges in page hierarchy
 (defn tagged-or-contained?
@@ -336,9 +337,11 @@
   [bm]
   (merge bm (alias-map bm)))
 
-(defn resolve-alias
-  [bm alias]
-  (:id (get (with-aliases bm) alias)))
+(defn resolve-page-name
+  [bm page-name]
+  (let [block (get (with-aliases bm) page-name)]
+    (when-not (:id block) (prn (str "page not found: " page-name)))
+    (:id block)))
 
 (defn get-with-aliases
   [bm page-name]
