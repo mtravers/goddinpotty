@@ -59,10 +59,20 @@
     (subs source 3)
     source))
 
+(defn parse-image-string
+  [s]
+  (let [alt-text (second (re-find #"\[(.*?)\]" s))
+        image-source (second (re-find #"\((.*?)\)" s))]
+    [image-source alt-text]
+    ))
+
+(defn parse-image-block
+  [b]
+  (parse-image-string (second (second (:parsed b)))))
+
 (defn- format-image
   [image-ref-content]
-  (let [alt-text (utils/remove-n-surrounding-delimiters 1 (re-find #"\[.*?\]" image-ref-content))
-        image-source (utils/remove-n-surrounding-delimiters 1 (re-find #"\(.*?\)" image-ref-content))
+  (let [[image-source alt-text] (parse-image-string image-ref-content)
         image-published (maybe-relocate-local-image image-source)
         ]
     (maybe-publish-image image-source)

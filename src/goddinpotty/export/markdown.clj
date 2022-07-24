@@ -1,4 +1,4 @@
-(ns goddinpotty.markdown
+(ns goddinpotty.export.markdown
   "Rendering to Markdown"
   (:require [goddinpotty.config :as config]
             [goddinpotty.batadase :as bd]
@@ -76,42 +76,22 @@
   (when (or +for-export+
             (bd/displayed? block))
     (cons (str (if +for-export+
-                 (n-chars depth \tab)
-                 (n-chars (* depth 4) \space))
+                 (u/n-chars depth \tab)
+                 (u/n-chars (* depth 4) \space))
                "- "
                ;; Might not want to do this in +for-export+ mode, but doesn't matter
                (when (and (:heading block) (> (:heading block) 0))
-                 (str (n-chars (:heading block) \#) " "))
+                 (str (u/n-chars (:heading block) \#) " "))
                (if +for-export+
                  (:content block)
                  (markdown-content block)))
           (filter identity (mapcat (partial block->md (+ 1 depth)) (:dchildren block))))))
 
-(defn render-date-range
-  [[from to]]
-  (when (and from to)
-    (str (utils/render-time from) " - " (utils/render-time to))))
-
-(defn real-url
-  [page]
-  (str (config/config :real-base-url) (html-file-name (:content page))))
-
-(defn real-page-pointer
-  [page]
-  (format "> This is a markdown backup. The [real page is part of %s](%s).\n\n"
-          (config/config :main-page)
-          (real-url page)))
-
 (defn page->md
   [block]
   (let [title (or (:title block) (:content block))
-        footer-lines []                 ;TODO colophon is in hiccup 
-        header-lines
-        (list (real-page-pointer block)
-              title
-              (n-chars (count title) \=)
-              (render-date-range (bd/date-range block))
-              )]
+        footer-lines []                 ;
+        header-lines []]                ;TODO add title
     (concat header-lines
             (mapcat (partial block->md 0) (:dchildren block))
             footer-lines)))
@@ -123,4 +103,9 @@
 (defn write-displayed-pages
   [bm directory]
   (doseq [page (bd/displayed-pages bm)]
+    (write-page page (str directory (md-file-name (:content page))))))
+
+(defn write-pages
+  [bm directory]
+  (doseq [page (bd/pages bm)]
     (write-page page (str directory (md-file-name (:content page))))))

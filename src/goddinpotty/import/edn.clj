@@ -1,9 +1,11 @@
 (ns goddinpotty.import.edn
   (:require [goddinpotty.utils :as utils]
             [goddinpotty.batadase :as bd]
+            [goddinpotty.database :as db]
+            [me.raynes.fs :as fs]
             [org.parkerici.multitool.core :as u]))
 
-;;; Currently unused I believe
+;;; TODO retitle roam_ednat
 
 ;;; Experiments in reading Roam EDN dump
 ;;; Why? The JSON format is lossy, it turns out. It is missing the UIDs for pages;
@@ -11,7 +13,7 @@
 
 (defn read-roam-edn-raw
   [f]
-  (with-open [infile (java.io.PushbackReader. (clojure.java.io/reader f))]
+  (with-open [infile (java.io.PushbackReader. (clojure.java.io/reader (fs/expand-home f)))]
     (binding [*in* infile
               *data-readers* (assoc *data-readers* 'datascript/DB identity)]
       (read))))
@@ -87,7 +89,7 @@
   [edn]
   (let [eblocks (remove #(and (nil? (:block/string %)) (nil? (:node/title %)))
                         (vals edn))]
-    (utils/add-parent
+    (u/add-inverse
      (u/index-by :id
                  (map (fn [eblock]
 
@@ -254,7 +256,7 @@
       read-roam-edn-raw
       process-roam-edn
       edn->block-map
-      roam-db-1
+      db/roam-db-1
       ))
 
 ;;; Dev only, generate a reasonable representation of the raw edn

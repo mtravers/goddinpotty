@@ -115,22 +115,9 @@
           (ju/local-file image-source local-file))))))
 
 
-(defn page-images
-  [bm]
-  (u/collecting
-   (fn [collect]
-     (u/map-values
-      (fn [block]
-        (when-let [match (and (string? (:content block))
-                              (re-matches #"^!\[\]\((.*)\)" (:content block)))]
-          (collect [(:id block) (:id (bd/block-page bm block)) (second match)])))
-      bm))))
 
-(defn image-copy-script
-  [bm dir]
-  (doseq [[id page url] (page-images bm)]
-    (let [file (format "%s/%s-%s.png" dir page id)]
-      (println (format "curl \"%s\" > \"%s\"" url file)))))
+
+
 
 ;;; TODO Pici images
 

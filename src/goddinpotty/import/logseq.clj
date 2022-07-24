@@ -2,7 +2,6 @@
   (:require [goddinpotty.utils :as utils]
             [goddinpotty.database :as db]
             [goddinpotty.rendering :as rendering]
-            [goddinpotty.batadase :as bd]
             [goddinpotty.config :as config]
             [me.raynes.fs :as fs]
             [org.parkerici.multitool.core :as u]
