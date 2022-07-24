@@ -66,30 +66,6 @@
 ;;; - Exit points
 ;;; - the graph defined by bd
 
-;;; TODO use transient datastructures, this is kind of slow
-;;; This was the old depth-first technique...had issues
-#_
-(defn compute-depths
-  "Computes depths from entry points"
-  [block-map]
-  (let [exit-point? (u/memoize-named :exit-point #(bd/exit-point? block-map %))]
-    (letfn [(propagate [depth block-map from]
-              (let [from-block (bd/get-with-aliases block-map from)
-                    from-depth (get from-block :depth 1000)]
-                (if (and from-block
-                         (< depth from-depth)
-                         (not (exit-point? from-block)))
-                  ;; recurse over all references
-                  (reduce (fn [bm r]
-                            (propagate (+ depth 1) bm r))
-                          (assoc-in block-map [(:id from-block) :depth] depth)
-                          (bd/all-refs from-block))
-                  block-map)))]
-      ;; Process all entry points (note: ammdi only has one currently)
-      (reduce (partial propagate 0)
-              block-map
-              (map :id (bd/entry-points block-map))))))
-
 ;;; Reimplement to use breadth-first
 (defn compute-depths
   "Computes depths from entry points"
@@ -110,12 +86,10 @@
                             (assoc-in bm [ref :depth] (+ depth 1))))
                         block-map
                         refs)]
-        (prn :x depth (count current) (count refs))
         (if (= block-map nbm)
           block-map
           (recur nbm
                  (+ depth 1)))))))
-
 
 ;;; Computes :include? from :depth. TODO Seems dumb and redundant. 
 (defn compute-includes

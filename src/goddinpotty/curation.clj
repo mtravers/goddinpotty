@@ -13,52 +13,12 @@
               ))
 
 ;;; Curation functions. For use via REPL; not wired into main program.
+;;; A lot of code here is for one-off operations and is not particularly high-quality.
 
+;;; Convenience
 (defn bm
   []
   @core/last-bm)
-
-;;; Finds where the same ref appears >1 time in a block, usually the result
-;;; of overagressive Roam auto-linking.
-#_
-(def weirdos
-  (filter #(and (:content %)
-                (not (= (count (database/content-refs (:content %)))
-                        (count (database/content-refs-0 (:content %))))))
-          (vals (bm))))
-
-;;; Trying to find substitutions within urls; happens quite frequently
-(def bunkos
-  (filter #(and (:content %)
-                (re-find #"[\.]\[\[" (:content %)))
-          (vals (bm))))
-
-
-;;; This Roam syntax (block embeds?) not supported, and I think it's functionallyt the same as the plain block include?
-
-;;; {{[[embed]]: ((rRHEjBfYg))}}
-
-;;; Unmatched refs, should be empty except for certain parse issues
-(defn wankos
-  []
-  (set/difference
-   (reduce clojure.set/union (map :refs (vals (bm))))
-   (set (keys (bm)))))
-
-(defn wankos2
-  []
-  (let [included (u/clean-map (comp not :include?) (bm))]
-    (clojure.set/difference
-     (reduce clojure.set/union (map :refs (vals included)))
-     (set (keys included)))))
-
-; Ah that's actually useful, shows dead links in output, due to #Private pages I assume.
-
-#{"meditation" "Stances, a Catalog" "Buddhism" "William Blake" "Infinite Jest" "YMCYL Kindle Notes"
-  "Free Play"}
-
-
-;;; Find bad links
 
 (defn block-links
   [block]
@@ -67,10 +27,6 @@
                         %)
                   (:parsed block)))
 
-(defn all-links
-  [block-map]
-  (distinct (mapcat block-links (bd/displayed-blocks block-map))))
-
 (defn check-link
   [url]
   (client/head url
@@ -78,24 +34,31 @@
                 :trace-redirects true
                 :redirect-strategy :graceful}))
 
-(defn check-links
+(defn check-external-links
+  "Find bad external links in the background."
   [bm]
-  (let [bads (atom nil)]
-    (doseq [l (all-links bm)]
+  (let [bads (atom [])
+        goods (atom [])]
+    (doseq [block (vals bm)
+            link (block-links block)]
       (future-call
        #(try
-          (check-link l)
-          (catch Throwable e (swap! bads conj [l e])))))
-    bads))
+          (prn :check-link link)
+          (swap! goods conj [link (check-link link)])
+          (catch Throwable e (swap! bads conj [link block (:title (bd/block-page block)) e])))))
+    [bads goods]))
 
-;;; OK...next step is to generate archive.org links where possible, andd substitute them...how to do that? Write json for import? Can that do modifications? Need the Roam API...
 
 
-(defn prettify
-  [bads]
-  (for [b bads]
-    [(first b) (:status (ex-data (second b))) (:reason-phrase (ex-data (second b)))]))
+;;; OK...next step is to generate archive.org links where possible, andd substitute them..
 
+;;; –
+(defn list-dir-recursive
+  [dir]
+  (mapcat (fn [f] (if (fs/directory? f)
+                     (list-dir-recursive f)
+                     (list f)))
+           (fs/list-dir dir)))
 
 ;;; Check output and ensure all local html links are valid.
 ;;; This finds a lot of missing things due to Zoetero import, plus
@@ -104,7 +67,7 @@
 ; :missing "Mastery-of-Non-Mastery.html" :in "mimesis.html"
 (defn check-output-links
   []
-  (doseq [f (fs/list-dir "output")]
+  (doseq [f (list-dir-recursive (:output-dir (config/config)))]
     (doseq [link (map second (re-seq #"href=\"(.*?)\"" (slurp f)))]
       (if (str/starts-with? link "http")
         nil                             ;ignore external links
@@ -217,12 +180,13 @@
   (file-subst f substs "../assets/"))
 
 
-;;; Some general tooling for doing transforms. Note this might want to get packaged up into an import utility if I ever finish that.
-
+;;; Some general tooling for doing transforms. Note this might want to get packaged up into an
+;;; import utility if I ever finish that.
+;;; Note: doesn't find files in nested directories. 
 (defn all-content-pages
   []
-   (concat (fs/list-dir "/opt/mt/repos/ammdi/journals/")
-                      (fs/list-dir "/opt/mt/repos/ammdi/pages")))
+  (concat (fs/list-dir "/opt/mt/repos/ammdi/journals/")
+          (fs/list-dir "/opt/mt/repos/ammdi/pages")))
 
 
 (defn convert-twitter-links
@@ -236,7 +200,7 @@
 (defn process-files
   [line-function]
   (doseq [f (all-content-pages)]
-    (ju/process-file f line-function)))
+    (ju/process-file-lines f line-function)))
 
 ;;; Run once.
 #_
@@ -258,6 +222,8 @@
 ;;; Have only a few, do doing by hand, but here for the record
 
 
+;;; This is to deal with a Logseq bug in which almost all of a pages content vanishes.
+;;; This finds tiny files in the output
 ;;; Note to me: M-x magit-log-buffer-file to see git history for a file
 (defn find-disappeared-pages
   []
@@ -273,44 +239,28 @@
                (not (re-find #"\{\{tweet" l)))
       (str/replace l  #"http.*twitter.com/\S*" (format "{{tweet %s}}" link)))))
 
+;;; Note: this does NOT detect collisions between aliases and real file names, that will have to be done elsewhere, like during import.
 (defn detect-case-fucks
+  "Detects when there are distinct pages whose names are identical under case-folding"
   [bm]
-  (filter #(> (count %) 1) (vals (group-by str/lower-case (keys bm)))))
+  (let [bm (bd/with-aliases bm)]
+    (filter #(> (count (last %)) 1)
+            (map
+             (fn [group]
+               (conj group (distinct (map (fn [alias] (get-in bm [alias :id])) group))))
+             (filter #(> (count %) 1)
+                     (vals (group-by str/lower-case (keys bm))))))))
 
-;;; Damn, quite a few!
-
-(["play" "Play"]
- ["vitalism" "Vitalism"]
- ["clojure" "Clojure"]
- ["rationalism" "Rationalism"]
- ["logseq" "Logseq"]
- ["rawsugar" "RawSugar"]
- ["author" "Author"]
- ["Private" "private"]
- ["morose delectation" "Morose delectation"]
- ["This is your mind on plants, Pollan" "This is Your Mind on Plants, Pollan"]
- ["Music" "music"]
- ["Status" "status"]
- ["Doctor" "doctor"]
- ["emacs" "Emacs"]
- ["roam" "Roam"]
- ["Magick" "magick"]
- ["Dream" "dream"]
- ["Meta" "meta"]
- ["Stoicism" "stoicism"]
- ["Lisp" "lisp"]
- ["notes" "Notes"]
- ["Meaningness" "meaningness"]
- ["Tarot" "tarot"])
-
-;;; Wonder how many are from bad links and how many are in the thing...
+;;; As of 23 July 2022
+#_
+(["gnostics" "Gnostics" (21537 23988)]
+ ["Boyz" "boyz" (4596 6441)]
+ ["SuperEgo" "Superego" (27470 8555)]
+ ["Nuna" "nuna" (164 12085)]
+ [16 "16" (16 37441)]
+ ["BwO" "bwo" (34338 6779)]
+ ["Gnostic" "gnostic" (23382 21537)])
 
 
-(defn detect-case-fucks-2
-  []
-  (filter #(> (count %) 1) (vals (group-by str/lower-case (map str (fs/list-dir "/opt/mt/repos/ammdi/pages"))))))
 
-;;; None, because mac fs won't allow it, duh.
-
-;;; Meaning, link resolution should be smarter.
    
