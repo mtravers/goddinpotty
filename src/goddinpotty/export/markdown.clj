@@ -16,9 +16,16 @@
 
 (def +for-export+ true)                ;TODO stopgap
 
+(defn clean-file-name
+  [f]
+  (-> f
+      (str/replace #"\/" "\\∕")))
+
+
 (defn md-file-name
   [page-name]
-  (str (utils/clean-page-title page-name) ".md"))
+  ;; TODO probably some cleaning needed here, and should insert title block
+  (str (clean-file-name page-name) ".md"))
 
 (defn html-file-name
   [page-name]
@@ -72,7 +79,8 @@
 
 ;;; Returns list of lines
 (defn block->md
-  [depth block]
+  [bm depth block]
+  (let [block (bd/coerce-block block bm)]
   (when (or +for-export+
             (bd/displayed? block))
     (cons (str (if +for-export+
@@ -85,27 +93,21 @@
                (if +for-export+
                  (:content block)
                  (markdown-content block)))
-          (filter identity (mapcat (partial block->md (+ 1 depth)) (:dchildren block))))))
+          (u/mapcatf (partial block->md bm (+ 1 depth)) (:children block))))))
 
 (defn page->md
-  [block]
+  [bm block]
   (let [title (or (:title block) (:content block))
         footer-lines []                 ;
         header-lines []]                ;TODO add title
     (concat header-lines
-            (mapcat (partial block->md 0) (:dchildren block))
+            (mapcat (partial block->md bm 0) (:children block))
             footer-lines)))
 
 (defn write-page
-  [block file]
-  (ju/file-lines-out file (page->md block)))
+  [bm block file]
+  (ju/file-lines-out file (page->md bm block)))
 
-(defn write-displayed-pages
-  [bm directory]
-  (doseq [page (bd/displayed-pages bm)]
-    (write-page page (str directory (md-file-name (:content page))))))
 
-(defn write-pages
-  [bm directory]
-  (doseq [page (bd/pages bm)]
-    (write-page page (str directory (md-file-name (:content page))))))
+
+

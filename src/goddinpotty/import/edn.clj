@@ -3,7 +3,8 @@
             [goddinpotty.batadase :as bd]
             [goddinpotty.database :as db]
             [me.raynes.fs :as fs]
-            [org.parkerici.multitool.core :as u]))
+            [org.parkerici.multitool.core :as u]
+            [org.parkerici.multitool.cljcore :as ju]))
 
 ;;; TODO retitle roam_ednat
 
@@ -65,6 +66,11 @@
    :db/id
    (ffirst datoms)))
 
+(defn capture-to-file
+  [f struct]
+  (ju/schppit f struct)
+  struct)
+
 ;;; TODO do the unzip if we really use this
 (defn process-roam-edn
   "Read a Roam EDN export. Produces an indexed map of block entities"
@@ -75,6 +81,8 @@
        (group-by first)
        (map (comp entify second))
        (u/index-by :db/id)
+       ;; Debugging
+       #_ (capture-to-file "stewart.pp.edn")
        ))
 
 ;;; Tentative idea, match output of database/create-block-map-no-links

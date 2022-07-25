@@ -203,6 +203,10 @@
 
 (def daily-notes-regex #"(?:January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d+.., \d+")
 
+(defn daily-notes-page?
+  [page]
+  (re-matches daily-notes-regex (:id page) ))
+
 (defn daily-notes?
   [block-map block]
   (let [page (block-page block-map block)

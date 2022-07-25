@@ -1,6 +1,10 @@
 (ns goddinpotty.export.roam-logseq
   (:require [goddinpotty.export.markdown :as md]
             [goddinpotty.import.edn :as roam]
+            [goddinpotty.import.roam-images :as roam-images]
+            [goddinpotty.batadase :as bd]
+            [me.raynes.fs :as fs]
+            [org.parkerici.multitool.cljcore :as ju]
             ))
 
 #_
@@ -12,15 +16,32 @@
 
 (def last-bm (atom {}))
 
+;;; TODO Warning does a very hard reset, probably a better idea to just clear out the three subdirs, creating if necessary
+(defn- reset-directory
+  [dir]
+  (fs/delete-dir dir)
+  (fs/mkdir dir)
+  (doseq [d ["assets" "pages" "journals"]]
+    (fs/mkdir (str dir "/" d))))
+
+(defn write-pages
+  [bm directory]
+  (doseq [page (bd/pages bm)]
+    (let [place (if (bd/daily-notes-page? page) "journals" "pages")]
+      (md/write-page bm page (str directory place "/" (md/md-file-name (:content page)))))))
+
 (defn -main
   [edn-file output-dir & args]
-  (let [bm (roam/roam-db-edn edn-file)]
-    (reset! last-bm bm)
-    (md/write-pages bm output-dir)))
+  (reset-directory output-dir)
+  (let [bm (roam/roam-db-edn edn-file)
+        images (roam-images/download-images bm output-dir)
+        xbm (roam-images/subst-images bm images)
+        ]
+    (reset! last-bm xbm)
+    (write-pages xbm output-dir)))
 
 #_
-(-main "~/Downloads/Sean_Stewart.edn" "/tmp/stewart/")
-
+(-main "~/Downloads/Sean_Stewart.edn" "/opt/mt/working/stewart/")
 
 ;;; TODO link in
 #_

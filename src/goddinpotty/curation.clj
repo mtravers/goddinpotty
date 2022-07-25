@@ -138,17 +138,7 @@
 
 ;;Maybe too fancy, how about just separate out daily notes and everything else?
 
-(defn subst-images
-  [substs prefix s]
-  (let [[m u] (re-find #"\((https://firebasestorage.*)\)" s)]
-    (if m
-      (if (contains? substs u)
-        (str/replace s u (str prefix (get substs u)))
-        (do
-          ;; TODO this is bad, it ends up in output file because Clojure can be dumb
-          (prn :not-found u s)          ;shouldn't happen
-          s))
-      s)))
+
 
 (defn file-subst
   [f substs prefix]
