@@ -4,20 +4,18 @@
             [goddinpotty.database :as db]
             [me.raynes.fs :as fs]
             [org.parkerici.multitool.core :as u]
-            [org.parkerici.multitool.cljcore :as ju]))
+            [org.parkerici.multitool.cljcore :as ju]
+            [clojure.edn :as edn]
+            [clojure.java.io :as io]
+            ))
 
-;;; TODO retitle roam_ednat
+;;; TODO retitle file roam_edn
 
-;;; Experiments in reading Roam EDN dump
-;;; Why? The JSON format is lossy, it turns out. It is missing the UIDs for pages;
-;;; needed to make links back to Roam.
-
-(defn read-roam-edn-raw
+(defn read-roam-edn
   [f]
-  (with-open [infile (java.io.PushbackReader. (clojure.java.io/reader (fs/expand-home f)))]
-    (binding [*in* infile
-              *data-readers* (assoc *data-readers* 'datascript/DB identity)]
-      (read))))
+  (with-open [infile (java.io.PushbackReader. (io/reader (fs/expand-home f)))]
+    (edn/read {:readers (assoc *data-readers* 'datascript/DB identity)}
+              infile)))
 
 (def schema (atom nil))
 
@@ -167,7 +165,7 @@
   []
   (->> (utils/latest-export)
        utils/unzip-roam
-       read-roam-edn-raw
+       read-roam-edn
        process-roam-edn
        vals
        (u/index-by #(or (:node/title %)
@@ -258,10 +256,11 @@
     (when title
       (re-matches bd/daily-notes-regex title))))
 
+;;; Mistitled, its roam-edn->bm
 (defn roam-db-edn
   [roam-edn-file]
   (-> roam-edn-file
-      read-roam-edn-raw
+      read-roam-edn
       process-roam-edn
       edn->block-map
       db/roam-db-1
@@ -271,6 +270,6 @@
 (defn roam-db-edn-lightly-processed
   [roam-edn-file]
   (-> roam-edn-file
-      read-roam-edn-raw
+      read-roam-edn
       process-roam-edn
       ))

@@ -1,18 +1,19 @@
-(ns goddinpotty.export.roam-logseq
+(ns goddinpotty.convert.roam-logseq
   (:require [goddinpotty.export.markdown :as md]
             [goddinpotty.import.edn :as roam]
             [goddinpotty.import.roam-images :as roam-images]
             [goddinpotty.batadase :as bd]
             [me.raynes.fs :as fs]
+            [org.parkerici.multitool.core :as u]
             [org.parkerici.multitool.cljcore :as ju]
             ))
+
+;;; Toplevel for Roam → Logseq converter
 
 #_
 (utils/unzip-roam "/opt/mt/working/roam-takeout/mt-pici/Roam-Export-1636387068791.zip")
 
 ;;; TODO painfully slow for some reason, try to speedup if releasing as a standalone tool
-;;; TODO generating a shit-ton of zero-length files, should omit 
-;;; TODO image asseets, that was the whole freaking point.
 
 (def last-bm (atom {}))
 
@@ -24,24 +25,40 @@
   (doseq [d ["assets" "pages" "journals"]]
     (fs/mkdir (str dir "/" d))))
 
+(defn write-page
+  [bm page directory & [name]]
+  (let [name (or name (:content page))
+        file-name (md/md-file-name name)
+        place (if (bd/daily-notes-page? page) "journals" "pages")
+        path (str place "/" file-name)
+        full-path (str directory "/" path)]
+    (if (fs/exists? full-path)
+      (do
+        (prn :case-folding-collision full-path)
+        (write-page bm page directory (str name "+")))
+      (do
+        (prn :writing path)
+        (md/write-page bm page full-path)))))
+
 (defn write-pages
   [bm directory]
   (doseq [page (bd/pages bm)]
-    (let [place (if (bd/daily-notes-page? page) "journals" "pages")]
-      (md/write-page bm page (str directory place "/" (md/md-file-name (:content page)))))))
+    (write-page bm page directory)))
 
+;;; TODO should probably accept zips, that what you get from Roam
+;;; TODO option to skip images or reuse them, no need to redo it each time.
 (defn -main
-  [edn-file output-dir & args]
+  [edn-file output-dir]
   (reset-directory output-dir)
-  (let [bm (roam/roam-db-edn edn-file)
-        images (roam-images/download-images bm output-dir)
+  (let [bm (-> edn-file
+               roam/roam-db-edn)
+        images (roam-images/download-images bm output-dir) ; []
         xbm (roam-images/subst-images bm images)
         ]
+    (prn (assoc (bd/stats xbm) :downloaded-images (count images)))
     (reset! last-bm xbm)
-    (write-pages xbm output-dir)))
-
-#_
-(-main "~/Downloads/Sean_Stewart.edn" "/opt/mt/working/stewart/")
+    (write-pages xbm output-dir)
+    (System/exit 0)))                   ;TODO this will break tests
 
 ;;; TODO link in
 #_

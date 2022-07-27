@@ -43,7 +43,7 @@
 (defn generate-content-page
   [block-map output-dir block]
   (prn :generate-page (:title block))
-  (let [fname (str "/" (utils/html-file-title (:title block)))]
+  (let [fname (str "/" (utils/clean-page-title (:title block)))]
     (export-page (if (:special? block)
                    ((:generator block) block-map)
                    (page-hiccup block-map output-dir block))
@@ -54,7 +54,7 @@
   [output-dir]
   (export-page
    [:meta {:http-equiv "refresh"
-           :content (format "0; url=%s" (str (utils/html-file-title (config/config :main-page))))}]
+           :content (format "0; url=%s" (str (utils/clean-page-title (config/config :main-page))))}]
    "/index.html"
    output-dir))
 

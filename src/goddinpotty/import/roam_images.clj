@@ -4,10 +4,11 @@
             [me.raynes.fs :as fs]
             [goddinpotty.batadase :as bd]
             [goddinpotty.rendering :as render]
+            [goddinpotty.utils :as utils]
             [clojure.string :as s]
             ))
 
-(defn- roam-image?
+(defn- roam-image-url?
   "Returns the extension if this is in fact a roam image, nil otherwise"
   [url]
   (second (re-matches #"https\:\/\/firebasestorage\.googleapis\.com/.*\.(\w+)\?.*" url)))
@@ -15,6 +16,12 @@
 (defn- image-block?
   [b]
   (= :image (first (second (:parsed b)))))
+
+(defn- roam-image-block?
+  [b]
+  (and (image-block? b)
+       (let [[image-source alt-text] (render/parse-image-block b)]
+         (roam-image-url? image-source))))
 
 ;;; TODO → utils
 (defn local-file
@@ -38,11 +45,10 @@
        (identity #_ u/ignore-report
         (let [[image-source alt-text] (render/parse-image-block image-block)]
           ;; See rendering/format-image
-          (when-let [ext (roam-image? image-source)]
-            ;; TODO has failure modes if page name contains / ! and maybe other chars. 
-            (let [base-filename (str (:content (bd/block-page bm image-block)) "-" (:id image-block) "." ext)
+          (when-let [ext (roam-image-url? image-source)]
+            (let [base-filename (str (utils/clean-page-title (:content (bd/block-page bm image-block))) "-" (:id image-block) "." ext)
                   local-relative (str "assets/" base-filename )
-                  local-full (str directory local-relative)
+                  local-full (str directory "/" local-relative)
                   url (str "../assets/" base-filename)
                   ]
               (prn :download base-filename image-source)
@@ -67,7 +73,7 @@
   (reset! c [bm substs])
   (u/map-values
    (fn [b]
-     (if (image-block? b)
+     (if (roam-image-block? b)
        ;; Note: there are two representations in a block :content and :parsed, but for now tweaking :content will suffice
        (assoc b
               :content

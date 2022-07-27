@@ -33,7 +33,7 @@
   (let [[_ alias-text alias-dest] (parse-alias alias-content)
         internal? (or (= \( (first alias-dest)) (= \[ (first alias-dest)))
         alias-link (if internal?
-                     (utils/html-file-title alias-dest)
+                     (utils/clean-page-title alias-dest)
                      alias-dest)
         content (block-content->hiccup alias-text)]
     (if internal?
@@ -151,7 +151,7 @@
         page-title (:title page)]
     (if (and page (bd/displayed? page) page-title)
       [:a (u/clean-map
-           {:href (str (utils/html-file-title page-title))
+           {:href (str (utils/clean-page-title page-title))
             ;; TODO behavior with empties should be configurable, I keep
             ;; changing my own mind about it.
             :class (str/join " "
@@ -250,7 +250,7 @@
             nil nil
 
             ;; Might want this old behavior under a flag, but definitely not wanted in Logseq context.
-;;            :metadata-tag [:b [:a {:href (utils/html-file-title ele-content)}
+;;            :metadata-tag [:b [:a {:href (utils/clean-page-title ele-content)}
 ;;                               (subs ele-content 0 (dec (count ele-content)))]]
             :block-property nil         ;These aren't included in output
             :prop-block nil

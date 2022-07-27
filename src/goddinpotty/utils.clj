@@ -24,11 +24,6 @@
        (reset! last-import)
        str))
 
-#_
-(defn latest-export
-  []
-  (latest #"Roam-Export"))
-
 ;;; TODO timezone correction
 ;;; Previously got from filename, but this is more general
 (defn latest-export-time
@@ -52,9 +47,9 @@
                           (io/copy (.getInputStream zip entry) f))
                         database-file-name)))))
 
-(defn read-edn
-  [f]
-  (edn/read-string (slurp f)))
+
+;;; read-edn see goddinpotty.import.edn
+
 
 (defn read-json
   [path]
@@ -80,11 +75,6 @@
   [string]
   (remove-n-surrounding-delimiters 2 string))
 
-(defn remove-triple-delimiters
-  "Removes 3 surrounding characters from both the beginning and end of a string"
-  [string]
-  (remove-n-surrounding-delimiters 3 string))
-
 ;;; Note: multitool has diff arg order for some reason
 (defn strip-chars
   "Removes every character of a given set from a string"
@@ -104,13 +94,6 @@
       (s/replace #"\s" "-")
       (s/replace #"\/" "∕")             ;that's "replace real slash with fake slash that won't make a subir"
       ))
-
-;;; TODO handle slashes more intelligently
-(defn html-file-title
-  "Formats a page title as a name for its corresponding HTML page"
-  [string]
-  {:pre [(have? string? string)]}
-  (str (clean-page-title string)))
 
 (def date-formatter
   (java.text.SimpleDateFormat. "dd MMM yyyy hh:mm"))

@@ -23,4 +23,6 @@
                  [mock-clj "0.2.1"]     ;TODO should be under :test profile
                  ]
   :resource-paths ["resources"]
-  :main goddinpotty.core)
+  :main goddinpotty.core
+  :aliases {"roamaway" ["run" "-m" "goddinpotty.convert.roam-logseq"]}
+  )
