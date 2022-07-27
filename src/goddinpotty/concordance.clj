@@ -2,8 +2,10 @@
   (:require [clojure.string :as s]
             [clojure.java.io :as io]
             [clojure.set :as set]
-            [goddinpotty.database :as db]
+            [goddinpotty.batadase :as bd]
+            [goddinpotty.rendering :as render]
             [org.parkerici.multitool.nlp :as nlp]
+            [org.parkerici.multitool.norvig :as norvig]
             [org.parkerici.multitool.core :as u])
   )
 
@@ -25,7 +27,7 @@
 (defn all-tokens
   [bm]
   (->> bm
-       (db/displayed-pages)
+       (bd/displayed-pages)
        (map (partial render/block-full-text bm))
        (mapcat (u/safely tokens))
        nlp/remove-ruthlessly))
@@ -33,10 +35,10 @@
 (defn overexpressed
   [bm]
   (nlp/overexpressed (frequencies (all-tokens bm))
-                     (freq-table  "count_1w.txt")))
+                     (norvig/freq-table  "count_1w.txt")))
   
 
 (defn spell-correct
   [bm]
   (set/difference (set (all-tokens bm))
-                  (set (keys (freq-table  "count_1w.txt")))))
+                  (set (keys (norvig/freq-table  "count_1w.txt")))))

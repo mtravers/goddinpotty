@@ -10,7 +10,8 @@
             [me.raynes.fs :as fs]
             [clojure.string :as str]
             [org.parkerici.multitool.core :as u]
-            [org.parkerici.multitool.cljcore :as ju]))
+            [org.parkerici.multitool.cljcore :as ju])
+  (:gen-class))
 
 ;;; TODO this is a mess and should be cleaned up
 (defn add-generated-pages
@@ -53,6 +54,10 @@
 (defn pages
   []
   (keys (u/dissoc-if (fn [[_ v]] (not (:page? v))) @last-bm)))
+
+(defn dump
+  [bm]
+  (ju/schppit "dump.edn" bm))
 
 ;;; Sloooow. Dumps pages including dchildren
 (defn page-dump
@@ -123,7 +128,7 @@
   (when (config/config :markdown-output-dir)
     (md/write-displayed-pages @last-bm (config/config :markdown-output-dir)))
   (prn (bd/stats @last-bm))
-  #_ (dump))
+  #_ (dump bm))
 
 (defmulti produce-bm (fn [{:keys [source]}] (:type source)) )
   

@@ -6,7 +6,8 @@
             [me.raynes.fs :as fs]
             [org.parkerici.multitool.core :as u]
             [org.parkerici.multitool.cljcore :as ju]
-            ))
+            )
+  (:gen-class))
 
 ;;; Toplevel for Roam → Logseq converter
 

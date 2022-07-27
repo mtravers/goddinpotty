@@ -1,5 +1,6 @@
 (ns goddinpotty.dotty
   (:require [goddinpotty.database :as db]
+            [goddinpotty.batadase :as bd]
             [clojure.string :as s]
             [clojure.java.shell :as shell]
             [clojure.java.io :as io]
@@ -23,7 +24,7 @@
         attributes (fn [m & [sep]]
                      ;; For some reason graph attributes need a different separator
                      (s/join (or sep ",") (map (fn [[k v]] (format "%s=%s" (name k) (pr-str v))) m)))
-        pages (db/included-pages block-map)
+        pages (bd/displayed-pages block-map)
         ]
     (println "Writing " dot-file)
     (with-open [wrtr (io/writer dot-file)]
@@ -43,7 +44,7 @@
                                         ; :fillcolor (if (get-in kinds [kind :reference?]) reference-color nonreference-color)
                                         ; :fontname graph-font
                                         })))
-          (doseq [ref (db/page-refs page)]
+          (doseq [ref (bd/page-refs page)]
             (println (format "%s -> %s [%s];"
                              (clean (:content page))
                              (clean ref)

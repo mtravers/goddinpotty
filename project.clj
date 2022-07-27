@@ -25,4 +25,10 @@
   :resource-paths ["resources"]
   :main goddinpotty.core
   :aliases {"roamaway" ["run" "-m" "goddinpotty.convert.roam-logseq"]}
+  :profiles
+  {:uberjar
+   {:aot :all
+    :omit-source true
+    }
+   }
   )
