@@ -21,6 +21,7 @@
                  [aero "1.1.6"]
                  [metasoarous/oz "1.6.0-alpha34"] 
                  [mock-clj "0.2.1"]     ;TODO should be under :test profile
+                 [seesaw "1.5.0"]
                  ]
   :resource-paths ["resources"]
   :main goddinpotty.core

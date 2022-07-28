@@ -46,9 +46,7 @@
   (doseq [page (bd/pages bm)]
     (write-page bm page directory)))
 
-;;; TODO should probably accept zips, that what you get from Roam
-;;; TODO option to skip images or reuse them, no need to redo it each time.
-(defn -main
+(defn do-it
   [edn-file output-dir]
   (reset-directory output-dir)
   (let [bm (-> edn-file
@@ -59,7 +57,14 @@
     (prn (assoc (bd/stats xbm) :downloaded-images (count images)))
     (reset! last-bm xbm)
     (write-pages xbm output-dir)
-    (System/exit 0)))                   ;TODO this will break tests
+    bm))
+
+;;; TODO should probably accept zips, that what you get from Roam
+;;; TODO option to skip images or reuse them, no need to redo it each time.
+(defn -main
+  [edn-file output-dir]
+  (do-it edn-file output-dir)
+  (System/exit 0))
 
 ;;; TODO link in
 #_
