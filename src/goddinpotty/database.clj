@@ -70,7 +70,6 @@
 (defn compute-depths
   "Computes depths from entry points"
   [block-map]
-  (prn :computing-depths)
   (let [exit-point? (u/memoize-named :exit-point #(bd/exit-point? block-map (get block-map %)))]
     (loop [block-map (reduce (fn [bm entry-point]
                                (assoc-in bm [(:id entry-point) :depth] 0))
@@ -94,7 +93,6 @@
 ;;; Computes :include? from :depth. TODO Seems dumb and redundant. 
 (defn compute-includes
   [block-map]
-  (prn :computing-includes)
   (u/map-values #(assoc % :include? (and (not (nil? (:depth %)))
                                          (not (empty? %))))
                 block-map))
@@ -151,7 +149,6 @@
 
 (defn add-direct-children
   [block-map]
-  (prn :add-direct-children)
   (let [direct-children
         (fn [direct-children block]
           (assoc block :dchildren 
