@@ -7,14 +7,27 @@
 
 ;;; Top-level for package-app version of RoamAway
 
-;;; TODO Make sure can copy from output.
-;;; TODO layout
-;;; TODO Disable convert until ready
-;;; TODO Error handling
 ;;; TODO option for not downloading files
+;;; TODO Make sure can copy from output.
 ;;; TODO Windows release process
 
-(def parameters (atom {}))
+(def root (atom nil))                   ;holds the java frame object
+(def parameters (atom {}))              ;map of parameter values
+
+(def welcome
+  "Welcome to RoamAway.
+
+This tool will convert a Roam EDN export into a Markdown repository suitable for Logseq.
+
+To use, select the input and outputs above, and hit the Convert button.
+
+RoamAway is open source and free to use, tips gratefully acccepted.")
+
+(defn set-parameter
+  [param value]
+  (swap! parameters assoc param value)
+  (when (and (:input-file @parameters) (:output-dir @parameters))
+    (.setEnabled (ss/select @root [:#convert]) true)))
 
 (defn select-input-file
   [frame]
@@ -36,15 +49,6 @@
   (let [button (.getSource event) ]
     (.setLabel button label)))
 
-(def welcome
-  "Welcome to RoamAway.
-
-This tool will convert a Roam EDN export into a Markdown repository suitable for Logseq.
-
-To use, select the input and outputs above, and hit the Convert button.
-
-RoamAway is Spiteware and free to use, tips gratefully acccepted.")
-
 (defn about
   []
   (ju/open-url "http://hyperphor.com/ammdi/RoamAway"))
@@ -62,51 +66,57 @@ RoamAway is Spiteware and free to use, tips gratefully acccepted.")
   (ss/text! log-widget "Converting!\n")
   (prn :parameters @parameters)
   (binding [*out* (widget-output-writer log-widget)]
-    (rl/do-it (:input-file @parameters) (:output-dir @parameters) )
-    (prn "Done!")
-    ))
+    (try
+      (rl/do-it (:input-file @parameters) (:output-dir @parameters) )
+      (catch Throwable e
+        (println (str "ERROR: " (print-str e)))))
+    (println "Done!")))
 
 (defn make-ss-frame
   []
   (let [log-widget (ss/text :multi-line? true
                             :editable? false
-                            :rows 30
+                            :rows 40
+                            :columns 80
                             :text welcome)
-        the-frame (atom nil)]
-    (reset!
-     the-frame     
+        frame
      (ss/frame :title "RoamAway"
                :content (sm/mig-panel
-                         :items [
-                                 ["Welcome to RoamAway" "wrap"]
+                         :items [[(sm/mig-panel
+                                  :items [["Welcome to RoamAway"]
+                                          ;; TODO should look like a hyperlink
+                                          [(ss/button :text "About"
+                                                      :listen [:action (fn [_] (about))])]
+                                          [(ss/button :id :convert
+                                                      :text "Convert"
+                                                      :enabled? false
+                                                      :listen [:action (fn [_] (convert log-widget))])
+                                           "push, align right"]])
+                                  "growx, wrap"]
                                  [(ss/button :text "Set input"
                                             :listen [:action (fn [e]
-                                                               (let [f (select-input-file @the-frame)]
-                                                                 (swap! parameters assoc :input-file f)
+                                                               (let [f (select-input-file @root)]
+                                                                 (set-parameter :input-file f)
                                                                  (change-label e (str f))))])
                                   "wrap"]
                                  [(ss/button :text "Set output"
-                                            :listen [:action (fn [e]
-                                                               (let [f (select-output-directory @the-frame)]
-                                                                 (swap! parameters assoc :output-dir f)
+                                             :listen [:action (fn [e]
+                                                               (let [f (select-output-directory @root)]
+                                                                 (set-parameter :output-dir f)
                                                                  (change-label e (str f))))])
                                   "wrap"]
                                  ;; Display file names
-                                 [(ss/button :text "Convert"
-                                             :listen [:action (fn [_] (convert log-widget))])
-                                  "wrap"]
-                                 ;; TODO should look like a hyperlink
-                                 [(ss/button :text "About"
-                                             :listen [:action (fn [_] (about))])
-                                  "wrap"]
-                                 [(ss/scrollable log-widget)]
 
-                                 ])
+
+                                 [(ss/scrollable log-widget) "push, growx, growy, align right bottom"]]
+
+                                 )
                :on-close :exit
-               ))
-    (ss/pack! @the-frame)
-    (ss/show! @the-frame)
-    log-widget
+               )
+        ]
+    (reset! root frame)
+    (ss/pack! frame)
+    (ss/show! frame)
     ))
 
 (defn -main
