@@ -1,14 +1,18 @@
 (ns goddinpotty.convert.roam-logseq-ui
   (:require [seesaw.core :as ss]
             [seesaw.mig :as sm]
+            [org.parkerici.multitool.cljcore :as ju]
             [goddinpotty.convert.roam-logseq :as rl])
   (:gen-class))
 
-;;; TODO option for not downloading files
+;;; Top-level for package-app version of RoamAway
+
+;;; TODO Make sure can copy from output.
+;;; TODO layout
 ;;; TODO Disable convert until ready
-;;; TODO (?) actual incremental log stream.
 ;;; TODO Error handling
-;;; TODO credits, link etc
+;;; TODO option for not downloading files
+;;; TODO Windows release process
 
 (def parameters (atom {}))
 
@@ -16,8 +20,8 @@
   [frame]
   (let [fc (javax.swing.JFileChooser.)]
     (.setFileFilter fc (javax.swing.filechooser.FileNameExtensionFilter.
-                        "Roam EDN Export"
-                        (into-array ["edn"])))
+                        "Roam export (.edn or .zip)"
+                        (into-array ["edn" "zip"])))
     (.showOpenDialog fc frame)
     (.getSelectedFile fc)))
 
@@ -27,15 +31,6 @@
     (.showSaveDialog fc frame)
     (.getSelectedFile fc)))
 
-(defn convert
-  [log-widget]
-  ;; TODO redirect output somehow
-  (prn :parameters @parameters)
-  (let [log (with-out-str
-              (rl/do-it (:input-file @parameters) (:output-dir @parameters) ))]
-    (ss/text! log-widget log)
-    ))
-
 (defn change-label
   [event label]
   (let [button (.getSource event) ]
@@ -44,11 +39,32 @@
 (def welcome
   "Welcome to RoamAway.
 
-This tool will convert a Roam EDN export file into a Markdown repository suitable for Logseq.
+This tool will convert a Roam EDN export into a Markdown repository suitable for Logseq.
 
 To use, select the input and outputs above, and hit the Convert button.
 
 RoamAway is Spiteware and free to use, tips gratefully acccepted.")
+
+(defn about
+  []
+  (ju/open-url "http://hyperphor.com/ammdi/RoamAway"))
+
+(defn widget-output-writer
+  [widget]
+  (proxy [java.io.Writer] []
+    (write [x]
+      (let [xx (str (if (int? x) (char x) x))]
+        (.append widget xx)))
+    (flush [])))
+
+(defn convert
+  [log-widget]
+  (ss/text! log-widget "Converting!\n")
+  (prn :parameters @parameters)
+  (binding [*out* (widget-output-writer log-widget)]
+    (rl/do-it (:input-file @parameters) (:output-dir @parameters) )
+    (prn "Done!")
+    ))
 
 (defn make-ss-frame
   []
@@ -79,11 +95,20 @@ RoamAway is Spiteware and free to use, tips gratefully acccepted.")
                                  [(ss/button :text "Convert"
                                              :listen [:action (fn [_] (convert log-widget))])
                                   "wrap"]
-                                 [log-widget]
+                                 ;; TODO should look like a hyperlink
+                                 [(ss/button :text "About"
+                                             :listen [:action (fn [_] (about))])
+                                  "wrap"]
+                                 [(ss/scrollable log-widget)]
+
                                  ])
-               ;; off for dev
-               #_ :on-close #_ :exit
+               :on-close :exit
                ))
     (ss/pack! @the-frame)
     (ss/show! @the-frame)
+    log-widget
     ))
+
+(defn -main
+  []
+  (make-ss-frame))

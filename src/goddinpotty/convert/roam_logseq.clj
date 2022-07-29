@@ -1,6 +1,6 @@
 (ns goddinpotty.convert.roam-logseq
   (:require [goddinpotty.export.markdown :as md]
-            [goddinpotty.import.edn :as roam]
+            [goddinpotty.import.roam :as roam]
             [goddinpotty.import.roam-images :as roam-images]
             [goddinpotty.batadase :as bd]
             [me.raynes.fs :as fs]
@@ -10,9 +10,6 @@
   (:gen-class))
 
 ;;; Toplevel for Roam → Logseq converter
-
-#_
-(utils/unzip-roam "/opt/mt/working/roam-takeout/mt-pici/Roam-Export-1636387068791.zip")
 
 ;;; TODO painfully slow for some reason, try to speedup if releasing as a standalone tool
 
@@ -46,10 +43,18 @@
   (doseq [page (bd/pages bm)]
     (write-page bm page directory)))
 
+(defn maybe-unzip
+  [f]
+  (case (fs/extension f)
+    ".zip" (roam/unzip-roam f)
+    ".edn" f
+    (throw (ex-info "File has unknown extension" {:file f}))))
+
 (defn do-it
   [edn-file output-dir]
   (reset-directory output-dir)
   (let [bm (-> edn-file
+               maybe-unzip
                roam/roam-db-edn)
         images (roam-images/download-images bm output-dir) ; []
         xbm (roam-images/subst-images bm images)

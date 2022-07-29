@@ -1,4 +1,4 @@
-(ns goddinpotty.import.edn
+(ns goddinpotty.import.roam
   (:require [goddinpotty.utils :as utils]
             [goddinpotty.batadase :as bd]
             [goddinpotty.database :as db]
@@ -7,9 +7,28 @@
             [org.parkerici.multitool.cljcore :as ju]
             [clojure.edn :as edn]
             [clojure.java.io :as io]
-            ))
+            )
+    (:import (java.util.zip ZipFile)))
 
-;;; TODO retitle file roam_edn
+(defn unzip-roam
+  "Takes the path to a zipfile `source` and unzips it to `target-dir`, returning the path of the target file"
+  [source]
+  (let [target-dir (str (fs/parent source) "/")]
+    (str target-dir (with-open [zip (ZipFile. (fs/file source))]
+                      (let [entries (enumeration-seq (.entries zip))
+                            target-file #(fs/file target-dir (str %))
+                            database-file-name (.getName (first entries))]
+                        (doseq [entry entries :when (not (.isDirectory ^java.util.zip.ZipEntry entry))
+                                :let [f (target-file entry)]]
+                          (prn :writing f)
+                          (fs/mkdirs (fs/parent f))
+                          (io/copy (.getInputStream zip entry) f))
+                        database-file-name)))))
+
+(defn read-roam-json-from-zip
+  [path-to-zip]
+  (let [json-path (unzip-roam path-to-zip)]
+    (utils/read-json json-path)))
 
 (defn read-roam-edn
   [f]

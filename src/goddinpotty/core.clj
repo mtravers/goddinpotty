@@ -24,11 +24,12 @@
       (html-gen/generated-page "Map" html-gen/generate-global-map)
       ))
 
+#_
 (defn block-map-json
   [path-to-zip]
   (prn :reading-from path-to-zip)       ;TODO I suppose real logger is called for
   (-> path-to-zip
-      utils/read-roam-json-from-zip
+      roam/read-roam-json-from-zip
       database/roam-db
       add-generated-pages
       ))
@@ -42,6 +43,7 @@
       add-generated-pages
       ))
 
+#_
 (defn pp-export
   [path-to-zip]
   (->> path-to-zip

@@ -32,33 +32,11 @@
     (fs/mod-time @last-import)
     (ju/now)))
 
-(defn unzip-roam
-  "Takes the path to a zipfile `source` and unzips it to `target-dir`, returning the path of the target file"
-  [source]
-  (let [target-dir (str (fs/parent source) "/")]
-    (str target-dir (with-open [zip (ZipFile. (fs/file source))]
-                      (let [entries (enumeration-seq (.entries zip))
-                            target-file #(fs/file target-dir (str %))
-                            database-file-name (.getName (first entries))]
-                        (doseq [entry entries :when (not (.isDirectory ^java.util.zip.ZipEntry entry))
-                                :let [f (target-file entry)]]
-                          (prn :writing f)
-                          (fs/mkdirs (fs/parent f))
-                          (io/copy (.getInputStream zip entry) f))
-                        database-file-name)))))
-
-
 ;;; read-edn see goddinpotty.import.edn
-
 
 (defn read-json
   [path]
   (json/read-str (slurp path) :key-fn keyword))
-
-(defn read-roam-json-from-zip
-  [path-to-zip]
-  (let [json-path (unzip-roam path-to-zip)]
-    (read-json json-path)))
 
 (defn write-json [f data]
   (fs/mkdirs (fs/parent f))             ;ensure directory exists
