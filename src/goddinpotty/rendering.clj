@@ -295,7 +295,7 @@
             :bare-url (make-content-from-url ele-content)
             :blockquote (new-head (ele->hiccup ele-content block-map block) :blockquote)
                                         ;ast-ele
-            :block (let [contents (filter identity (map #(ele->hiccup % block-map block) (rest ast-ele)))
+            :block (let [contents (u/mapf #(ele->hiccup % block-map block) (rest ast-ele))
                          ;; bring this property up to a useful level
                          ;; TODO should perhaps be done elsewhere and/or in a more general way
                          class (some :class (:dchildren block))]
@@ -421,3 +421,16 @@
     ""))
 
 
+;;; Include bare HTML from assets folder
+;;; TODO not currently used (was going to use it to include Paypal button),
+;;;    and needs a bit of work (the parameter is rendered)
+;;; TODO To be useful, might need a version that puts stuff at top-level of html file rather than in the flow (for scripts etc)
+;;; TODO should be more robust to missing file
+(bd/register-special-tag
+ "include"
+ (fn [bm block]
+   (let [included (str/trim (get-in block [:parsed 2]))
+         path (str (get-in (config/config) [:source :repo]) "/assets/" included )
+         contents (slurp path)]
+     ;; Seems like this just works
+     contents)))

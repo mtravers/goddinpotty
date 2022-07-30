@@ -21,10 +21,8 @@
   (-> f
       (str/replace #"\/" "\\∕")))
 
-
 (defn md-file-name
   [page-name]
-  ;; TODO probably some cleaning needed here, and should insert title block
   (str (clean-file-name page-name) ".md"))
 
 (defn html-file-name

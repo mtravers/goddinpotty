@@ -148,7 +148,8 @@
   (->> block-map
        pages
        (filter displayed?)
-       (remove page-empty?)))           ;new but makes sense I think
+       #_(remove page-empty?)   ;;; TODO figure out what's right
+       ))  
 
 (defn displayed-blocks
   [block-map]
@@ -423,7 +424,7 @@
                                         (:parsed block)))]
                [(count depth) (:id block)]) ; might be nice to add rendered text but namespace fucks us, it's render/block-locak-text
         rest
-        (filter identity (map toc-1 (:dchildren block)))]
+        (u/mapf toc-1 (:dchildren block))]
     (if head
       (cons head rest)
       (if (empty? rest)

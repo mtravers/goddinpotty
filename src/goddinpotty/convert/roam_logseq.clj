@@ -15,7 +15,8 @@
 
 (def last-bm (atom {}))
 
-;;; TODO Warning does a very hard reset, probably a better idea to just clear out the three subdirs, creating if necessary
+;;; TODO Warning does a very hard reset, probably a better idea to just clear out the three subdirs, creating if necessary.
+;;; Or preserve the assets directory so downloads don't need to be redone
 (defn- reset-directory
   [dir]
   (fs/delete-dir dir)
@@ -64,7 +65,6 @@
     (write-pages xbm output-dir)
     bm))
 
-;;; TODO should probably accept zips, that what you get from Roam
 ;;; TODO option to skip images or reuse them, no need to redo it each time.
 (defn -main
   [edn-file output-dir]
@@ -79,3 +79,7 @@
     (when (and link
                (not (re-find #"\{\{tweet" l)))
       (str/replace l  #"http.*twitter.com/\S*" (format "{{tweet %s}}" link)))))
+
+
+;;; TODO this python script does a few more useful things:
+;;; https://github.com/sebastianpech/roamtologseq

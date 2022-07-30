@@ -8,20 +8,18 @@
 ;;; Top-level for package-app version of RoamAway
 
 ;;; TODO option for not downloading files
-;;; TODO Make sure can copy from output.
+;;; TODO Some way for user to copy from output.
 ;;; TODO Windows release process
 
 (def root (atom nil))                   ;holds the java frame object
 (def parameters (atom {}))              ;map of parameter values
 
 (def welcome
-  "Welcome to RoamAway.
+"RoamAway is a tool for converting a Roam EDN export into a Markdown repository suitable for Logseq.
 
-This tool will convert a Roam EDN export into a Markdown repository suitable for Logseq.
+To use: select the input and outputs above, and hit the Convert button.
 
-To use, select the input and outputs above, and hit the Convert button.
-
-RoamAway is open source and free to use, tips gratefully acccepted.")
+RoamAway is open source and free to use, hit the About button for credits and support.")
 
 (defn set-parameter
   [param value]

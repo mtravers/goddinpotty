@@ -23,7 +23,7 @@
        (let [[image-source alt-text] (render/parse-image-block b)]
          (roam-image-url? image-source))))
 
-;;; TODO → utils
+;;; Now in ju/
 (defn local-file
   ([url]
    (local-file url (ju/temp-file)))
