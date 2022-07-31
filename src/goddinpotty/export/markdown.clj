@@ -1,13 +1,11 @@
 (ns goddinpotty.export.markdown
   "Rendering to Markdown"
-  (:require [goddinpotty.config :as config]
-            [goddinpotty.batadase :as bd]
+  (:require [goddinpotty.batadase :as bd]
             [goddinpotty.rendering :as render]
             [goddinpotty.utils :as utils]
             [clojure.string :as str]
             [org.parkerici.multitool.core :as u]
             [org.parkerici.multitool.cljcore :as ju]
-            [taoensso.truss :as truss :refer (have have! have?)]
             )
   )
 
@@ -93,11 +91,12 @@
                  (markdown-content block)))
           (u/mapcatf (partial block->md bm (+ 1 depth)) (:children block))))))
 
+;;; Pretty minimal now, but has hooks for adding header things like aliases, title, properties
 (defn page->md
   [bm block]
-  (let [title (or (:title block) (:content block))
-        footer-lines []                 ;
-        header-lines []]                ;TODO add title
+  (let [_title (or (:title block) (:content block))
+        footer-lines []
+        header-lines []]
     (concat header-lines
             (mapcat (partial block->md bm 0) (:children block))
             footer-lines)))

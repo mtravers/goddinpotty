@@ -19,7 +19,7 @@
       (= 1 (count (:block/refs block))))))
 
 (deftest produce-bm-test
-  (let [config (config/read-config "test/logseq-test-config.edn")
+  (let [config (config/read-config "resources/test/logseq-test-config.edn")
         bm (sut/produce-bm config)]
     (is (map? bm))
     (let [{:keys [parsed refs] :as block}

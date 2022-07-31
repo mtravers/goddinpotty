@@ -80,7 +80,6 @@
                (generated-page
                 (page-id name)
                 (fn [bm]
-                  ;; TODO this no longer does the export
                   (templating/page-hiccup hiccup title title bm
                                           :widgets [(templating/about-widget bm)
                                                     (templating/search-widget bm)])

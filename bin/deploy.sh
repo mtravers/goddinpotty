@@ -1,4 +1,4 @@
-# TODO needs work
+# TODO needs work – shouldn't have AMMDI-specific references
 
 bin/generate-ammdi.sh
 bin/upload-git.sh

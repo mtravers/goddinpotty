@@ -10,7 +10,7 @@
 
 (deftest integration-test
   (let [dir (fs/temp-dir "roamaway")]
-    (-main "test/resources/roamaway.edn" dir)
+    (do-it "test/resources/roamaway.edn" dir)
     (is (dir= dir ["assets" "journals" "pages"]))
     (is (dir= (str dir "/pages") ["Anonymous.md"
                                   "collisions.md"

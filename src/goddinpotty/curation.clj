@@ -1,10 +1,8 @@
 (ns goddinpotty.curation
     (:require [goddinpotty.config :as config]
               [goddinpotty.utils :as utils]
-              [goddinpotty.database :as database]
               [goddinpotty.batadase :as bd]
               [goddinpotty.core :as core]
-              [clojure.set :as set]
               [org.parkerici.multitool.core :as u]
               [org.parkerici.multitool.cljcore :as ju]
               [me.raynes.fs :as fs]
@@ -218,7 +216,7 @@
       (str/replace l  #"http.*twitter.com/\S*" (format "{{tweet %s}}" link)))))
 
 ;;; Note: this does NOT detect collisions between aliases and real file names, that will have to be done elsewhere, like during import.
-(defn detect-case-fucks
+(defn detect-case-fold-problems
   "Detects when there are distinct pages whose names are identical under case-folding"
   [bm]
   (let [bm (bd/with-aliases bm)]
@@ -229,16 +227,3 @@
              (filter #(> (count %) 1)
                      (vals (group-by str/lower-case (keys bm))))))))
 
-;;; As of 23 July 2022
-#_
-(["gnostics" "Gnostics" (21537 23988)]
- ["Boyz" "boyz" (4596 6441)]
- ["SuperEgo" "Superego" (27470 8555)]
- ["Nuna" "nuna" (164 12085)]
- [16 "16" (16 37441)]
- ["BwO" "bwo" (34338 6779)]
- ["Gnostic" "gnostic" (23382 21537)])
-
-
-
-   

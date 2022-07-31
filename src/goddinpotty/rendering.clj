@@ -61,10 +61,8 @@
 
 (defn parse-image-string
   [s]
-  (let [alt-text (second (re-find #"\[(.*?)\]" s))
-        image-source (second (re-find #"\((.*?)\)" s))]
-    [image-source alt-text]
-    ))
+  (let [[match? label url] (re-matches #".*\[(.*?)\]\((.*?)\).*" s)]
+    (when match? [url label])))
 
 (defn parse-image-block
   [b]

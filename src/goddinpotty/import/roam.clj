@@ -88,7 +88,6 @@
   (ju/schppit f struct)
   struct)
 
-;;; TODO do the unzip if we really use this
 (defn process-roam-edn
   "Read a Roam EDN export. Produces an indexed map of block entities"
   [datascript]
@@ -98,8 +97,6 @@
        (group-by first)
        (map (comp entify second))
        (u/index-by :db/id)
-       ;; Debugging
-       #_ (capture-to-file "stewart.pp.edn")
        ))
 
 ;;; Tentative idea, match output of database/create-block-map-no-links
@@ -282,7 +279,7 @@
       read-roam-edn
       process-roam-edn
       edn->block-map
-      db/roam-db-1
+      db/build-db-1
       ))
 
 ;;; Dev only, generate a reasonable representation of the raw edn

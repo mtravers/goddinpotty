@@ -1,10 +1,8 @@
 (ns goddinpotty.dotty
-  (:require [goddinpotty.database :as db]
-            [goddinpotty.batadase :as bd]
+  (:require [goddinpotty.batadase :as bd]
             [clojure.string :as s]
             [clojure.java.shell :as shell]
             [clojure.java.io :as io]
-            [org.parkerici.multitool.core :as u]
             ))
 
 (defn- sh-errchecked

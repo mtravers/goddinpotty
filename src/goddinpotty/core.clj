@@ -1,7 +1,5 @@
 (ns goddinpotty.core
   (:require [goddinpotty.config :as config]
-            [goddinpotty.utils :as utils]
-            [goddinpotty.database :as database]
             [goddinpotty.batadase :as bd]
             [goddinpotty.html-generation :as html-gen]
             [goddinpotty.graph :as graph]
@@ -71,8 +69,8 @@
 
 
 (defn block-dump
-  [& {:keys [all?]}]
   "Dumps included blocks or all blocks in order; the idea is this should be diffable. Also slow."
+  [& {:keys [all?]}]
   (ju/schppit
    "blocks.edn"
    (into (sorted-map)

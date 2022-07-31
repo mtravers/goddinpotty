@@ -2,12 +2,10 @@
   (:require [goddinpotty.parser :as parser]
             [goddinpotty.batadase :as bd]
             [goddinpotty.utils :as utils]
-            [goddinpotty.config :as config]
             [org.parkerici.multitool.core :as u]
             [org.parkerici.multitool.cljcore :as ju]
             [clojure.set :as set]
             [clojure.walk :as walk]
-            [taoensso.truss :as truss :refer (have have! have?)]
             ))
 
 ;;; Database construction.  See batadase for accessors
@@ -65,8 +63,7 @@
 ;;; - Entry points
 ;;; - Exit points
 ;;; - the graph defined by bd
-
-;;; Reimplement to use breadth-first
+;;; Does a breadth first traversal of the graph (via reduce)
 (defn compute-depths
   "Computes depths from entry points"
   [block-map]
@@ -124,11 +121,10 @@
                 (mapcat struct-entities (rest struct)))))]
     (let [base (conj (struct-entities (:parsed block))
                      (page-hierarchy-ref block))]
-      (filter identity base) #_ (u/mapf #(get aliases % %) base))))
+      (filter identity base))))
 
 
-;;; Adds forward :refs field. Does
-;;; Now does nothing with aliases, which are resolved
+;;; Adds forward :refs field. 
 (defn generate-refs
   [db]
   (ju/pmap-values (fn [block]
@@ -144,7 +140,7 @@
                  (u/add-inverse-multiple db :refs :ref-by))
    nil))                                ;TODO a nil entry causes problems so removing it...should figure out where it is coming from
 
-;;; Trick for memoizing a local recursive fn, see https://quanttype.net/posts/2020-09-20-local-memoized-recursive-functions.html
+;;; Fixed point combinator trick for memoizing a local recursive fn 
 (defn fix [f] (fn g [& args] (apply f g args)))
 
 (defn add-direct-children
@@ -164,9 +160,7 @@
 
 ;;; Mostly blocks can be rendered indpendently, but if there are references (and now sidenotes) there are dependencies
 
-
-;;; TODO rename, what have the Roamans done for us?
-(defn roam-db-1
+(defn build-db-1
   [db]
   (-> db
       parse
@@ -183,13 +177,13 @@
                     %)
                  json))
 
-(defn roam-db
+(defn build-db
   [roam-json]
   (-> roam-json
       add-uids                          ;for logseq export
       create-basic-blocks
       index-blocks
-      roam-db-1
+      build-db-1
       ))
 
 

@@ -10,7 +10,7 @@
 ;;; Test build from Logseq
 (deftest generate-from-logseq
   (fs/delete-dir "taget/logseq-test")
-  (main "test/logseq-test-config.edn")
+  (main "resources/test/logseq-test-config.edn")
   (is (fs/exists? "target/logseq-test/Superman"))
   ;; MORE!
   )

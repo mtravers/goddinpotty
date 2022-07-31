@@ -1,15 +1,10 @@
 (ns goddinpotty.utils
   (:require [me.raynes.fs :as fs]
-            [taoensso.truss :as truss :refer (have?)]
             [clojure.java.io :as io]
             [clojure.string :as s]
-            [org.parkerici.multitool.core :as u]
             [org.parkerici.multitool.cljcore :as ju]
             [clojure.data.json :as json]
-            [clojure.edn :as edn]
-            [goddinpotty.config :as config]
-            )
-  (:import (java.util.zip ZipFile)))
+            ))
 
 (def last-import (atom nil))
 

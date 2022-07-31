@@ -136,7 +136,7 @@
       nbb-extract
       (snapshot "nbb-extract.edn")
       logseq-nbb->blocks-base
-      db/roam-db-1
+      db/build-db-1
       ;; Disabled for now
       #_ get-edit-times                  
       ;; Going to guess this is no longer necessary?

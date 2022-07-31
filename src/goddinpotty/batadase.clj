@@ -4,7 +4,6 @@
             [org.parkerici.multitool.core :as u]
             [clojure.set :as set]
             [clojure.string :as str]
-            [taoensso.truss :as truss :refer (have have! have?)]
             ))
 
 ;;; Database accessors. The name is a PROTEST against the feature of Clojure I hate most, rigid limits on namespace reference
@@ -70,7 +69,6 @@
 
 ;;; Like block parent, but navigates page hierarchies.
 ;;; So #Private in page [[foo]] will hide page [[foo/bar]].
-;;; TODO Stopped working!? Problem: page "the version of me" is not real, it's one of those synthetic pages....ok it's a case-folding issue, pkm. real page is "the version of me", fake one has capitalized...ok for now will just fix the fucking page names.
 (defn block-page-parent
   [block-map block]
   (let [block (coerce-block block block-map)]
@@ -141,15 +139,11 @@
   [block-map]
   (filter included? (pages block-map)))
 
-(declare page-empty?)
-
 (defn displayed-pages
   [block-map]
   (->> block-map
        pages
-       (filter displayed?)
-       #_(remove page-empty?)   ;;; TODO figure out what's right
-       ))  
+       (filter displayed?)))
 
 (defn displayed-blocks
   [block-map]
@@ -159,7 +153,26 @@
   [block-map]
   (remove :special? (displayed-pages block-map)))
 
-(declare with-aliases)
+;;; All legit names of block, main and aliases
+(defn block-names
+  [block]
+  (if (:title block)
+    (conj (:alias block) (:title block))
+    (:alias block)))
+
+(u/defn-memoized alias-map
+  "Return map of aliases to page blocks"
+  [bm]
+  (u/collecting-merge
+   (fn [collect]
+     (doseq [block (vals bm)]
+       (doseq [alias (block-names block)]
+         (collect {alias (block-page bm block)})
+         )))))
+
+(u/defn-memoized with-aliases
+  [bm]
+  (merge bm (alias-map bm)))
 
 (defn tagged?
   [block-map block tag]
@@ -320,27 +333,7 @@
 
 
 
-;;; All legit names of block, main and aliases
-(defn block-names
-  [block]
-  (if (:title block)
-    (conj (:alias block) (:title block))
-    (:alias block)))
 
-(u/defn-memoized alias-map
-  "Return map of aliases to page blocks"
-  [bm]
-  (u/collecting-merge
-   (fn [collect]
-     (doseq [block (vals bm)]
-       (doseq [alias (block-names block)]
-         (collect {alias (block-page bm block)})
-         )))))
-
-
-(u/defn-memoized with-aliases
-  [bm]
-  (merge bm (alias-map bm)))
 
 (defn resolve-page-name
   [bm page-name]
@@ -366,13 +359,11 @@
    (fn [collect]
      (doseq [title page-names]
        (when (re-find #"/" title)
-         (prn (vec->maps (str/split title #"/")))
          (collect (vec->maps (str/split title #"/"))))))))
 
 (u/defn-memoized page-hierarchies ;only need to compute this once
   [bm]
   (page-hierarchies-1 (map :title (pages bm))))
-
 
 (defn page-parent
   [page bm]
@@ -385,21 +376,12 @@
       (get (page-hierarchies bm) (:title page))))  ;top page
 
 
-    
-
-
-
 ;;; Table o' contents
 
 ;;; This must exist? core.match, but not quite
 ;;; https://github.com/dcolthorp/matchure
 
 ;;; Note: this is minimal, and in some cases just wrong, but good enough
-;;; → multitool
-(defn extend-seq
-  [seq]
-  (concat seq (repeat nil)))
-
 ;;; → multitool
 (defn str-match
   [pat thing]
@@ -410,19 +392,18 @@
         (and (sequential? pat) (sequential? thing))
         (reduce (fn [a b] (and a b (merge a b)))
                 {}
-                (map str-match pat (extend-seq thing)))
+                (map str-match pat (u/extend-seq thing)))
         (= pat thing) {}
         :else nil))
 
 ;;; Page table of contents generation
-
 (defn- toc-1
   [block]
   (let [head (when-let [{:keys [depth content]}
                         (and (displayed? block)
                              (str-match '[:block [:heading (? depth) (? content)]]
                                         (:parsed block)))]
-               [(count depth) (:id block)]) ; might be nice to add rendered text but namespace fucks us, it's render/block-locak-text
+               [(count depth) (:id block)]) 
         rest
         (u/mapf toc-1 (:dchildren block))]
     (if head
