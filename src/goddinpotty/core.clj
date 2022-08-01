@@ -1,15 +1,15 @@
 (ns goddinpotty.core
   (:require [goddinpotty.config :as config]
-            [goddinpotty.utils :as utils]
-            [goddinpotty.database :as database]
             [goddinpotty.batadase :as bd]
             [goddinpotty.html-generation :as html-gen]
             [goddinpotty.graph :as graph]
             [goddinpotty.index :as index]
             [goddinpotty.import.logseq :as logseq]
             [me.raynes.fs :as fs]
+            [clojure.string :as str]
             [org.parkerici.multitool.core :as u]
-            [org.parkerici.multitool.cljcore :as ju]))
+            [org.parkerici.multitool.cljcore :as ju])
+  (:gen-class))
 
 ;;; TODO this is a mess and should be cleaned up
 (defn add-generated-pages
@@ -22,11 +22,12 @@
       (html-gen/generated-page "Map" html-gen/generate-global-map)
       ))
 
+#_
 (defn block-map-json
   [path-to-zip]
   (prn :reading-from path-to-zip)       ;TODO I suppose real logger is called for
   (-> path-to-zip
-      utils/read-roam-json-from-zip
+      roam/read-roam-json-from-zip
       database/roam-db
       add-generated-pages
       ))
@@ -40,6 +41,7 @@
       add-generated-pages
       ))
 
+#_
 (defn pp-export
   [path-to-zip]
   (->> path-to-zip
@@ -53,6 +55,10 @@
   []
   (keys (u/dissoc-if (fn [[_ v]] (not (:page? v))) @last-bm)))
 
+(defn dump
+  [bm]
+  (ju/schppit "dump.edn" bm))
+
 ;;; Sloooow. Dumps pages including dchildren
 (defn page-dump
   []
@@ -63,8 +69,8 @@
 
 
 (defn block-dump
-  [& {:keys [all?]}]
   "Dumps included blocks or all blocks in order; the idea is this should be diffable. Also slow."
+  [& {:keys [all?]}]
   (ju/schppit
    "blocks.edn"
    (into (sorted-map)
@@ -93,7 +99,8 @@
 (defn gen-page
   [page]
   (u/memoize-reset!)
-  (html-gen/generate-content-page @last-bm (config/config :output-dir) (get @last-bm page)))
+  (html-gen/generate-content-page @last-bm (config/config :output-dir)
+                                  (bd/get-with-aliases @last-bm page)))
 
 (defn gen-pages
   []
@@ -121,7 +128,7 @@
   (when (config/config :markdown-output-dir)
     (md/write-displayed-pages @last-bm (config/config :markdown-output-dir)))
   (prn (bd/stats @last-bm))
-  #_ (dump))
+  #_ (dump bm))
 
 (defmulti produce-bm (fn [{:keys [source]}] (:type source)) )
   
@@ -134,8 +141,28 @@
 (defmethod post-generation :logseq [_ _]
   (logseq/post-generation))
 
-(defn -main
-  [& [config-or-path]]
+;;; Debugging/curation related
+
+(defn get-page
+  [name]
+  (bd/get-with-aliases @last-bm name))
+
+(defn page-name
+  [id]
+  (:title (get-page id)))
+
+(defn find-pages
+  [substring]
+  (->> (bd/with-aliases @last-bm)
+       keys
+       (filter #(str/includes? % substring))))
+
+(defn page-refs
+  [name]
+  (map page-name (bd/all-refs (get-page "The version of me"))))
+
+(defn main
+  [config-or-path]
   (if (map? config-or-path)
     (config/set-config-map! config-or-path)
     (config/set-config-path! (or config-or-path "default-config.edn")))
@@ -146,6 +173,10 @@
     (html-gen/generate-index-redir (config/config  :output-dir))
     (post-generation (config/config) bm)
     ))
+
+(defn -main
+  [& [config-or-path]]
+  (main config-or-path))
 
 #_
 (defn scarf-images

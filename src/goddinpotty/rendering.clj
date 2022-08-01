@@ -7,6 +7,7 @@
             [clojure.data.json :as json]
             [clojure.string :as str]
             [org.parkerici.multitool.core :as u]
+            [org.parkerici.multitool.dev :as udev]
             [taoensso.truss :as truss :refer (have have! have?)]
             )
   )
@@ -32,7 +33,7 @@
   (let [[_ alias-text alias-dest] (parse-alias alias-content)
         internal? (or (= \( (first alias-dest)) (= \[ (first alias-dest)))
         alias-link (if internal?
-                     (utils/html-file-title alias-dest)
+                     (utils/clean-page-title alias-dest)
                      alias-dest)
         content (block-content->hiccup alias-text)]
     (if internal?
@@ -58,10 +59,18 @@
     (subs source 3)
     source))
 
+(defn parse-image-string
+  [s]
+  (let [[match? label url] (re-matches #".*\[(.*?)\]\((.*?)\).*" s)]
+    (when match? [url label])))
+
+(defn parse-image-block
+  [b]
+  (parse-image-string (second (second (:parsed b)))))
+
 (defn- format-image
   [image-ref-content]
-  (let [alt-text (utils/remove-n-surrounding-delimiters 1 (re-find #"\[.*?\]" image-ref-content))
-        image-source (utils/remove-n-surrounding-delimiters 1 (re-find #"\(.*?\)" image-ref-content))
+  (let [[image-source alt-text] (parse-image-string image-ref-content)
         image-published (maybe-relocate-local-image image-source)
         ]
     (maybe-publish-image image-source)
@@ -136,10 +145,11 @@
                (bd/get-with-aliases bm opage)
                opage)
         alias (or alias (and (string? opage) opage)) ;argh
-        page-id (:id page)]
-    (if (and page (bd/displayed? page))
+        page-id (:id page)
+        page-title (:title page)]
+    (if (and page (bd/displayed? page) page-title)
       [:a (u/clean-map
-           {:href (str (utils/html-file-title page-id))
+           {:href (str (utils/clean-page-title page-title))
             ;; TODO behavior with empties should be configurable, I keep
             ;; changing my own mind about it.
             :class (str/join " "
@@ -147,12 +157,12 @@
                                      (list (when (bd/page-empty? page) "empty")
                                            (when (= current page-id) "self")
                                            class)))})
-       (block-content->hiccup (or alias page-id))]
+       (block-content->hiccup (or alias page-title))]
       (do
         ;; This is normal but a sign that target might want to be exposed.
-        (prn (str "ref to excluded page: " (or page-id opage)))
+        (prn (str "ref to excluded or missing page: " (or page-id opage)))
         [:span.empty
-         (block-content->hiccup (or alias page-id))]))))
+         (block-content->hiccup (or alias page-title))]))))
 
 ;;; Argh this is stupid
 (defn page-link-by-name
@@ -177,14 +187,19 @@
 ;;; Yes this is global state and bad practice. Shoot me.
 (def sidenotes (atom #{}))
 
+;;; This is used to suppress sidenotes in the Incoming links panel
+(def ^{:dynamic true} *no-sidenotes* false)
+
+;;; Render a sidenote
 (defn sidenote
   [block-map sidenote-block]
-  (swap! sidenotes conj (:id sidenote-block))
-  [:span
-   [:span.superscript]
-   [:div.sidenote                     ;TODO option to render on left/right, but
-    [:span.superscript.side]
-    (block-full-hiccup-sidenotes (:id sidenote-block) block-map)]])
+  (when-not *no-sidenotes*
+    (swap! sidenotes conj (:id sidenote-block))
+    [:span.sidenote-container
+     [:span.superscript]
+     [:div.sidenote                     ;TODO option to render on left/right
+      [:span.superscript.side]
+      (block-full-hiccup-sidenotes (:id sidenote-block) block-map)]]))
 
 ;;; Not strictly necessary, but makes tests come out better
 (defn- maybe-conc-string
@@ -200,10 +215,22 @@
     (assoc thing 0 head)
     [head thing]))
   
+;;; Bootstrap requires some classes to look good. This might be extended
+;;; for other things. Not sure this is right thing, but solves an immediate problem
+(defn hiccup-fixups
+  [hic]
+  (u/substitute hic {:table :table.table}))
+
+(u/defn-memoized uid-indexed
+  [bm]
+  (->> bm
+       vals
+       (u/index-by :uid)))
+
 ;;; Does most of the real work of rendering.
 (defn ele->hiccup
   [ast-ele block-map & [block]]
-  (utils/debuggable                     ;TODO for dev, but for production it should just render an error box rather than crapping out. 
+  (udev/debuggable                     ;TODO for dev, but for production it should just render an error box rather than crapping out. 
    :ele->hiccup [ast-ele]
    ;; TODO this approach is broken, it hides page-refs within italics. 
    (letfn [(recurse [s]                 ;TODO probably needs a few more uses
@@ -221,7 +248,7 @@
             nil nil
 
             ;; Might want this old behavior under a flag, but definitely not wanted in Logseq context.
-;;            :metadata-tag [:b [:a {:href (utils/html-file-title ele-content)}
+;;            :metadata-tag [:b [:a {:href (utils/clean-page-title ele-content)}
 ;;                               (subs ele-content 0 (dec (count ele-content)))]]
             :block-property nil         ;These aren't included in output
             :prop-block nil
@@ -235,8 +262,9 @@
             :page-alias (let [[_ page alias] (re-matches #"\{\{alias\:\[\[(.+)\]\](.*)\}\}"
                                                          ele-content)]
                           (page-link-by-name block-map page :alias alias))
-            :block-ref (let [ref-block (get block-map (utils/remove-double-delimiters ele-content))]
-                         ;; ARGh can't work because of fucking namespace rules. POS!
+            :block-ref (let [ref-block (get (uid-indexed block-map) (-> ele-content
+                                                                        str/trim
+                                                                        utils/remove-double-delimiters))]
                          (try 
                            (if (and block (= (bd/block-page block-map ref-block)
                                              (bd/block-page block-map block)))
@@ -259,13 +287,13 @@
             :done [:input {:type "checkbox" :disabled "disabled" :checked "checked"}]
             :code-line [:code (utils/remove-n-surrounding-delimiters 1 ele-content)]
             :code-block (format-codeblock ele-content)
-            :youtube (if-let [youtube-id (get-youtube-id ele-content)]
+            :video (if-let [youtube-id (get-youtube-id (second ele-content))] ;TODO check that this is [:bare-url <url]
                        (youtube-vid-embed youtube-id)
                        [:span "Non-youtube video" ele-content]) ;TODO temp, do something better
             :bare-url (make-content-from-url ele-content)
             :blockquote (new-head (ele->hiccup ele-content block-map block) :blockquote)
                                         ;ast-ele
-            :block (let [contents (filter identity (map #(ele->hiccup % block-map block) (rest ast-ele)))
+            :block (let [contents (u/mapf #(ele->hiccup % block-map block) (rest ast-ele))
                          ;; bring this property up to a useful level
                          ;; TODO should perhaps be done elsewhere and/or in a more general way
                          class (some :class (:dchildren block))]
@@ -282,7 +310,8 @@
             ;; See https://www.mathjax.org/ This produces an inline LaTex rendering.
             :latex [:span.math.display (str "\\(" (utils/remove-double-delimiters ele-content) "\\)")]
             :tweet (embed-twitter (second (second ast-ele)))
-            )))))))
+            ;; TODO better error handling
+            :hiccup (hiccup-fixups (u/ignore-report (read-string ele-content))))))))))
 
 ;;; Used for converting things like italics in blocknames
 (defn block-content->hiccup
@@ -316,9 +345,8 @@
  ;Has to do full hiccup to include children
 (defn block-full-hiccup-sidenotes
   [block-id block-map & [depth]]
-  {:pre [(have? string? block-id)]}
   (let [depth (or depth 0)
-        block (get block-map block-id)]
+        block (bd/get-with-aliases block-map block-id)]
     (when (bd/displayed? block)
       [:ul {:id block-id :class (cond (not (bd/included? block)) "excluded"
                                       (< depth 2) "nondent" ;don't indent the first 2 levels
@@ -351,6 +379,11 @@
   [block-id block-map & [depth]]
   (when-not (sidenote? block-id)
     (block-full-hiccup-sidenotes block-id block-map depth)))
+
+(defn block-full-hiccup-no-sidenotes
+  [& args]
+  (binding [*no-sidenotes* true]
+    (apply block-full-hiccup args)))
 
 (defn page-hiccup
   [block-id block-map]
@@ -386,3 +419,16 @@
     ""))
 
 
+;;; Include bare HTML from assets folder
+;;; TODO not currently used (was going to use it to include Paypal button),
+;;;    and needs a bit of work (the parameter is rendered)
+;;; TODO To be useful, might need a version that puts stuff at top-level of html file rather than in the flow (for scripts etc)
+;;; TODO should be more robust to missing file
+(bd/register-special-tag
+ "include"
+ (fn [bm block]
+   (let [included (str/trim (get-in block [:parsed 2]))
+         path (str (get-in (config/config) [:source :repo]) "/assets/" included )
+         contents (slurp path)]
+     ;; Seems like this just works
+     contents)))

@@ -28,7 +28,7 @@
        ;; TODO this might want to do an expand thing like in recent-changes page? Does't actually seem necessary here
        ;; TODO has been assuming this is in a low-level block, but that's not necessarily the case. For [[Introduction to [[Inventive Minds]]]], it includes the whole page!
        ;; See bd/expand-to, but we want to shrink in this case
-       [:div (render/block-full-hiccup r block-map)]])))
+       [:div (render/block-full-hiccup-no-sidenotes r block-map)]])))
 
 (defn linked-references-template
   [references block-map]
@@ -144,21 +144,21 @@
   [:div.date (utils/render-time from) " - " (utils/render-time to)])
 
 
-;;; Note: not as elegant as it could be, but works
 (defn render-page-hierarchy-1
   [path page-struct bm this]
   (let [top (clojure.string/join "/" path)]
-    [:div
-     (render/page-link top :bm bm :alias (last path))
-   ;; TODO tweak css so long things look rightish
-   ;; whitespace: nowrap (but needs to truncate or something)
-   [:ul
-    (for [child (sort (keys page-struct))] ;Sort imposes some order, better than random I guess
-      (if (map? (get page-struct child))
-        (render-page-hierarchy-1 (conj path child)
-                                 (get page-struct child)
-                                 bm this)
-        [:li (render/page-link (str top "/" child) :bm bm :alias child :current this)]))]]))
+    (when (bd/displayed? (bd/get-with-aliases bm top))
+      [:div
+       [:li (render/page-link top :bm bm :alias (last path))]
+       ;; TODO tweak css so long things look rightish
+       ;; whitespace: nowrap (but needs to truncate or something)
+       (when (map? page-struct)
+         [:ul
+          (for [child (u/sort-with-numeric-prefix (keys page-struct))] ;Sort imposes some order, better than random I guess
+            (render-page-hierarchy-1 (conj path child)
+                                     (get page-struct child)
+                                     bm this)
+            )])])))
 
 
 (defn render-page-hierarchy
@@ -177,6 +177,38 @@
       [:a {:href (str "#" id)} (render/block-local-text (get bm id))]]
      )])
 
+;; TODO this page should be hidden probably
+(def about-block-title "AboutBlock")    ;TODO config option
+
+(defn about-content
+  [bm]
+  (when-let [block (bd/get-with-aliases bm about-block-title)]
+    (render/block-full-hiccup about-block-title bm)))
+
+(defn about-widget
+  [bm]
+  (when-let [about-content (about-content bm)]
+          [:div.card.my-3
+           [:h5.card-header "About"]
+           [:div.card-body.minicard-body
+            about-content]]))
+
+(defn search-widget
+  [bm#]
+  [:div.card.my-3
+   [:h5.card-header
+    [:span#searchh
+     "Search"]
+    [:input#searcht.form-control {:type "text"
+                                  ;; :placeholder "Search for..."
+                                  :onkeyup "keypress(event)"
+                                  }]
+    ]
+   [:div#searchb.card-body
+    ;; output goes here
+    [:div#searcho] 
+    ]])
+
 (defn block-page-hiccup
   [block-id block-map output-dir]
   (let [block (get block-map block-id)
@@ -193,28 +225,8 @@
          (render/page-hiccup block-id block-map)
          [:hr {}]]
 
-        search-widget
-        [:div.card.my-3
-         [:h5.card-header
-          [:span#searchh
-           "Search"]
-          [:input#searcht.form-control {:type "text"
-                                        ;; :placeholder "Search for..."
-                                        :onkeyup "keypress(event)"
-                                        }]
-          ]
-         [:div#searchb.card-body
-          ;; output goes here
-          [:div#searcho] 
-          ]]
-        about-widget
-        ;; TODO this page should be hidden, or something
-        (when-let [about-content (render/block-full-hiccup "AboutBlock" block-map)]
-          [:div.card.my-3
-           [:h5.card-header "About"]
-           [:div.card-body.minicard-body
-            about-content]])
-
+        search-widget (search-widget block-map)
+        about-widget (about-widget block-map)
         map-widget
         [:div.card.my-3
          [:h5.card-header
@@ -237,7 +249,7 @@
            (graph/render-graph ;; render-graph-embedded
             block-map
             output-dir
-            {:name (utils/clean-page-title block-id)
+            {:name (utils/clean-page-title title-text)
              :width 290                  ;This depends on the column width css, currently my-3
              :height 350
              :controls? false

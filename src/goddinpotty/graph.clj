@@ -46,7 +46,7 @@
         (map (fn [index block] (assoc block
                                       :index index
                                       :page-refs (bd/page-refs block-map block)
-                                      :link (utils/html-file-title (or (:title block) (:content block)))))
+                                      :link (utils/clean-page-title (or (:title block) (:content block)))))
              (range)
              pages)
         indexed (u/index-by :id pages)
@@ -263,7 +263,7 @@
      :depth (:depth page)
      :start (str start)
      :end (str end)
-     :link (str "/" (utils/html-file-title title)) ;TODO this should be abstracted
+     :link (str "/" (utils/clean-page-title title)) ;TODO this should be abstracted
      ; TODO size in blocks would be interesting maybe
      :group (cond (bd/entry-point? block-map page) 2
                   (:include? page) 1

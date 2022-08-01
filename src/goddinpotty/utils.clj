@@ -1,15 +1,10 @@
 (ns goddinpotty.utils
   (:require [me.raynes.fs :as fs]
-            [taoensso.truss :as truss :refer (have?)]
             [clojure.java.io :as io]
             [clojure.string :as s]
-            [org.parkerici.multitool.core :as u]
             [org.parkerici.multitool.cljcore :as ju]
             [clojure.data.json :as json]
-            [clojure.edn :as edn]
-            [goddinpotty.config :as config]
-            )
-  (:import (java.util.zip ZipFile)))
+            ))
 
 (def last-import (atom nil))
 
@@ -24,11 +19,6 @@
        (reset! last-import)
        str))
 
-#_
-(defn latest-export
-  []
-  (latest #"Roam-Export"))
-
 ;;; TODO timezone correction
 ;;; Previously got from filename, but this is more general
 (defn latest-export-time
@@ -37,33 +27,11 @@
     (fs/mod-time @last-import)
     (ju/now)))
 
-(defn unzip-roam
-  "Takes the path to a zipfile `source` and unzips it to `target-dir`, returning the path of the target file"
-  [source]
-  (let [target-dir (str (fs/parent source) "/")]
-    (str target-dir (with-open [zip (ZipFile. (fs/file source))]
-                      (let [entries (enumeration-seq (.entries zip))
-                            target-file #(fs/file target-dir (str %))
-                            database-file-name (.getName (first entries))]
-                        (doseq [entry entries :when (not (.isDirectory ^java.util.zip.ZipEntry entry))
-                                :let [f (target-file entry)]]
-                          (prn :writing f)
-                          (fs/mkdirs (fs/parent f))
-                          (io/copy (.getInputStream zip entry) f))
-                        database-file-name)))))
-
-(defn read-edn
-  [f]
-  (edn/read-string (slurp f)))
+;;; read-edn see goddinpotty.import.edn
 
 (defn read-json
   [path]
   (json/read-str (slurp path) :key-fn keyword))
-
-(defn read-roam-json-from-zip
-  [path-to-zip]
-  (let [json-path (unzip-roam path-to-zip)]
-    (read-json json-path)))
 
 (defn write-json [f data]
   (fs/mkdirs (fs/parent f))             ;ensure directory exists
@@ -79,11 +47,6 @@
   "Removes 2 surrounding characters from both the beginning and end of a string"
   [string]
   (remove-n-surrounding-delimiters 2 string))
-
-(defn remove-triple-delimiters
-  "Removes 3 surrounding characters from both the beginning and end of a string"
-  [string]
-  (remove-n-surrounding-delimiters 3 string))
 
 ;;; Note: multitool has diff arg order for some reason
 (defn strip-chars
@@ -105,13 +68,6 @@
       (s/replace #"\/" "∕")             ;that's "replace real slash with fake slash that won't make a subir"
       ))
 
-;;; TODO handle slashes more intelligently
-(defn html-file-title
-  "Formats a page title as a name for its corresponding HTML page"
-  [string]
-  {:pre [(have? string? string)]}
-  (str (clean-page-title string)))
-
 (def date-formatter
   (java.text.SimpleDateFormat. "dd MMM yyyy hh:mm"))
 
@@ -126,25 +82,8 @@
   [time]
   (and time (.format date-formatter (coerce-time time))))         ;crude for now
 
-;;; → multitool
-(defmacro debuggable [tag captures & body]
-  `(try
-     ~@body
-     (catch Throwable e#
-         (throw (ex-info ~(str "Debuggable ex " tag) ~(zipmap (map keyword captures) captures) e#)))))
-
-(comment
-(let [x 23]
-  (debuggable
-   :test [x]
-   (/ x 0)))
-)
-
 (defn css-style
   [smap]
   (s/join " " (map (fn [[prop val]] (format "%s: %s;" (name prop) val)) smap)))
   
-
-
-
 

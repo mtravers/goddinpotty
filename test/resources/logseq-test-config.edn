@@ -1,0 +1,15 @@
+#merge
+[#include "default-config.edn"
+
+ {:source {:type :logseq
+           :graph "logseq-test"
+           }
+
+  :exit-tags ["ExitPoint" "Private"]
+  :site-css ["assets/hyper-roam.css"]
+  :short-title "Logseq:Goddinpotty Test Graph"
+  :main-page "Front Page"
+  :right-navbar [["All Pages" "Index-Date"]] ; "About" replaced with side widget
+  :output-dir "target/logseq-test" 
+  }]
+

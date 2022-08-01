@@ -4,14 +4,13 @@
             [org.parkerici.multitool.core :as u]
             [clojure.set :as set]
             [clojure.string :as str]
-            [taoensso.truss :as truss :refer (have have! have?)]
             ))
 
 ;;; Database accessors. The name is a PROTEST against the feature of Clojure I hate most, rigid limits on namespace reference
 
 (defn block? [x]
   (and (map? x)
-       (string? (:id x))))
+       (:id x)))
 
 (defn assert-block
   [x]
@@ -40,7 +39,7 @@
 (defn- get-linked-references
   [block-id block-map]
   (filter #(get-in block-map [% :id])      ;trying to filter out bogus entries, not working
-          (get-in block-map [block-id :linked-by])))
+          (get-in block-map [block-id :ref-by])))
 
 (defn get-displayed-linked-references
   [block-id block-map]
@@ -65,6 +64,17 @@
   (let [block (coerce-block block block-map)]
     (and (:parent block)
          (get block-map (:parent block)))))
+
+(declare page-parent)
+
+;;; Like block parent, but navigates page hierarchies.
+;;; So #Private in page [[foo]] will hide page [[foo/bar]].
+(defn block-page-parent
+  [block-map block]
+  (let [block (coerce-block block block-map)]
+    (or (and (:parent block)
+             (get block-map (:parent block)))
+        (page-parent block block-map))))
 
 (defn ancestors0
   [block-map block]
@@ -99,7 +109,10 @@
   [block-map block]
   (let [block (coerce-block block block-map)]
     (if-let [parent (block-parent block-map block)]
-      (block-page block-map parent)
+      (do
+        ;; This can happen, solution I think is to rebuild logseq db
+        (assert (not (= parent (:id block))) (str "Block is its own parent: " parent))
+        (block-page block-map parent))
       block)))
 
 (defn backward-page-refs
@@ -107,7 +120,7 @@
   (map :id
        (filter displayed?
                (map (comp (partial block-page bm) bm)
-                    (:linked-by page)))))
+                    (:ref-by page)))))
 
 (defn page-refs
   [bm page]
@@ -128,33 +141,57 @@
 
 (defn displayed-pages
   [block-map]
-  (filter displayed? (pages block-map)))
+  (->> block-map
+       pages
+       (filter displayed?)))
 
 (defn displayed-blocks
   [block-map]
   (filter displayed? (vals block-map)))
 
-
-
 (defn displayed-regular-pages
   [block-map]
   (remove :special? (displayed-pages block-map)))
 
+;;; All legit names of block, main and aliases
+(defn block-names
+  [block]
+  (if (:title block)
+    (conj (:alias block) (:title block))
+    (:alias block)))
+
+(u/defn-memoized alias-map
+  "Return map of aliases to page blocks"
+  [bm]
+  (u/collecting-merge
+   (fn [collect]
+     (doseq [block (vals bm)]
+       (doseq [alias (block-names block)]
+         (collect {alias (block-page bm block)})
+         )))))
+
+(u/defn-memoized with-aliases
+  [bm]
+  (merge bm (alias-map bm)))
+
 (defn tagged?
   [block-map block tag]
-  (or (contains? (:refs block) tag)
-      ;; This implements the somewhat weird convention that tags are done in contained elts, eg
-      ;; - Some private stuff
-      ;;   - #Private
-      ;; partly for historical reasons and partly so pages can be tagged
-      (some #(contains? (:refs %) tag)
-            (block-children block-map block))))
+  (let [tag-id (:id (get (with-aliases block-map) tag))]
+    (when tag-id
+      (or (contains? (:refs block) tag-id)
+          ;; This implements the somewhat weird convention that tags are done in contained elts, eg
+          ;; - Some private stuff
+          ;;   - #Private
+          ;; partly for historical reasons and partly so pages can be tagged
+          (some #(contains? (:refs %) tag-id)
+                (block-children block-map block))))))
 
+;;; True if block or any of its containers have tag. Including parent pasges in page hierarchy
 (defn tagged-or-contained?
   [block-map block tag]
   (and block
        (or (tagged? block-map block tag)
-           (tagged-or-contained? block-map (block-parent block-map block) tag))))
+           (tagged-or-contained? block-map (block-page-parent block-map block) tag))))
 
 ;;; These are the top-level entrypoints, other than those defined by tags. Crude at the moment
 (defn advertised-page-names
@@ -179,6 +216,10 @@
   (filter (partial entry-point? block-map) (pages block-map)))
 
 (def daily-notes-regex #"(?:January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d+.., \d+")
+
+(defn daily-notes-page?
+  [page]
+  (re-matches daily-notes-regex (:id page) ))
 
 (defn daily-notes?
   [block-map block]
@@ -235,7 +276,7 @@
   [page]
   (and (not (:special? page))
        (< (- (size page)
-             (count (:id page)))
+             (count (:title page)))
           10)))
 
 (defn expand-to [block-map block minsize]
@@ -250,11 +291,12 @@
   [block]
   (empty? (:children block)))
 
+;;; Important fn that defines the inclusion graph.
 (defn all-refs [block]
   (set/union
    (set (:children block))
    (set (:refs block))
-   (set (:linked-by block))
+   (set (:ref-by block))
    (set (and (:parent block) (list (:parent block))))))
 
 ;;; Special tag handling. Here for no very good reason
@@ -281,7 +323,7 @@
               (not (:parent block))
               (not (:page? block)))
               ;; If there arent multiple incoming links, really no point in having a page
-       (if (> (count (:linked-by block)) 1)
+       (if (> (count (:ref-by block)) 1)
          (do
            (prn :add-empty-page (:id block))
            (assoc block :page? true :title (:id block)))
@@ -289,44 +331,19 @@
        block))
    bm))
 
-;;;  in multiool 0.19
-(defn merge-recursive
-  "Merge two arbitrariy nested map structures. Terminal seqs are concatentated, terminal sets are merged."
-  [m1 m2]
-  (cond (and (map? m1) (map? m2))
-        (merge-with merge-recursive m1 m2)
-        (and (set? m1) (set? m2))
-        (set/union m1 m2)
-        (and (sequential? m1) (sequential? m2))
-        (concat m1 m2)
-        (nil? m2) m1
-        :else m2))
 
-;;; → multitool
-(defn collecting-merge
-  "Exec is a fn of one argument, which is called and passed another fn it can use to collect values which are merged with merge-recursive; the result is returned. See tests for example TODO" 
-  [exec]
-  (let [acc (atom {})
-        collect #(swap! acc merge-recursive %)]
-    (exec collect)
-    @acc))
 
-(u/defn-memoized alias-map
-  "Return map of aliases to real page names"
-  [bm]
-  (collecting-merge
-   (fn [collect]
-     (doseq [block (vals bm)]
-       (when (:alias block)
-         (doseq [alias (:alias block)]
-           (collect {alias (:id (block-page bm block))})
-           ))))))
+
+
+(defn resolve-page-name
+  [bm page-name]
+  (let [block (get (with-aliases bm) page-name)]
+    (when-not (:id block) (prn (str "page not found: " page-name)))
+    (:id block)))
 
 (defn get-with-aliases
   [bm page-name]
-  (let [aliases (alias-map bm)]
-    (or (get bm page-name)
-        (get bm (get aliases page-name)))))
+  (get (with-aliases bm) page-name))
 
 ;;; → Multitool? 
 (defn vec->maps
@@ -338,35 +355,33 @@
 ;;; Handles multilevel 
 (defn- page-hierarchies-1
   [page-names]
-  (collecting-merge
+  (u/collecting-merge
    (fn [collect]
      (doseq [title page-names]
        (when (re-find #"/" title)
-         (prn  (vec->maps (str/split title #"/")))
          (collect (vec->maps (str/split title #"/"))))))))
 
 (u/defn-memoized page-hierarchies ;only need to compute this once
   [bm]
   (page-hierarchies-1 (map :title (pages bm))))
 
+(defn page-parent
+  [page bm]
+  (let [parent-title (and (:title page) (second (re-find #"^(.*)/(.*?)$" (:title page))))]
+    (get-with-aliases bm parent-title)))
 
 (defn page-in-hierarchy?
   [page bm]
-  (or (and (:title page)
-           (re-find #"^(.*)/(.*?)$" (:title page)))
+  (or (page-parent page bm)
       (get (page-hierarchies bm) (:title page))))  ;top page
+
 
 ;;; Table o' contents
 
 ;;; This must exist? core.match, but not quite
 ;;; https://github.com/dcolthorp/matchure
 
-;;; Note: this is minimal, and in some cases just wrong, but good enoug
-;;; → multitool
-(defn extend-seq
-  [seq]
-  (concat seq (repeat nil)))
-
+;;; Note: this is minimal, and in some cases just wrong, but good enough
 ;;; → multitool
 (defn str-match
   [pat thing]
@@ -377,22 +392,20 @@
         (and (sequential? pat) (sequential? thing))
         (reduce (fn [a b] (and a b (merge a b)))
                 {}
-                (map str-match pat (extend-seq thing)))
+                (map str-match pat (u/extend-seq thing)))
         (= pat thing) {}
         :else nil))
 
 ;;; Page table of contents generation
-
 (defn- toc-1
   [block]
   (let [head (when-let [{:keys [depth content]}
                         (and (displayed? block)
                              (str-match '[:block [:heading (? depth) (? content)]]
                                         (:parsed block)))]
-               (when (zero? (count depth)) (prn :foo block))
-               [(count depth) (:id block)]) ; might be nice to add rendered text but namespace fucks us, it's render/block-locak-text
+               [(count depth) (:id block)]) 
         rest
-        (filter identity (map toc-1 (:dchildren block)))]
+        (u/mapf toc-1 (:dchildren block))]
     (if head
       (cons head rest)
       (if (empty? rest)

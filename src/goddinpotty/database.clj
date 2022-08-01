@@ -2,11 +2,10 @@
   (:require [goddinpotty.parser :as parser]
             [goddinpotty.batadase :as bd]
             [goddinpotty.utils :as utils]
-            [goddinpotty.config :as config]
             [org.parkerici.multitool.core :as u]
             [org.parkerici.multitool.cljcore :as ju]
+            [clojure.set :as set]
             [clojure.walk :as walk]
-            [taoensso.truss :as truss :refer (have have! have?)]
             ))
 
 ;;; Database construction.  See batadase for accessors
@@ -60,30 +59,40 @@
              (re-find #"^(.*)/(.*?)$" (:title page)))]
     parent))
 
-
-
-;;; New version computes degree as well as acctually the map
-;;; Seems to compute the same set as other method
+;;; Computes depth and inclusion, based on:
+;;; - Entry points
+;;; - Exit points
+;;; - the graph defined by bd
+;;; Does a breadth first traversal of the graph (via reduce)
 (defn compute-depths
   "Computes depths from entry points"
   [block-map]
-  (let [exit-point? (u/memoize-named :exit-point #(bd/exit-point? block-map (get block-map %)))] ;performance hack
-    (letfn [(propagate [depth block-map from]
-              (let [current-depth (or (get-in block-map [from :depth]) 1000)]
-                (if (and (contains? block-map from)
-                         (< depth current-depth)
-                         (not (exit-point? from)))
-                  (reduce (fn [bm r]
-                            (propagate (+ depth 1) bm r))
-                          (assoc-in block-map [from :depth] depth)
-                          (bd/all-refs (get block-map from)))
-                  block-map)))]
-      (reduce (partial propagate 0) block-map (map :id (bd/entry-points block-map))))))
+  (let [exit-point? (u/memoize-named :exit-point #(bd/exit-point? block-map (get block-map %)))]
+    (loop [block-map (reduce (fn [bm entry-point]
+                               (assoc-in bm [(:id entry-point) :depth] 0))
+                             block-map
+                             (bd/entry-points block-map))
+           depth 0]
+      (let [current (filter #(= (:depth %) depth) (vals block-map))
+            refs (apply set/union (map bd/all-refs current))
+            nbm (reduce (fn [bm ref]
+                          (if (or (get-in bm [ref :depth])
+                                  (exit-point? ref))
+                            bm
+                            (assoc-in bm [ref :depth] (+ depth 1))))
+                        block-map
+                        refs)]
+        (if (= block-map nbm)
+          block-map
+          (recur nbm
+                 (+ depth 1)))))))
 
-;;; This is where inclusion is computed.
+;;; Computes :include? from :depth. TODO Seems dumb and redundant. 
 (defn compute-includes
   [block-map]
-  (u/map-values #(assoc % :include? (not (nil? (:depth %)))) block-map))
+  (u/map-values #(assoc % :include? (and (not (nil? (:depth %)))
+                                         (not (empty? %))))
+                block-map))
 
 (defn parse-block
   [block]
@@ -95,7 +104,7 @@
 
 ;;; Computes the value of the :refs attribute
 (defn block-refs
-  [block aliases]
+  [block]
   (letfn [(struct-entities [struct]
             (if (string? struct)
               []
@@ -110,23 +119,28 @@
                          [v] [])
                 ;; default
                 (mapcat struct-entities (rest struct)))))]
-    (let [base (set (map #(get aliases % %) (struct-entities (:parsed block))))]
-      (if-let [page-hierarch-ref (page-hierarchy-ref block)]
-        (conj base page-hierarch-ref)
-        base))))
+    (let [base (conj (struct-entities (:parsed block))
+                     (page-hierarchy-ref block))]
+      (filter identity base))))
 
+
+;;; Adds forward :refs field. 
 (defn generate-refs
   [db]
-  (let [aliases (bd/alias-map db)]
-    (ju/pmap-values #(assoc % :refs (block-refs % aliases))
-                    db)))
+  (ju/pmap-values (fn [block]
+                    (assoc block :refs (set
+                                        (u/mapf (partial bd/resolve-page-name db)
+                                                (block-refs block)))))
+                  db))
 
 (defn generate-inverse-refs
   [db]
-  (u/self-label :id
-                (u/add-inverse-multiple db :refs :linked-by)))    ;I don't like this name, but easier to leave it for now
+  (dissoc
+   (u/self-label :id
+                 (u/add-inverse-multiple db :refs :ref-by))
+   nil))                                ;TODO a nil entry causes problems so removing it...should figure out where it is coming from
 
-;;; Trick for memoizing a local recursive fn, see https://quanttype.net/posts/2020-09-20-local-memoized-recursive-functions.html
+;;; Fixed point combinator trick for memoizing a local recursive fn 
 (defn fix [f] (fn g [& args] (apply f g args)))
 
 (defn add-direct-children
@@ -146,8 +160,7 @@
 
 ;;; Mostly blocks can be rendered indpendently, but if there are references (and now sidenotes) there are dependencies
 
-
-(defn roam-db-1
+(defn build-db-1
   [db]
   (-> db
       parse
@@ -164,13 +177,13 @@
                     %)
                  json))
 
-(defn roam-db
+(defn build-db
   [roam-json]
   (-> roam-json
       add-uids                          ;for logseq export
       create-basic-blocks
       index-blocks
-      roam-db-1
+      build-db-1
       ))
 
 

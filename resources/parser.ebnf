@@ -2,22 +2,21 @@
 (* TODO should make more use of instaparse compositionality *)
 (* TODO I suppose there should be separate versions of this for Roam and Logseq. *)
 
-block = block-property* (tweet | heading | blockquote | prop-block | (syntax-in-block / text)*) block-property*
+block = block-property* (heading | hiccup | blockquote | prop-block | (syntax-in-block / text)*) block-property*
 
-<syntax-in-block> = (todo | done | image | alias | block-embed | hashtag | page-link | block-ref | code-line | code-block | youtube | bold | italic | bare-url | page-alias | hr | latex ) (* add query later*)
+<syntax-in-block> = (todo | done | image | alias | block-embed | hashtag | page-link | block-ref | code-line | code-block | video | bold | italic | bare-url | page-alias | hr | latex | tweet ) (* add query later*)
 
 (* page links do not want their innards parsed *)
 page-link = #"\[\[.*?\]\]" 
 alias = #"\[([^\[\]]+?)\]\(.+?\)"  (* Note this hairy but correct char class that means everything but square brackets *)
-image = #"!\[(.*?)\]\(.*\)"   (* image = "!" alias doesn't quite work *)
+image = #"!\[(.*?)\]\(.*?\)"   (* image = "!" alias doesn't quite work *)
 hashtag = #"\#[\w-:]+" | #"#\[\[.*?\]\]"
-block-ref = #"\(\(([\w\s\d-]+)\)\)"
+block-ref = #"\s*\(\(([\w\s\d-]+)\)\)"
 (* metadata-tag = #"^.+?::" *) (* Roam *)
 block-property =  #"(\n)?.+?:: .+(\n)?"
 code-line = #"\`.*?\`"
 code-block = #"(?is)^```.*```"
 (* query = #"\{\{query: .*?:.*?\}\}" | #"\{\{[[query]]: .*?:.*?\}\}" *)
-youtube = #"\{\{youtube: .*?\}\}" | #"\{\{\[\[youtube\]\]: .*?:.*?\}\}" | #"\{\{\[\[video\]\]: .*?:.*?\}\}"
 page-alias = #"\{\{alias\:\[\[.+\]\].*\}\}"
 
 (* Logseq also uses *foo* for italic, but no real need for it *)
@@ -42,10 +41,13 @@ latex= #"\$\$(.*?)\$\$"
 
 (* should match all punc that is not otherwise used for syntax, not sure I have everything  *)
    text = #'[A-Za-z0-9\.\,\!\"\'\?]+|[\s\W_]+?'
-textier = #'[A-Za-z0-9\.\,\!\"\'\?\s]+' 
+textier = #'[A-Za-z0-9\.\,\!\"\'\?\s\:\-]+' 
 
 heading = #"#{1,3}" block
 
 prop-block = #"---\n(.|\n)*---\n\n"
 
 tweet = <"{{tweet ">, bare-url, <"}}">
+video = <"{{video ">, bare-url, <"}}">
+
+hiccup = #"(?s)\[\:[a-z]+.*"
