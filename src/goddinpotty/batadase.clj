@@ -223,7 +223,8 @@
 (defn daily-notes-page?
   [page]
   (when-let [title (or (:title page) (:id page))]
-    (re-matches daily-notes-regex title )))
+    (when (string? title)               ;TODO shouldn't be necessary, but 
+      (re-matches daily-notes-regex title ))))
 
 (defn daily-notes?
   [block-map block]

@@ -12,7 +12,6 @@
 (deftest formatted-page-title-test
   (let [id 23
         page 
-        (db/parse-block
         '{:include? true,
           :title "__On Purpose__",
           :refs #{},
@@ -20,6 +19,6 @@
           :page? true,
           :id id ,
           :depth 4,
-          :heading -1})
-        hiccup (block-page-hiccup id  {id page} "output") ]
+          :heading -1}
+        hiccup (block-page-hiccup id {id page} "output") ]
     (is (structure-contains? [:h1 [:i "On Purpose"]] hiccup))))

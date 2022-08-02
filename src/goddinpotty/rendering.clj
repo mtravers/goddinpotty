@@ -2,6 +2,7 @@
   (:require [goddinpotty.config :as config]
             [goddinpotty.parser :as parser]
             [goddinpotty.batadase :as bd]
+            [goddinpotty.database :as db]
             [goddinpotty.graph :as graph]
             [goddinpotty.utils :as utils]
             [clojure.data.json :as json]
@@ -188,18 +189,18 @@
 (def sidenotes (atom #{}))
 
 ;;; This is used to suppress sidenotes in the Incoming links panel
+;;; TODO now misnamed, we now just supress RENDERING them as sidenotes, still want them 
 (def ^{:dynamic true} *no-sidenotes* false)
 
 ;;; Render a sidenote
 (defn sidenote
   [block-map sidenote-block]
-  (when-not *no-sidenotes*
-    (swap! sidenotes conj (:id sidenote-block))
-    [:span.sidenote-container
-     [:span.superscript]
-     [:div.sidenote                     ;TODO option to render on left/right
-      [:span.superscript.side]
-      (block-full-hiccup-sidenotes (:id sidenote-block) block-map)]]))
+  (swap! sidenotes conj (:id sidenote-block))
+  [:span.sidenote-container
+   [:span.superscript]
+   [:div.sidenote                     ;TODO option to render on left/right
+    [:span.superscript.side]
+    (block-full-hiccup-sidenotes (:id sidenote-block) block-map)]])
 
 ;;; Not strictly necessary, but makes tests come out better
 (defn- maybe-conc-string
@@ -266,8 +267,10 @@
                                                                         str/trim
                                                                         utils/remove-double-delimiters))]
                          (try 
-                           (if (and block (= (bd/block-page block-map ref-block)
-                                             (bd/block-page block-map block)))
+                           (if (and block
+                                    (= (bd/block-page block-map ref-block)
+                                       (bd/block-page block-map block))
+                                    (not *no-sidenotes*))
                              (sidenote block-map ref-block)
                              [:div.block-ref
                               (block-hiccup ref-block block-map)])
@@ -331,16 +334,17 @@
 (u/defn-memoized block-hiccup
   "Convert Roam markup to Hiccup"
   [block block-map]
-  (when (:parsed block)
-    (let [parsed (remove-logseq-title (:parsed block))
+  ;; When an excluded block is target of a :block-ref, it needs to be parsed here
+  ;; Note: this might produce inconsistent results, if a block is excluded early but included here, its referernces won't be chased. I guess a correct solution would require following :block-refs at parse time or ref time. Argh.
+  (when-let [parsed (or (:parsed block) (db/parse-block block))]
+    (let [parsed (remove-logseq-title parsed)
           basic (ele->hiccup parsed block-map block)]
       (cond (and (:heading block) (> (:heading block) 0))
             [(keyword (str "h" (:heading block))) basic]
             (fn? basic)                 ;#incoming uses this hack, maybe others
             (basic block-map)
             :else
-            basic))
-    ))
+            basic))))
 
  ;Has to do full hiccup to include children
 (defn block-full-hiccup-sidenotes
@@ -377,7 +381,8 @@
 ;;; The real top-level call
 (defn block-full-hiccup
   [block-id block-map & [depth]]
-  (when-not (sidenote? block-id)
+  ;; This logic is very squirelly...we want sidenote blocks to render normally when they are in the linked-ref pane
+  (when (or *no-sidenotes* (not (sidenote? block-id)))
     (block-full-hiccup-sidenotes block-id block-map depth)))
 
 (defn block-full-hiccup-no-sidenotes

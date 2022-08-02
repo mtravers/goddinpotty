@@ -259,11 +259,11 @@
         (.write w "#datascript/DB\n")
         (.write w (str db))))))
 
+;;; Not called?
 (defn subset-bm
   [bm page-pred]
   (let [pages (filter page-pred (bd/pages bm))
         included (mapcat bd/block-descendents pages)]
-    (prn :foo (count pages) ( count included) (count bm))
     (u/index-by :id included)))
 
 (defn daily-notes-page?
