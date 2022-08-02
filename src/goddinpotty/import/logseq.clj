@@ -85,6 +85,7 @@
                 :parent (get-in block [:block/parent :db/id])
                 :left (get-in block [:block/left :db/id])
                 :page? (boolean (:block/name block)) ;???
+                :page (:db/id (:block/page block))
                 }
                (dissoc (get block :block/properties) :id) ; includes :alias and :class The :id here seems useless and conflicts with the :db/id from datomic
                )))

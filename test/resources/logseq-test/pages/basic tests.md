@@ -2,4 +2,4 @@
 - Text with **bold** and *italic* styling
 - > A quote!
 - A [[page]] link
-- An (https://vagueness.herokuapp.com)[external link]
+- An [external link](https://vagueness.herokuapp.com)

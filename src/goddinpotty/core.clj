@@ -185,4 +185,6 @@
     (goddinpotty.curation/image-copy-script bm dir)))
 
 
+;;; Fails bad in compiled code
+#_
 (set! *print-length* 100)               ;prevent trace from blowing up trying to print bms. Should be elsewhere

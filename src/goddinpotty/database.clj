@@ -2,6 +2,7 @@
   (:require [goddinpotty.parser :as parser]
             [goddinpotty.batadase :as bd]
             [goddinpotty.utils :as utils]
+            [goddinpotty.config :as config]
             [org.parkerici.multitool.core :as u]
             [org.parkerici.multitool.cljcore :as ju]
             [clojure.set :as set]
@@ -96,7 +97,9 @@
 
 (defn parse-block
   [block]
-  (assoc block :parsed (parser/parse-to-ast (:content block)))  )
+  (if (:excluded? block)
+    block
+    (assoc block :parsed (parser/parse-to-ast (:content block))) ))
 
 (defn parse
   [db]
@@ -158,11 +161,21 @@
         direct-children-memoized (fix (u/memoize-named :direct-children direct-children))]
     (ju/pmap-values direct-children-memoized block-map)))
 
-;;; Mostly blocks can be rendered indpendently, but if there are references (and now sidenotes) there are dependencies
+(defn exclude-blocks
+  "Mark pages that can be excluded early. Right now that means journal/daily notes.
+  A performance hack, should not affect the results "
+  [bm]
+  (if (config/config :daily-notes?)
+    bm
+    (u/map-values #(if (bd/daily-notes? bm %)
+                     (assoc % :excluded? true)
+                     %)
+                  bm)))
 
 (defn build-db-1
   [db]
   (-> db
+      exclude-blocks
       parse
       generate-refs
       generate-inverse-refs

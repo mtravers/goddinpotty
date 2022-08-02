@@ -108,12 +108,15 @@
 (defn block-page
   [block-map block]
   (let [block (coerce-block block block-map)]
-    (if-let [parent (block-parent block-map block)]
-      (do
-        ;; This can happen, solution I think is to rebuild logseq db
-        (assert (not (= parent (:id block))) (str "Block is its own parent: " parent))
-        (block-page block-map parent))
-      block)))
+    (cond (:page? block) block
+          (:page block) (get block-map (:page block))
+          :else
+          (if-let [parent (block-parent block-map block)]
+            (do
+              ;; This can happen, solution I think is to rebuild logseq db
+              (assert (not (= parent (:id block))) (str "Block is its own parent: " parent))
+              (block-page block-map parent))
+            block))))
 
 (defn backward-page-refs
   [bm page]
@@ -219,20 +222,18 @@
 
 (defn daily-notes-page?
   [page]
-  (re-matches daily-notes-regex (:id page) ))
+  (when-let [title (or (:title page) (:id page))]
+    (re-matches daily-notes-regex title )))
 
 (defn daily-notes?
   [block-map block]
-  (let [page (block-page block-map block)
-        title (or (:title page) (:content page))]
-    (when title (re-matches daily-notes-regex title))))
+  (daily-notes-page? (block-page block-map block)))
 
 (defn exit-point?
   [block-map block]
-  (or (some #(tagged-or-contained? block-map block %)
-            (config/config :exit-tags))
-      (and (not (config/config :daily-notes?))
-           (daily-notes? block-map block))))
+  (or (:excluded? block)
+      (some #(tagged-or-contained? block-map block %)
+            (config/config :exit-tags))))
 
 ;;; Temp
 (def min* (partial u/min-by identity))
