@@ -129,12 +129,22 @@
       (filter identity base))))
 
 
+;;; TODO inexact matching:
+;;; - should probably be under an option
+;;; - this is only used to build ref graph, probably ought to apply to links as well
+(defn resolve-page-name
+  [bm page-name]
+  (let [block (or (bd/get-with-aliases bm page-name)
+                  (bd/get-with-inexact-aliases-warn bm page-name))]
+    (when-not (:id block) (prn (str "page not found: " page-name)))
+    (:id block)))
+
 ;;; Adds forward :refs field. 
 (defn generate-refs
   [db]
   (ju/pmap-values (fn [block]
                     (assoc block :refs (set
-                                        (u/mapf (partial bd/resolve-page-name db)
+                                        (u/mapf (partial resolve-page-name db)
                                                 (block-refs block)))))
                   db))
 

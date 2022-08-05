@@ -177,6 +177,24 @@
   [bm]
   (merge bm (alias-map bm)))
 
+(defn inexact-match-string
+  [s]
+  (str/lower-case s))                   ;TODO also punc removal probably
+
+(u/defn-memoized with-inexact-aliases
+  [bm]
+  (let [a (with-aliases bm)]
+    (reduce-kv (fn [bm name block]
+                 (if (string? name)
+                   (let [inexact (inexact-match-string name)]
+                     (if (contains? bm inexact)
+                       bm
+                       (assoc bm inexact block)))
+                   bm))
+               a
+               a)))
+
+
 (defn tagged?
   [block-map block tag]
   (let [tag-id (:id (get (with-aliases block-map) tag))]
@@ -254,6 +272,8 @@
                               (map (some-fn :edit-time :create-time) visible-blocks))]
     [(min* visible-dates) (max* visible-dates)]))
 
+;;; TODO these are wrong because aliases get counted twice. Fuck.
+;;; Pretty clear this is fucked; need a single bm and a separate naming/aliasing map. Fuck. 
 (defn stats [bm]
   {:blocks {:total (count bm)
             :published (count (filter :include? (vals bm)))}
@@ -333,19 +353,21 @@
        block))
    bm))
 
-
-
-
-
-(defn resolve-page-name
-  [bm page-name]
-  (let [block (get (with-aliases bm) page-name)]
-    (when-not (:id block) (prn (str "page not found: " page-name)))
-    (:id block)))
-
 (defn get-with-aliases
   [bm page-name]
   (get (with-aliases bm) page-name))
+
+(defn get-with-inexact-aliases
+  [bm page-name]
+  (get (with-inexact-aliases bm) (inexact-match-string page-name)))
+
+(defn get-with-inexact-aliases-warn
+  [bm page-name]
+  (prn :argh page-name)
+  (let [res (get-with-inexact-aliases bm page-name)]
+    (when res
+      (prn :warning page-name "inexact match to" (:title res))
+      res)))
 
 ;;; → Multitool? 
 (defn vec->maps
