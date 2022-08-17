@@ -7,6 +7,7 @@
             [goddinpotty.import.logseq :as logseq]
             [me.raynes.fs :as fs]
             [clojure.string :as str]
+            [clojure.tools.logging :as log]
             [org.parkerici.multitool.core :as u]
             [org.parkerici.multitool.cljcore :as ju])
   (:gen-class))
@@ -127,7 +128,7 @@
   #_
   (when (config/config :markdown-output-dir)
     (md/write-displayed-pages @last-bm (config/config :markdown-output-dir)))
-  (prn (bd/stats @last-bm))
+  (log/info (bd/stats @last-bm))
   #_ (dump bm))
 
 (defmulti produce-bm (fn [{:keys [source]}] (:type source)) )
@@ -172,11 +173,13 @@
     (output-bm bm)
     (html-gen/generate-index-redir (config/config  :output-dir))
     (post-generation (config/config) bm)
+    (log/info "Done")
     ))
 
 (defn -main
   [& [config-or-path]]
-  (main config-or-path))
+  (main config-or-path)
+  (System/exit 0))
 
 #_
 (defn scarf-images

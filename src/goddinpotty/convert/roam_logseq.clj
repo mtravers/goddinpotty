@@ -6,6 +6,7 @@
             [me.raynes.fs :as fs]
             [org.parkerici.multitool.core :as u]
             [org.parkerici.multitool.cljcore :as ju]
+            [clojure.tools.logging :as log]
             )
   (:gen-class))
 
@@ -33,10 +34,10 @@
         full-path (str directory "/" path)]
     (if (fs/exists? full-path)
       (do
-        (prn :case-folding-collision full-path)
+        (log/warn "Case folding collision" full-path)
         (write-page bm page directory (str name "+")))
       (do
-        (prn :writing path)
+        (log/info :writing path)
         (md/write-page bm page full-path)))))
 
 (defn write-pages
@@ -60,7 +61,7 @@
         images (roam-images/download-images bm output-dir) ; []
         xbm (roam-images/subst-images bm images)
         ]
-    (prn (assoc (bd/stats xbm) :downloaded-images (count images)))
+    (log/info "Stats" (assoc (bd/stats xbm) :downloaded-images (count images)))
     (reset! last-bm xbm)
     (write-pages xbm output-dir)
     bm))

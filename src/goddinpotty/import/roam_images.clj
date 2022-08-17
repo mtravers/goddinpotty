@@ -6,6 +6,7 @@
             [goddinpotty.rendering :as render]
             [goddinpotty.utils :as utils]
             [clojure.string :as s]
+            [clojure.tools.logging :as log]
             ))
 
 (defn- roam-image-url?
@@ -42,18 +43,17 @@
   (u/collecting-merge
    (fn [collect]
      (doseq [image-block (filter image-block? (vals bm))]
-       (identity #_ u/ignore-report
-        (let [[image-source alt-text] (render/parse-image-block image-block)]
-          ;; See rendering/format-image
-          (when-let [ext (roam-image-url? image-source)]
-            (let [base-filename (str (utils/clean-page-title (:content (bd/block-page bm image-block))) "-" (:id image-block) "." ext)
-                  local-relative (str "assets/" base-filename )
-                  local-full (str directory "/" local-relative)
-                  url (str "../assets/" base-filename)
-                  ]
-              (prn :download base-filename image-source)
-              (local-file image-source local-full)
-              (collect {image-source url})))))))))
+       (let [[image-source alt-text] (render/parse-image-block image-block)]
+         ;; See rendering/format-image
+         (when-let [ext (roam-image-url? image-source)]
+           (let [base-filename (str (utils/clean-page-title (:content (bd/block-page bm image-block))) "-" (:id image-block) "." ext)
+                 local-relative (str "assets/" base-filename )
+                 local-full (str directory "/" local-relative)
+                 url (str "../assets/" base-filename)
+                 ]
+             (log/info :download base-filename image-source)
+             (local-file image-source local-full)
+             (collect {image-source url}))))))))
 
 (defn- subst-image-source
   [str substs]
@@ -61,7 +61,7 @@
         replacement (get substs image-source)]
     (if replacement
       (s/replace str image-source replacement)
-      (do (prn "replacement not found for " str)
+      (do (log/warn "replacement not found for " str)
           str))))
 
 (def c (atom nil))

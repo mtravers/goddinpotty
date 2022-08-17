@@ -7,6 +7,7 @@
             [org.parkerici.multitool.cljcore :as ju]
             [clojure.set :as set]
             [clojure.walk :as walk]
+            [clojure.tools.logging :as log]
             ))
 
 ;;; Database construction.  See batadase for accessors
@@ -136,7 +137,8 @@
   [bm page-name]
   (let [block (or (bd/get-with-aliases bm page-name)
                   (bd/get-with-inexact-aliases-warn bm page-name))]
-    (when-not (:id block) (prn (str "page not found: " page-name)))
+    (when-not (:id block)
+      (log/error "Page not found" page-name))
     (:id block)))
 
 ;;; Adds forward :refs field. 

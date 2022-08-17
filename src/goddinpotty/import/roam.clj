@@ -7,6 +7,7 @@
             [org.parkerici.multitool.cljcore :as ju]
             [clojure.edn :as edn]
             [clojure.java.io :as io]
+            [clojure.tools.logging :as log]
             )
     (:import (java.util.zip ZipFile)))
 
@@ -20,7 +21,7 @@
                             database-file-name (.getName (first entries))]
                         (doseq [entry entries :when (not (.isDirectory ^java.util.zip.ZipEntry entry))
                                 :let [f (target-file entry)]]
-                          (prn :writing f)
+                          (log/info :writing f)
                           (fs/mkdirs (fs/parent f))
                           (io/copy (.getInputStream zip entry) f))
                         database-file-name)))))

@@ -6,20 +6,21 @@
             [me.raynes.fs :as fs]
             [org.parkerici.multitool.core :as u]
             [org.parkerici.multitool.cljcore :as ju]
-            [clojure.string :as str]
             [clojure.java.shell :as sh]
-            [goddinpotty.endure :as e]
+            [clojure.tools.logging :as log]
             )
   )
 
 (defn publish-images
   [logseq-dir]
   (doseq [file @rendering/published-images]
-    (u/ignore-report
-    ;; this tree-hopping is ugly
-     (fs/copy+ (fs/expand-home (str logseq-dir "/pages/" file))
-               ;; yes we have to dip down into hierarchy
-               (fs/expand-home (str (:output-dir (config/config)) "/assets/" file))))))
+    (try
+      ;; this tree-hopping is ugly
+      (fs/copy+ (fs/expand-home (str logseq-dir "/pages/" file))
+                ;; yes we have to dip down into hierarchy
+                (fs/expand-home (str (:output-dir (config/config)) "/assets/" file)))
+      (catch Throwable e
+        (log/error e "Error copying file" )))))
 
 ;;; TODO Not Logseq specific
 (defn publish-assets

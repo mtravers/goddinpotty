@@ -8,7 +8,9 @@
             [goddinpotty.recent :as recent]
             [goddinpotty.index :as index]
             [goddinpotty.search :as search]
-            [goddinpotty.config :as config]))
+            [goddinpotty.config :as config]
+            [clojure.tools.logging :as log]
+            ))
 
 ;;; Translate Hiccup into actual pages.
 ;;; NOTE: I wish Hiccup had an option to prettyprint HTML, but it doesn't
@@ -42,7 +44,7 @@
 
 (defn generate-content-page
   [block-map output-dir block]
-  (prn :generate-page (:title block))
+  (log/info "Generating" (:title block))
   (let [fname (str "/" (utils/clean-page-title (:title block)))]
     (export-page (if (:special? block)
                    ((:generator block) block-map)

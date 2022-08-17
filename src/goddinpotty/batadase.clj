@@ -4,6 +4,7 @@
             [org.parkerici.multitool.core :as u]
             [clojure.set :as set]
             [clojure.string :as str]
+            [clojure.tools.logging :as log]
             ))
 
 ;;; Database accessors. The name is a PROTEST against the feature of Clojure I hate most, rigid limits on namespace reference
@@ -363,10 +364,9 @@
 
 (defn get-with-inexact-aliases-warn
   [bm page-name]
-  (prn :argh page-name)
   (let [res (get-with-inexact-aliases bm page-name)]
     (when res
-      (prn :warning page-name "inexact match to" (:title res))
+      (log/warn page-name "inexact match to" (:title res))
       res)))
 
 ;;; → Multitool? 

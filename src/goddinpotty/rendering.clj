@@ -9,6 +9,7 @@
             [clojure.string :as str]
             [org.parkerici.multitool.core :as u]
             [org.parkerici.multitool.dev :as udev]
+            [clojure.tools.logging :as log]
             [taoensso.truss :as truss :refer (have have! have?)]
             )
   )
@@ -111,7 +112,7 @@
     (let [oembed (json/read-str (slurp (str "https://publish.twitter.com/oembed?url=" url)) :key-fn keyword)]
       (:html oembed))
     (catch Throwable e
-      (prn :twitter-embed-failed e)
+      (log/error "twitter embed failed" e)
       (make-link-from-url url))))
 
 (defn- make-content-from-url
@@ -143,7 +144,7 @@
 (defn page-link
   [opage & {:keys [alias class bm current]}]     
   (let [page (if (string? opage)
-               (bd/get-with-aliases bm opage)
+               (bd/get-with-inexact-aliases bm opage) ;TODO inexact matching should be config option probably
                opage)
         alias (or alias (and (string? opage) opage)) ;argh
         page-id (:id page)
@@ -161,7 +162,7 @@
        (block-content->hiccup (or alias page-title))]
       (do
         ;; This is normal but a sign that target might want to be exposed.
-        (prn (str "ref to excluded or missing page: " (or page-id opage)))
+        (log/warn "Ref to excluded or missing page" (or page-id opage) "from" current)
         [:span.empty
          (block-content->hiccup (or alias page-title))]))))
 
@@ -422,7 +423,6 @@
                         (map #(block-full-text block-map (get block-map %))
                              (:children block))))
     ""))
-
 
 ;;; Include bare HTML from assets folder
 ;;; TODO not currently used (was going to use it to include Paypal button),
