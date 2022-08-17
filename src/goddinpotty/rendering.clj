@@ -5,6 +5,7 @@
             [goddinpotty.database :as db]
             [goddinpotty.graph :as graph]
             [goddinpotty.utils :as utils]
+            [goddinpotty.context :as context]
             [clojure.data.json :as json]
             [clojure.string :as str]
             [org.parkerici.multitool.core :as u]
@@ -162,7 +163,7 @@
        (block-content->hiccup (or alias page-title))]
       (do
         ;; This is normal but a sign that target might want to be exposed.
-        (log/warn "Ref to excluded or missing page" (or page-id opage) "from" current)
+        (log/warn "Ref to excluded or missing page" (or opage page-id) "from" (context/get-context :page))
         [:span.empty
          (block-content->hiccup (or alias page-title))]))))
 
@@ -171,8 +172,6 @@
   [bm page-name & rest]
   (apply page-link page-name :bm bm rest))
 
-
-
     ;; (cond (contains? bm page-name)
     ;;     (apply page-link page-name :bm bm rest)
     ;;     (empty? bm)                     ;this can happen when a page title contains a link. (???)
@@ -180,7 +179,6 @@
     ;;     :else
     ;;     [:span.missing page-name]       ;In Logseq world, this happens if you have a single link to a non-existant (empty) page
     ;;     )))
-
 
 
 (declare block-hiccup)
@@ -401,7 +399,7 @@
 
 (defn block-local-text
   "just the text of a block, formatting removed"
-  [block]
+  [block-map block]
   (letfn [(text [thing]
             (cond (string? thing)
                   (if (url? thing)
@@ -413,13 +411,13 @@
                   (mapcat text (rest thing))
                   :else
                   ()))]
-    (str/join "" (text (block-hiccup block {})))))
+    (str/join "" (text (block-hiccup block block-map)))))
 
 ;;; Used for search index
 (defn block-full-text
   [block-map block]
   (if (bd/displayed? block)
-    (str/join " " (cons (block-local-text block)
+    (str/join " " (cons (block-local-text block-map block)
                         (map #(block-full-text block-map (get block-map %))
                              (:children block))))
     ""))

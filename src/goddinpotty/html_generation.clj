@@ -9,6 +9,7 @@
             [goddinpotty.index :as index]
             [goddinpotty.search :as search]
             [goddinpotty.config :as config]
+            [goddinpotty.context :as context]
             [clojure.tools.logging :as log]
             ))
 
@@ -45,12 +46,13 @@
 (defn generate-content-page
   [block-map output-dir block]
   (log/info "Generating" (:title block))
-  (let [fname (str "/" (utils/clean-page-title (:title block)))]
-    (export-page (if (:special? block)
-                   ((:generator block) block-map)
-                   (page-hiccup block-map output-dir block))
-                 fname
-                 output-dir)))
+  (context/with-context [:page (:title block)]
+    (let [fname (str "/" (utils/clean-page-title (:title block)))]
+      (export-page (if (:special? block)
+                     ((:generator block) block-map)
+                     (page-hiccup block-map output-dir block))
+                   fname
+                   output-dir))))
 
 (defn generate-index-redir
   [output-dir]

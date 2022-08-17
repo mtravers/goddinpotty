@@ -174,7 +174,7 @@
    (for [[indent id] toc]
      [:li 
       [:span {:style (utils/css-style {:width (* 15 (-  indent 1))})}]     ;ech
-      [:a {:href (str "#" id)} (render/block-local-text (get bm id))]]
+      [:a {:href (str "#" id)} (render/block-local-text bm (get bm id))]]
      )])
 
 ;; TODO this page should be hidden probably
@@ -213,7 +213,7 @@
   [block-id block-map output-dir]
   (let [block (get block-map block-id)
         title-hiccup (render/block-content->hiccup (:title block))
-        title-text (:title block) ; was render/block-local-text
+        title-text (:title block)
         contents
         [:div
          [:div
