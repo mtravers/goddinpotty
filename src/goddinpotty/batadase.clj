@@ -33,7 +33,11 @@
    (assert-block block)
    (if (config/config :unexclude?)
      true
-     (:include? block)))
+     (and (:include? block)
+          ;; TODO yet another definition of empty?
+          (or (:content block)
+              (:special? block)
+              (not (empty? (:children block)))))))
   ([block-map block-id]
    (displayed? (get block-map block-id))))
 

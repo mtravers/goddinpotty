@@ -34,6 +34,7 @@
   "Write out a single page. Content is hiccup. " 
   [content fname output-dir]
   (ensure-directories (str output-dir fname))
+  (log/info "Writing" fname)
   (spit (str output-dir fname)
         (hiccup/html content)))
 
@@ -83,10 +84,12 @@
    "/New.html"
    output-dir))
 
+;;; Not actually called, useful for dev
 (defn generate-index-pages
   [block-map output-dir]
   (export-pages
-   (index/make-index-pages block-map)
+   (u/map-values #((:generator %) block-map)
+                 (index/make-index-pages block-map))
    output-dir))
 
 (defn generate-global-map
