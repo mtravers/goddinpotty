@@ -6,6 +6,7 @@
             [clojure.string :as str]
             [org.parkerici.multitool.core :as u]
             [org.parkerici.multitool.cljcore :as ju]
+            [clojure.tools.logging :as log]
             )
   )
 
@@ -103,7 +104,10 @@
 
 (defn write-page
   [bm block file]
-  (ju/file-lines-out file (page->md bm block)))
+  (let [lines  (page->md bm block)]
+    (if (empty? lines)
+      (log/warn "Skipping empty file" file)
+      (ju/file-lines-out file lines))))
 
 
 

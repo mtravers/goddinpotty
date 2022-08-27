@@ -227,3 +227,9 @@
              (filter #(> (count %) 1)
                      (vals (group-by str/lower-case (keys bm))))))))
 
+(defn delete-empty-files
+  [dir]
+  (doseq [f (fs/list-dir dir)]
+    (when (= 0 (fs/size f))
+      (prn :deleting f)
+      (fs/delete f))))

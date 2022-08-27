@@ -3,25 +3,27 @@
             [goddinpotty.import.roam :as roam]
             [goddinpotty.import.roam-images :as roam-images]
             [goddinpotty.batadase :as bd]
+            [goddinpotty.config :as config]
             [me.raynes.fs :as fs]
-            [org.parkerici.multitool.core :as u]
-            [org.parkerici.multitool.cljcore :as ju]
             [clojure.tools.logging :as log]
             )
   (:gen-class))
 
 ;;; Toplevel for Roam → Logseq converter
 
-;;; TODO painfully slow for some reason, try to speedup if releasing as a standalone tool
+;;; TODO painfully slow for some reason, try to speedup if releasing as a standalone tool (could cut out all the parsing)
+;;; TODO Roam uses __italics__, which Logseq renders as bold, preferring *italics*. Should do a translation but that means reaching into the parse more than I'm doing now
+;;; TODO
 
 (def last-bm (atom {}))
 
-;;; TODO Warning does a very hard reset, probably a better idea to just clear out the three subdirs, creating if necessary.
+;;; This semi-clears the output directory. Assets files are left there to avoid downloading them multiple times.
 ;;; Or preserve the assets directory so downloads don't need to be redone
 (defn- reset-directory
   [dir]
-  (fs/delete-dir dir)
   (fs/mkdir dir)
+  (doseq [d ["pages" "journals"]]
+    (fs/delete-dir (str dir "/" d)))
   (doseq [d ["assets" "pages" "journals"]]
     (fs/mkdir (str dir "/" d))))
 
@@ -43,7 +45,10 @@
 (defn write-pages
   [bm directory]
   (doseq [page (bd/pages bm)]
-    (write-page bm page directory)))
+    (try
+      (write-page bm page directory)
+      (catch Throwable e
+        (log/error "Error writing" (:content page) e)))))
 
 (defn maybe-unzip
   [f]
@@ -54,10 +59,16 @@
 
 (defn do-it
   [edn-file output-dir]
+  (log/info "Starting conversion")
+  (config/set-config-map! {:daily-notes? true
+                           :exit-tags []
+                           :unexclude? true
+                           :output-dir output-dir})
   (reset-directory output-dir)
   (let [bm (-> edn-file
                maybe-unzip
-               roam/roam-db-edn)
+               roam/roam-db-edn)        ;TODO there is no need to do most of the work this does, particularly parsing 
+        _ (reset! last-bm bm)
         images (roam-images/download-images bm output-dir) ; []
         xbm (roam-images/subst-images bm images)
         ]
