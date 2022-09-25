@@ -14,7 +14,7 @@
 ;; Used by logseq-from-md, not there yet
 ;;                 [org.commonmark/commonmark "0.18.0"]
                  [html-to-md/html-to-md "0.3.0"]
-                 [org.parkerici/multitool "0.0.22"]
+                 [org.parkerici/multitool "0.0.24"]
                  [com.taoensso/truss "1.6.0"]
                  [alandipert/enduro "1.2.0"] ;persistence for expensive calculations
                  [hiccup "1.0.5"]
@@ -23,7 +23,9 @@
                  [metasoarous/oz "1.6.0-alpha36"] 
                  [mock-clj "0.2.1"]     ;TODO should be under :test profile
                  [seesaw "1.5.0"]
+                 [environ "1.2.0"]
                  ]
+  :plugins [[lein-environ "1.2.0"]]
   :resource-paths ["resources"]
   :main goddinpotty.core
   :aliases {"roamaway" ["run" "-m" "goddinpotty.convert.roam-logseq"]}
@@ -32,5 +34,8 @@
    {:aot :all
     :omit-source true
     }
+   :repl
+   {:env {:profile "repl"}}             ;annoying that this is necessary
+                                        ;and even more annoying: keywords don't work, hence the string
    }
   )

@@ -10,16 +10,9 @@
 ;;; depth tree
 ;;; by size, # of refs (incoming/outgoing/both)
 
-;;; Soon to be in multitool
-(defn numeric-prefix-sort-key
-  "Provide a key for sorting strings with leading numbers"
-  [s]
-  (let [[_ num rest] (re-matches #"^([0-9]*)(.*)" s)]
-    [(when-not (empty? num) (u/coerce-numeric num)) rest]))
-
 (def indexes
   [{:name "Title"
-    :sort-key (comp numeric-prefix-sort-key s/upper-case :title)
+    :sort-key (comp u/numeric-prefix-sort-key s/upper-case :title)
     :render render/page-link
     :page-title "Index"                 ;kludge to match block-map and links
     :col-width "65%"

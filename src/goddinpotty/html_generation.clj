@@ -34,10 +34,12 @@
   "Write out a single page. Content is hiccup. " 
   [content fname output-dir]
   (ensure-directories (str output-dir fname))
-  (log/info "Writing" fname)
-  (spit (str output-dir fname)
-        (hiccup/html content)))
+  (context/with-context [:file fname]
+    (log/info "Writing" fname)
+    (spit (str output-dir fname)
+          (hiccup/html content))))
 
+;;; Not actually used
 (defn export-pages
   "Write out pages. Content is map of filenames → hiccup." 
   [content output-dir]

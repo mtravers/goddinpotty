@@ -9,7 +9,8 @@
             [clojure.string :as str]
             [clojure.tools.logging :as log]
             [org.parkerici.multitool.core :as u]
-            [org.parkerici.multitool.cljcore :as ju])
+            [org.parkerici.multitool.cljcore :as ju]
+            [environ.core :as env])
   (:gen-class))
 
 ;;; TODO this is a mess and should be cleaned up
@@ -121,7 +122,8 @@
   (reset-output)
   (let [output-dir (config/config :output-dir)]
     (graph/write-page-data bm output-dir)
-    (html-gen/generate-goddinpotty bm output-dir))
+    (html-gen/generate-goddinpotty bm output-dir)
+    (html-gen/generate-index-redir output-dir))
   ;; TODO options for writing all pages
   ;;; Turning this off for now, Logseqe output is more important
   ;;; Should be rationalized; html and md output should be modules
@@ -171,7 +173,6 @@
   (let [bm (add-generated-pages (produce-bm (config/config)))]
     (tap bm)
     (output-bm bm)
-    (html-gen/generate-index-redir (config/config  :output-dir))
     (post-generation (config/config) bm)
     (log/info "Done")
     ))
@@ -179,7 +180,8 @@
 (defn -main
   [& [config-or-path]]
   (main config-or-path)
-  (System/exit 0))
+  (when-not (= "repl" (:profile env/env))
+    (System/exit 0)))
 
 #_
 (defn scarf-images
