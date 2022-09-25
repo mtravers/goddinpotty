@@ -107,6 +107,8 @@
   [url]
   (re-matches #"https:\/\/twitter.com\/\S*" url))
 
+;;; TODO fails for image links like https://twitter.com/lastpositivist/status/1341720934735069184/photo/1 but Logseq does these...
+;;; Temp kludge solution: grep and remove "/photo/1"
 (defn- embed-twitter
   [url]
   (try
@@ -239,7 +241,7 @@
              (mapv #(if (string? seq)
                       seq
                       (ele->hiccup % block-map block))
-                    seq))] 
+                   seq))] 
      (if (string? ast-ele)
        ast-ele
        (let [ele-content (second ast-ele)]
@@ -289,9 +291,9 @@
             :done [:input {:type "checkbox" :disabled "disabled" :checked "checked"}]
             :code-line [:code (utils/remove-n-surrounding-delimiters 1 ele-content)]
             :code-block (format-codeblock ele-content)
-            :video (if-let [youtube-id (get-youtube-id (second ele-content))] ;TODO check that this is [:bare-url <url]
-                       (youtube-vid-embed youtube-id)
-                       [:span "Non-youtube video" ele-content]) ;TODO temp, do something better
+            :video (if-let [youtube-id (get-youtube-id (second (nth ast-ele 2)))] ; block is [:video " " [:bare-url rul]]
+                     (youtube-vid-embed youtube-id)
+                     [:span "Non-youtube video" ele-content]) ;TODO temp, do something better
             :bare-url (make-content-from-url ele-content)
             :blockquote (new-head (ele->hiccup ele-content block-map block) :blockquote)
                                         ;ast-ele

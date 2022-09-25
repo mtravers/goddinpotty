@@ -84,7 +84,6 @@
 (defn subst-images
   "Toplevel call"
   [bm substs]
-  (reset! c [bm substs])
   (u/map-values
    (fn [b]
      ;; Now does every content. This might be slow as shit.
