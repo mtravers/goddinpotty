@@ -428,7 +428,6 @@
 ;;; TODO not currently used (was going to use it to include Paypal button),
 ;;;    and needs a bit of work (the parameter is rendered)
 ;;; TODO To be useful, might need a version that puts stuff at top-level of html file rather than in the flow (for scripts etc)
-;;; TODO should be more robust to missing file
 (bd/register-special-tag
  "include"
  (fn [bm block]

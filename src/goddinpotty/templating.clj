@@ -6,6 +6,7 @@
             [goddinpotty.graph :as graph]
             [goddinpotty.search :as search]
             [goddinpotty.batadase :as bd]
+            [goddinpotty.context :as context]
             [org.parkerici.multitool.core :as u]
             ))
 
@@ -146,8 +147,9 @@
 
 (defn render-page-hierarchy-1
   [path page-struct bm this]
-  (let [top (clojure.string/join "/" path)]
-    (when (bd/displayed? (bd/get-with-aliases bm top))
+  (let [top (clojure.string/join "/" path)
+        page (bd/get-with-aliases bm top)]
+    (when (and page (bd/displayed? page))
       [:div
        [:li (render/page-link top :bm bm :alias (last path))]
        ;; TODO tweak css so long things look rightish
@@ -163,9 +165,10 @@
 
 (defn render-page-hierarchy
   [page-name bm]
-  (let [[_ top] (or (re-find #"^(.*?)/(.*)$" page-name) [nil page-name])
-        page-struct (get (bd/page-hierarchies bm) top)]
-    (render-page-hierarchy-1 [top] page-struct bm page-name)))
+  (context/with-context [:page page-name]
+    (let [[_ top] (or (re-find #"^(.*?)/(.*)$" page-name) [nil page-name])
+          page-struct (get (bd/page-hierarchies bm) top)]
+      (render-page-hierarchy-1 [top] page-struct bm page-name))))
 
 ;;; Note: these links have a different semnatics than normal ones, and so maybe should be styled differently
 (defn render-toc

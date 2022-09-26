@@ -28,6 +28,31 @@
   ([block-map block-id]
    (included? (get block-map block-id))))
 
+(u/defn-memoized special-tags
+  []
+  (set (concat (config/config :exit-tags)
+               (config/config :entry-tags))))
+
+;;; All legit names of block, main and aliases
+(defn block-names
+  [block]
+  (if (:title block)
+    (conj (:alias block) (:title block))
+    (:alias block)))
+
+(defn special-tag-block?
+  [block]
+  (some (special-tags) (block-names block)))
+
+;;; Logseq makes a lot of these, I think for links to unrealized pages. They suck and the interfere with aliases, so weeding them early
+(defn block-empty?
+  [block]
+  (and (nil? (:parent block))
+       (u/nullish? (:content block))
+       (u/nullish? (:children block))
+       (not (:special? block))
+       (not special-tag-block?)))
+
 (defn displayed?
   ([block]
    (assert-block block)
@@ -37,7 +62,11 @@
           ;; TODO yet another definition of empty?
           (or (:content block)
               (:special? block)
-              (not (empty? (:children block)))))))
+              (not (empty? (:children block)))
+              ;; TODO should only count included/displayed blocks, but needs bm then
+              (> (count (:ref-by block)) 1) ;if a page has >1 ref, it is worth generating (TODO maybe this should be option)
+
+              ))))
   ([block-map block-id]
    (displayed? (get block-map block-id))))
 
@@ -161,12 +190,7 @@
   [block-map]
   (remove :special? (displayed-pages block-map)))
 
-;;; All legit names of block, main and aliases
-(defn block-names
-  [block]
-  (if (:title block)
-    (conj (:alias block) (:title block))
-    (:alias block)))
+
 
 (u/defn-memoized alias-map
   "Return map of aliases to page blocks"
@@ -174,9 +198,10 @@
   (u/collecting-merge
    (fn [collect]
      (doseq [block (vals bm)]
-       (doseq [alias (block-names block)]
-         (collect {alias (block-page bm block)})
-         )))))
+       (when-not (block-empty? block)
+         (doseq [alias (block-names block)]
+           (collect {alias (block-page bm block)})
+           ))))))
 
 (u/defn-memoized with-aliases
   [bm]
@@ -198,7 +223,6 @@
                    bm))
                a
                a)))
-
 
 (defn tagged?
   [block-map block tag]
@@ -299,12 +323,18 @@
           (map size
                (filter displayed? (:dchildren page)))))
 
+;;; Used to gray out and disable links. 
+#_
 (defn page-empty?
   [page]
   (and (not (:special? page))
        (< (- (size page)
              (count (:title page)))
           10)))
+
+(defn page-empty?
+  [page]
+  (not (displayed? page)))
 
 (defn expand-to [block-map block minsize]
   (cond (>= (size block) minsize)
@@ -334,11 +364,19 @@
   [tag handler]
   (swap! special-tags assoc tag handler))
 
+(defmacro with-error-logging
+  "Execute `body`, if an exception occurs, log a message and continue"
+  [& body]
+  `(try (do ~@body)
+        (catch Throwable e#
+          (log/error e# "ignored"))))
+
 (defn special-hashtag-handler
   [bm ht block]
   #_ (when (contains? @special-tags ht) (prn :ht ht (:id block)))
   (when-let [handler (get @special-tags ht)]
-    (handler bm block)))
+    (with-error-logging
+      (handler bm block))))
 
 ;;; Redone now that we create parents
 ;;; TODO This would be a good place to add flags that cause the incoming links to render as main body
@@ -373,7 +411,7 @@
       (log/warn page-name "inexact match to" (:title res))
       res)))
 
-;;; → Multitool? 
+;;; → Multitool?  (Guess not, kind of special purpose)
 (defn vec->maps
   [v]
   (if (empty? v)
@@ -389,7 +427,7 @@
        (when (re-find #"/" title)
          (collect (vec->maps (str/split title #"/"))))))))
 
-(u/defn-memoized page-hierarchies ;only need to compute this once
+(defn page-hierarchies ;only need to compute this once
   [bm]
   (page-hierarchies-1 (map :title (pages bm))))
 

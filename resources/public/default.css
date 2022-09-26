@@ -358,6 +358,7 @@ iframe {
 /* When we show all blocks, highlight the private ones */
 .excluded {
     background: lightgoldenrodyellow;
+    padding-top: 10px;		/* don't ask */
 }
 
 /* This makes internal hrefs scroll to visibility. See https://css-tricks.com/hash-tag-links-padding/ */
