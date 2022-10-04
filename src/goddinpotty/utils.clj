@@ -63,7 +63,7 @@
 (defn clean-page-title
   [string]
   (-> string
-      (strip-chars #{\( \) \[ \] \? \! \. \@ \# \$ \% \^ \& \* \+ \= \; \: \" \' \\ \, \< \> \~ \` \{ \}}) ; experimentally removed  /
+      (strip-chars #{\( \) \[ \] \? \! \. \# \$ \% \^ \& \* \+ \= \; \: \" \' \\ \, \< \> \~ \` \{ \}}) ; experimentally removed  / and @
       (s/replace #"\s" "-")
       (s/replace #"\/" "∕")             ;that's "replace real slash with fake slash that won't make a subir"
       ))

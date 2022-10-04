@@ -2,6 +2,7 @@
   (:require [goddinpotty.parser :as parser]
             [goddinpotty.batadase :as bd]
             [goddinpotty.utils :as utils]
+            [goddinpotty.context :as context]
             [goddinpotty.config :as config]
             [org.parkerici.multitool.core :as u]
             [org.parkerici.multitool.cljcore :as ju]
@@ -56,10 +57,10 @@
 ;;; unless explicitly marked #Private
 (defn page-hierarchy-ref
   [page]
-  (let [[_ parent _local]
-        (and (:title page)           ;temp
-             (re-find #"^(.*)/(.*?)$" (:title page)))]
-    parent))
+  (when (string? (:title page))         ;???
+    (let [[_ parent _local]
+          (re-find #"^(.*)/(.*?)$" (:title page))]
+      parent)))
 
 ;;; Computes depth and inclusion, based on:
 ;;; - Entry points
@@ -111,7 +112,8 @@
 ;;; Computes the value of the :refs attribute
 (defn block-refs
   [block]
-  (letfn [(struct-entities [struct]
+  (context/with-context [:block block]
+    (letfn [(struct-entities [struct]
             (if (string? struct)
               []
               ;; Would make sense to do some of this in parser/transform-to-ast
@@ -127,7 +129,7 @@
                 (mapcat struct-entities (rest struct)))))]
     (let [base (conj (struct-entities (:parsed block))
                      (page-hierarchy-ref block))]
-      (filter identity base))))
+      (filter identity base)))))
 
 
 ;;; TODO inexact matching:
@@ -186,9 +188,28 @@
                      %)
                   bm)))
 
+
+;;; → TODO Multitool
+(defn tap
+  [x var f args]
+  (reset! var x)
+  (apply f x args))
+
+(defmacro tap->
+  [var x & forms]
+  `(-> ~x
+       ~@(map (fn [form]
+                (if (seq? form)
+                  `(tap ~var ~(first form) ~(rest form))
+                  `(tap ~var ~form nil)))
+              forms)))
+
+
+(def interim-db (atom nil))
+
 (defn build-db-1
   [db]
-  (-> db
+  (tap-> interim-db db
       exclude-blocks
       parse
       generate-refs

@@ -63,7 +63,56 @@
            (cons next (order-children db (disj child-ids next) next))
          ))))
 
-             
+(comment
+  (frequencies (mapcat (comp keys :block/properties) nbb))
+  {:updated-at 18659,
+   :created-at 16777,
+   :id 18523,
+   :title 1855,
+
+   :alias 162,
+   :aliases 2,
+
+   :heading 704
+   :tags 10,
+   :template-including-parent 3,
+   :date 21,
+   :issn 4,
+   :publisher 2,
+   :issue 8,
+   :proceedings-title 2,
+   :publication 9,
+   :public 2,
+   :type 10,
+   :template 3,
+   :icon 2,
+   :doi 4,
+
+   :pages 10,
+   :volume 6,
+   :topics 8,
+   :item-type 12,
+   :access-date 6,
+
+   :original-title 12,
+   :language 6,
+   :class 2,
+   :url 15,
+   :short-title 2,
+   :publication-title 6,
+
+   :journal-abbreviation 2,
+   :authors 22,
+   :library-catalog 10,
+   :links 12,
+})
+
+;;; TODO multitool unlist             
+(defn uncoll [thing]
+  (if (and (coll? thing) (= 1 (count thing)))
+    (first thing)
+    thing))
+
 ;;; TODO do something with :block/refs and/or :block/path-refs probably?
 ;;; path-refs seems to be union of refs and parent?
 (defn logseq-nbb->blocks-base
@@ -71,8 +120,10 @@
   (->> blocks
        (map (fn [block]
               (merge
+               ;; TODO reexamine this – probably only pages should have title?
                {:title (or
-                        (get-in block [:block/properties :title])
+                        ;; uncoll because sometimes this is a set for no good reason
+                        (uncoll (get-in block [:block/properties :title]))
                         (:block/original-name block) ;??? Not sure what actual semnatics are, but this is often better TODO should name be alias?
                         (:block/name block))
                 :id (:db/id block) ;note: has to be id so refs work
@@ -88,7 +139,8 @@
                 :page? (boolean (:block/name block)) ;???
                 :page (:db/id (:block/page block))
                 }
-               (dissoc (get block :block/properties) :id) ; includes :alias and :class The :id here seems useless and conflicts with the :db/id from datomic
+               ;; TODO is this useful? I am not sure if anything uses this
+               (dissoc (get block :block/properties) :id :title) ; includes :alias and :class The :id here seems useless and conflicts with the :db/id from datomic
                )))
        (u/index-by :id)
        (add-children :parent :children)
