@@ -119,7 +119,6 @@
   [blocks]
   (->> blocks
        (map (fn [block]
-              (merge
                ;; TODO reexamine this – probably only pages should have title?
                {:title (or
                         ;; uncoll because sometimes this is a set for no good reason
@@ -138,10 +137,11 @@
                 :left (get-in block [:block/left :db/id])
                 :page? (boolean (:block/name block)) ;???
                 :page (:db/id (:block/page block))
+                :alias (get-in block [:block/properties :alias])
+                ;; TODO not used yet – we pull out the useful ones, maybe don't need
+                :properties (get block :block/properties)
                 }
-               ;; TODO is this useful? I am not sure if anything uses this
-               (dissoc (get block :block/properties) :id :title) ; includes :alias and :class The :id here seems useless and conflicts with the :db/id from datomic
-               )))
+              ))
        (u/index-by :id)
        (add-children :parent :children)
        (order-children)

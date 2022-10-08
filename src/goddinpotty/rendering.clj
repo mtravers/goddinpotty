@@ -229,6 +229,10 @@
        vals
        (u/index-by :uid)))
 
+(def hidden-properties
+  #{"title" "original-title" "alias"
+    "id" "created-at" "updated-at" "public"})
+
 ;;; Does most of the real work of rendering.
 (defn ele->hiccup
   [ast-ele block-map & [block]]
@@ -252,7 +256,12 @@
             ;; Might want this old behavior under a flag, but definitely not wanted in Logseq context.
 ;;            :metadata-tag [:b [:a {:href (utils/clean-page-title ele-content)}
 ;;                               (subs ele-content 0 (dec (count ele-content)))]]
-            :block-property nil         ;These aren't included in output
+            :block-property
+            (let [[_ label value] (re-matches #"\n?(.+?):: (.+)\n?" (second ast-ele))]
+              (when-not (contains? hidden-properties label)
+                ;; TODO provisional
+                [:li [:b label] ": " (recurse value)]))
+
             :prop-block nil
             :heading (let [base (ele->hiccup (nth ast-ele 2) block-map)]
                        (case (count (second ast-ele))

@@ -5,11 +5,11 @@
             [mock-clj.core :as mc]
             [clojure.test :refer :all]))
 
+;;; TODO add some aliases
 (def fake-block-map
   {1 {:id 1 :page? true :include? true :content "foo" :title "foo"}
    2 {:id 2 :page? true :include? true :content "short" :title "bar"}
    3 {:id 3 :page? true :include? true :content (str (range 1000)) :title "baz"}})
-
 
 (defn prep-block
   [b]
@@ -32,16 +32,25 @@
          (block-content->hiccup "what [the fucking](fuck) is this")))
 
   ;; TODO shouldn't this be [:span.empty ...] ??? Are both of those needed or should they be collapsed
-  (is (= [:span "foo " [:a {:href "bar" :class "empty"} "bar"] " baz " [:a.external {:href "yuck"} "ugh"]]
-         (block-hiccup (fake-block "foo [[bar]] baz [ugh](yuck)") fake-block-map)))
-  (is (= [:span "foo " [:a.external {:href "yuck"} "ugh"] " baz " [:a {:href "bar" :class "empty"} "bar"]]
+  (testing "link to real block"
+    (is (= [:span "foo " [:a {:href "bar"} "bar"] " baz " [:a.external {:href "yuck"} "ugh"]]
+           (block-hiccup (fake-block "foo [[bar]] baz [ugh](yuck)") fake-block-map)))
+    (is (= [:span "foo " [:a {:href "bar"} "bar"] " and " [:a {:href "baz"} "baz"]]
+           (block-hiccup (fake-block "foo [[bar]] and [[baz]]") fake-block-map)
+         )))
+
+  (testing "link to missing block"
+    (is (= [:span "foo " [:span.empty "zorch"] " baz " [:a.external {:href "yuck"} "ugh"]]
+           (block-hiccup (fake-block "foo [[zorch]] baz [ugh](yuck)") fake-block-map)))
+    )
+
+  (is (= [:span "foo " [:a.external {:href "yuck"} "ugh"] " baz " [:a {:href "bar"} "bar"]]
          (block-hiccup (fake-block "foo [ugh](yuck) baz [[bar]]") fake-block-map)
          ))
   (is (= [:span "foo " [:a.external {:href "yuck"} "ugh"] " baz " [:a.external {:href "zippy"} "yow"]]
+
          (block-hiccup (fake-block "foo [ugh](yuck) baz [yow](zippy)") {})))
-  (is (= [:span "foo " [:a {:href "bar" :class "empty"} "bar"] " and " [:a {:href "baz"} "baz"]]
-         (block-hiccup (fake-block "foo [[bar]] and [[baz]]") fake-block-map)
-         ))
+
   )
 
 (deftest blockquote-gen-test
@@ -67,7 +76,7 @@ And its fallen Emanation, the Spectre and its cruel Shadow.") {}))))
  and so is this.```") {})))))
 
 (deftest markup-in-page-names-test
-  (is (= [:a {:href "__foo__" :class "empty"} [:i "foo"]] 
+  (is (= [:a {:href "__foo__"} [:i "foo"]] 
          (block-hiccup (fake-block "[[__foo__]]")
                        (fake-block-map+
                         (prep-block

@@ -5,3 +5,6 @@
 # TODO this doesn't work either, probably needs to wait for old one to quit, not sure how to do that.
 # open /Applications/Logseq.app	# tried to do this with applscript, doesn't really work
 
+echo "You need to hit C-x C-s (save current graph to disk) in Logseq"
+# TODO see https://github.com/logseq/nbb-logseq/issues/1
+

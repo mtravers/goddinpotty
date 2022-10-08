@@ -108,7 +108,8 @@
   []
   (u/memoize-reset!)
   (reset-output)
-  (html-gen/generate-goddinpotty @last-bm (config/config :output-dir)))
+  (html-gen/generate-goddinpotty @last-bm (config/config :output-dir))
+  (post-generation (config/config) @last-bm))
 
 (defn reset
   []
