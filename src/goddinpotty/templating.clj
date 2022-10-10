@@ -247,6 +247,7 @@
                            })}
            (render/page-link-by-name block-map "Map" :alias "Full" )]]
          [:div#mapgraph.collapse
+          {:class "show"};; Default to open, remove if default closed (TODO make configurable)
           [:div.card-body {:style (utils/css-style {:padding "2px"})}
            ;; TODO possible config to do embedded vs external
            (graph/render-graph ;; render-graph-embedded

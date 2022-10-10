@@ -98,29 +98,15 @@
     (delete-dir-contents pages-dir)
     (fs/mkdir pages-dir)))
 
-(defn gen-page
-  [page]
-  (u/memoize-reset!)
-  (html-gen/generate-content-page @last-bm (config/config :output-dir)
-                                  (bd/get-with-aliases @last-bm page)))
-
-(defn gen-pages
-  []
-  (u/memoize-reset!)
-  (reset-output)
-  (html-gen/generate-goddinpotty @last-bm (config/config :output-dir))
-  (post-generation (config/config) @last-bm))
-
 (defn reset
   []
   (u/memoize-reset!)
-  ;; reset render/published-images
   (reset! goddinpotty.rendering/published-images #{})
+  (reset-output)
   )
 
 (defn output-bm
   [bm]
-  (reset-output)
   (let [output-dir (config/config :output-dir)]
     (graph/write-page-data bm output-dir)
     (html-gen/generate-goddinpotty bm output-dir)
@@ -164,6 +150,19 @@
 (defn page-refs
   [name]
   (map page-name (bd/all-refs (get-page "The version of me"))))
+
+(defn gen-page
+  [page]
+  (u/memoize-reset!)
+  (html-gen/generate-content-page @last-bm (config/config :output-dir)
+                                  (bd/get-with-aliases @last-bm page)))
+
+(defn gen-pages
+  []
+  (u/memoize-reset!)
+  (reset-output)
+  (html-gen/generate-goddinpotty @last-bm (config/config :output-dir))
+  (post-generation (config/config) @last-bm))
 
 (defn main
   [config-or-path]

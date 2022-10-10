@@ -103,7 +103,7 @@
 
 ;;; Tried to build this into instaparse parser, but couldn't make it take precedence over :bare-url
 ;;; Note: this only is relevant to Roam; Logseq uses {{tweet ...}} syntax
-(defn- twitter-url?
+(defn twitter-url?
   [url]
   (re-matches #"https:\/\/twitter.com\/\S*" url))
 
@@ -230,7 +230,9 @@
        (u/index-by :uid)))
 
 (def hidden-properties
-  #{"title" "original-title" "alias"
+  #{"title" "original-title"
+    ;; Actually want aliases, I think? Could be an option
+    ;; "alias"
     "id" "created-at" "updated-at" "public"})
 
 ;;; Does most of the real work of rendering.
