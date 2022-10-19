@@ -221,7 +221,7 @@
 ;;; for other things. Not sure this is right thing, but solves an immediate problem
 (defn hiccup-fixups
   [hic]
-  (u/substitute hic {:table :table.table}))
+  (u/substitute hic {:table :table.table-bordered}))
 
 (u/defn-memoized uid-indexed
   [bm]
@@ -233,7 +233,10 @@
   #{"title" "original-title"
     ;; Actually want aliases, I think? Could be an option
     ;; "alias"
-    "id" "created-at" "updated-at" "public"})
+    "id" "created-at" "updated-at" "public" "collapsed"
+    ;; Zotero tags that aren't very interesting
+    "access-date" "library-catalog"
+    })
 
 ;;; Does most of the real work of rendering.
 (defn ele->hiccup

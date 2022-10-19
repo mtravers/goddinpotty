@@ -149,7 +149,7 @@
 
 (defn page-refs
   [name]
-  (map page-name (bd/all-refs (get-page "The version of me"))))
+  (map page-name (bd/all-refs (get-page name))))
 
 (defn gen-page
   [page]
