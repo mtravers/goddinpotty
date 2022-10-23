@@ -41,7 +41,7 @@ latex= #"\$\$(.*?)\$\$"
 
 (* should match all punc that is not otherwise used for syntax, not sure I have everything  *)
    text = #'[A-Za-z0-9\.\,\!\"\'\?]+|[\s\W_]+?'
-textier = #'[A-Za-z0-9\.\,\!\"\'\?\s\:\-]+' 
+textier = #'[A-Za-z0-9\.\,\!\"\'\?\s\:\-’]+' 
 
 heading = #"#{1,3}" block
 

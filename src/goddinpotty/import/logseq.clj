@@ -47,6 +47,7 @@
 
 ;;; Uses the :left property to order the children properly. Relies that :left of leftmost child
 ;;; points to parent.
+;;; TODO Bug - Can introduce nils to :children slot, causing downstream problems
 (defn- order-children
   ([db]
    (u/map-values
@@ -119,6 +120,9 @@
   [blocks]
   (->> blocks
        (map (fn [block]
+              ;; Sanity check, this condition causes problems further down (order-children produces nils)
+              (assert (not (= (:db/id block) (:db/id (:block/parent block))))
+                      (str "Block is its own parent: " (:db/id block)))
                ;; TODO reexamine this – probably only pages should have title?
                {:title (or
                         ;; uncoll because sometimes this is a set for no good reason

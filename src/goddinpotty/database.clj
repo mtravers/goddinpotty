@@ -210,13 +210,13 @@
 (defn build-db-1
   [db]
   (tap-> interim-db db
-      exclude-blocks
-      parse
-      generate-refs
-      generate-inverse-refs
-      compute-depths
-      compute-includes
-      add-direct-children))              ; makes it easier to use, harder to dump. This needs to be last
+         exclude-blocks
+         parse
+         generate-refs
+         generate-inverse-refs
+         compute-depths
+         compute-includes
+         add-direct-children))              ; makes it easier to use, harder to dump. This needs to be last
 
 (defn add-uids
   [json]

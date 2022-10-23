@@ -123,8 +123,8 @@
 (defmulti produce-bm (fn [{:keys [source]}] (:type source)) )
   
 ;;; Sometimes I hate Clojure
-(defmethod produce-bm :logseq [_]
-  (logseq/produce-bm (config/config)))
+(defmethod produce-bm :logseq [config]
+  (logseq/produce-bm config))
 
 (defmulti post-generation (fn [{:keys [source]} _] (:type source)))
 
