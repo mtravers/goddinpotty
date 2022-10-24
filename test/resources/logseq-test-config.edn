@@ -3,8 +3,9 @@
 
  {:source {:type :logseq
            :graph "logseq-test"
+           :repo "test/resources/logseq-test"
            }
-
+  :entry-tags ["test"]
   :exit-tags ["ExitPoint" "Private"]
   :site-css ["assets/hyper-roam.css"]
   :short-title "Logseq:Goddinpotty Test Graph"

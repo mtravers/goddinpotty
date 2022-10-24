@@ -61,7 +61,7 @@
 (defn -main
   [args]
   (if-not (= 2 (count args))
-    (println "Usage: $0 GRAPH QUERY")
+    (throw (ex-info "Usage: $0 GRAPH QUERY" {}))
     (let [[graph-name query] args
           db (or (get-graph-db graph-name)
                  (throw (ex-info "No graph found" {:graph graph-name})))

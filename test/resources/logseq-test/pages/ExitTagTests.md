@@ -1,0 +1,7 @@
+- #test
+- This content should be visible
+- This content should be private
+	- #Private
+	- This should also be private
+		- Also private
+- This should be visible

@@ -15,7 +15,8 @@
 (defn set-config-map!
   [m]
   (reset! the-config m)
-  (pprint/pprint @the-config))
+  (pprint/pprint @the-config)
+  m)
 
 (defn read-config
   [path]
