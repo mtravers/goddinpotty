@@ -4,6 +4,7 @@
               [goddinpotty.batadase :as bd]
               [goddinpotty.core :as core]
               [org.parkerici.multitool.core :as u]
+              [org.parkerici.multitool.nlp :as nlp]
               [org.parkerici.multitool.cljcore :as ju]
               [me.raynes.fs :as fs]
               [clojure.string :as str]
@@ -233,3 +234,36 @@
     (when (= 0 (fs/size f))
       (prn :deleting f)
       (fs/delete f))))
+
+;;; Word counts
+(defn block-word-count
+  [bm block]
+  (->> block
+      (goddinpotty.rendering/block-local-text bm)
+      nlp/tokens
+      count))
+
+
+(def +* (u/vectorize +))
+
+;;; Way slow, it re-renders each page
+;;; TODO devops to run and store this on an ongoing basis
+(defn global-word-count
+  [bm]
+  (loop [displayed-words 0
+         private-words 0
+         [block & rest] (vals bm)]
+    (if (nil? block)
+      [displayed-words private-words]
+      (if (bd/displayed? block)
+        (recur (+ displayed-words (block-word-count bm block))
+               private-words
+               rest)
+        (recur displayed-words
+               (+ private-words (block-word-count bm block))
+               rest)))))
+
+;;; [251250 630248] Oct 30 2022
+;;; TODO run this daily (and in the past with git) and make a graph
+
+
