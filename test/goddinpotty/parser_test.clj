@@ -153,3 +153,9 @@ And its fallen Emanation, the Spectre and its cruel Shadow.")))))
          (parse-to-ast "a **b** c **d** e")))
   (is (= [:block "a " [:bold "b"] " c " [:bold "d"] " e " [:bold "f"] " g"]
          (parse-to-ast "a **b** c **d** e **f** g"))))
+
+(deftest parse-unicode-letters
+  (is (= [:block [:bold "Sarvakarmaphalatyâga"] " . . . Years ago, "]
+         (parse-to-ast "**Sarvakarmaphalatyâga** . . . Years ago, "))))
+
+
