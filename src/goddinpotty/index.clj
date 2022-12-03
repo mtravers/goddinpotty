@@ -1,6 +1,7 @@
 (ns goddinpotty.index
   (:require [goddinpotty.utils :as utils]
             [goddinpotty.batadase :as bd]
+            [goddinpotty.import.edit-times :as et]
             [goddinpotty.templating :as templating]
             [goddinpotty.rendering :as render]
             [goddinpotty.config :as config]
@@ -18,9 +19,9 @@
     :col-width "65%"
     }
    {:name "Date"
-    :filter-key bd/edit-time
-    :sort-key (comp - inst-ms bd/edit-time)
-    :render (comp utils/render-time bd/edit-time)}
+    :filter-key et/page-edit-time
+    :sort-key (comp - inst-ms et/page-edit-time)
+    :render (comp utils/render-time et/page-edit-time)}
    {:name "Depth"
     :sort-key :depth
     :render :depth}

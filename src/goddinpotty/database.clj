@@ -99,14 +99,14 @@
 
 (defn parse-block
   [block]
-  (parser/parse-to-ast (:content block)))
+  (assoc block :parsed (parser/parse-to-ast (:content block))))
 
 (defn parse
   [db]
   (ju/pmap-values (fn [block]
                     (if (:excluded? block)
                       block
-                     (assoc block :parsed (parse-block block))))
+                      (parse-block block)))
                   db))
 
 ;;; Computes the value of the :refs attribute

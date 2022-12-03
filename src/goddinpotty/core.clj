@@ -157,6 +157,18 @@
   (html-gen/generate-content-page @last-bm (config/config :output-dir)
                                   (bd/get-with-aliases @last-bm page)))
 
+(defn gen-page-html
+  [page]
+  (u/memoize-reset!)
+  (goddinpotty.rendering/page-hiccup page (bd/with-aliases @last-bm)))
+
+(defn gen-block
+  [block-id]
+  (u/memoize-reset!)
+  (goddinpotty.rendering/block-full-hiccup block-id @last-bm))
+
+
+
 (defn gen-pages
   []
   (u/memoize-reset!)
@@ -176,6 +188,32 @@
     (post-generation (config/config) bm)
     (log/info "Done")
     ))
+
+;;; HACK why don't I just get direct access to Datomic and make life easier?
+;;; Assumes config is already set
+;;; OK this was a really bad idea. To be workable, it would have
+;;; to recompute :children
+(defn update-page
+  [page-name]
+    (u/memoize-reset!)
+  (let [raw-blocks
+        (logseq/get-page-blocks
+         (get-in (config/config) [:source :graph])
+         (:id (get-page page-name)))
+        updated-bm (-> (reduce (fn [bm block]
+                                 (when-not (contains? bm (:db/id block))
+                                   (prn :new-block block))
+                                 (assoc bm (:db/id block)
+                                        (-> (get bm (:db/id block))
+                                            (assoc :content (:block/content block))
+                                            (goddinpotty.database/parse-block))))
+                               @last-bm
+                               raw-blocks)
+                       goddinpotty.database/add-direct-children)]
+
+    (html-gen/generate-content-page updated-bm (config/config :output-dir)
+                                    (bd/get-with-aliases updated-bm page-name))))
+
 
 (defn -main
   [& [config-or-path]]

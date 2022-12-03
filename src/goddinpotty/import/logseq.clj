@@ -171,6 +171,16 @@
   '[:find (pull ?b [* {:block/file [:db/id :file/path]}])
     :where [?b :block/uuid _]])
 
+(defn extract-page-query
+  [id]
+  (u/de-ns
+   `[:find (pull ?b [* {:block/file [:db/id :file/path]}])
+     :where [?b :block/page ~id]]  ))
+
+(defn get-page-blocks
+  [graph-name id]
+  (map first (nbb-query graph-name (extract-page-query id))))
+
 (defn nbb-extract
   [graph-name]
   (map first
