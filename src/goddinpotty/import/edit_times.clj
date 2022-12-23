@@ -1,10 +1,11 @@
 (ns goddinpotty.import.edit-times
-  (:require [goddinpotty.utils :as utils]
-            [me.raynes.fs :as fs]
-            [org.parkerici.multitool.core :as u]
+  (:require [org.parkerici.multitool.core :as u]
             [clojure.java.shell :as sh]
+            [me.raynes.fs :as fs]
+            [goddinpotty.batadase :as bd]
             [goddinpotty.config :as config]
             [goddinpotty.endure :as e]
+            [goddinpotty.utils :as utils]
             [clojure.string :as str]
             )
   )
@@ -22,13 +23,19 @@
       (str/replace #"[:\?\"]" "_")  ; \(\) but these seem just as often passed through...argh
       ))
 
+;;; TODO Logseq specific, should be elsewhere.
+;;; No longer doing this here, instead import saves the source file in the bm
+#_
 (defn source-file
-  [page-name]
-  (and page-name
-       (str (get-in (config/config) [:source :repo])
-            "/pages/"
-            (clean-page-name page-name)
-            ".md")))                          ;TODO could be .org
+  [page]
+  (let [page-name (:title page)]
+    (and page-name
+         (str (get-in (config/config) [:source :repo])
+              (if (bd/daily-notes-page? page)
+                "/journals/"
+                "/pages/")
+              (clean-page-name page-name)
+              ".md"))))                          ;TODO could be .org
 
 (defn safe-mod-time
   [f]
@@ -50,9 +57,17 @@
 ;;; This saves a full 5 minutes in hyperphor build (as of 2/15/2022).
 (e/defn-memoized git-first-mod-time
   [f]
-  (-> (sh/sh "git" "log" "--reverse" "--date=iso"  "--format=\"%ad\"" "--follow" "--" f "|" "head" "-1"
+  (-> (sh/sh "git" "log"
+             "-M"                       ;follow renames
+             "--reverse"
+             "--date=iso"
+             "--format=\"%ad\""
+             "--follow"
+             "--" f 
              :dir (get-in (config/config) [:source :repo]))
       :out
+      (str/split #"\n")                 ;Note: sh/sh can't do pipes else this would be head -l
+      first
       (utils/strip-chars #{\" \newline})
       parse-git-date
       )
@@ -66,7 +81,11 @@
 ;;; TODO smarter store where it only keeps the last value of certain keys
 (e/defn-memoized git-last-mod-time-1
   [f time]
-  (-> (sh/sh "git" "log" "-1" "--date=iso"  "--format=\"%ad\"" "--" f
+  (-> (sh/sh "git" "log" "-1"
+             "--grep=Logseq"            ;kludge, exclude some manual bookkeeping commits LOGSEQ 
+             "--date=iso"
+             "--format=\"%ad\""
+             "--" f
              :dir (get-in (config/config) [:source :repo]))
       :out
       (utils/strip-chars #{\" \newline})
@@ -88,8 +107,7 @@
 (defn page-date-range
   [page]
   (-> page
-      :title
-      source-file
+      :file
       safe-times))
 
 (defn page-edit-time

@@ -6,6 +6,7 @@
             [goddinpotty.graph :as graph]
             [goddinpotty.search :as search]
             [goddinpotty.batadase :as bd]
+            [goddinpotty.import.edit-times :as et]
             [goddinpotty.context :as context]
             [org.parkerici.multitool.core :as u]
             ))
@@ -221,7 +222,10 @@
         [:div
          [:div
           (u/ignore-errors
-           (render-date-range (bd/date-range block)))]
+           (render-date-range
+            #_ (bd/date-range block)
+            (et/page-date-range block)  ;TODO LOGSEQ specific (file-based), should be configurable
+            ))]
          (when-not (:include? block)
            [:span [:b "EXCLUDED"]])       ;TODO make this pop more
          [:hr {}]

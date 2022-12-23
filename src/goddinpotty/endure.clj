@@ -1,6 +1,7 @@
 (ns goddinpotty.endure
   (:require [alandipert.enduro :as e]))
 
+;;; TODO also in voracious, sync these up
 ;;; Generalized persistent memoizing based on Enduro https://github.com/alandipert/enduro
 
 ;;; This is a loose copy of stuff in multitool, modified to work with an enduro atom
@@ -29,8 +30,9 @@
     `(def ~name ~args (memoize-named '~name (fn ~(first body) ~@(rest body))))
     `(def ~name (memoize-named '~name (fn ~args ~@body)))))
 
+;;; Call with the quoted function name (eg (reset 'git-first-mod-time))
 (defn reset!
   [& f]
   (if f
-    (e/swap! memoizers update f {})
+    (e/swap! memoizers update (first f) {})
     (e/reset! memoizers {})))

@@ -144,6 +144,7 @@
                 :alias (get-in block [:block/properties :alias])
                 ;; TODO not used yet – we pull out the useful ones, maybe don't need
                 :properties (get block :block/properties)
+                :file (get-in block [:block/file :file/path])
                 }
               ))
        (u/index-by :id)
