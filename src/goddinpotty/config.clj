@@ -26,6 +26,7 @@
   [path]
   (set-config-map! (read-config path)))
 
+;;; TODO should take paths
 (defn config
   [& [att]]
   (if att

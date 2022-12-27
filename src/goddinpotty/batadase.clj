@@ -19,7 +19,9 @@
       (throw (ex-info "Not a block" {:thing x}))))
 
 ;;; included? means reachable from an entry point
-;;; displayed? means actually generated. Usually these are the same, except when the :unexcluded? config is set, meaning we want to see everything, included or not.
+;;; displayed? means actually generated
+;;; Usually these are the same, but when the :unexcluded? config is set, everything is displayed?
+;;; TODO the terminology is awkward and confusing, needs revamping
 
 (defn included?
   ([block]
@@ -265,13 +267,16 @@
   [block-map]
   (filter (partial entry-point? block-map) (pages block-map)))
 
+;;; Daily notes (aka journal) detection
+;;; TODO this is very logseq and locale specific, should be factored out
+;;; Also, should be done on import as a flag
+
 (def daily-notes-regex #"(?:January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d+.., \d+")
 
 (defn daily-notes-page?
   [page]
-  (when-let [title (or (:title page) (:id page))]
-    (when (string? title)               ;TODO shouldn't be necessary, but 
-      (re-matches daily-notes-regex title ))))
+  (when-let [title (:title page)]
+    (re-matches daily-notes-regex title )))
 
 (defn daily-notes?
   [block-map block]

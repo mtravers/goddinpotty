@@ -14,6 +14,10 @@
 ;;; Curation functions. For use via REPL; not wired into main program.
 ;;; A lot of code here is for one-off operations and is not particularly high-quality.
 
+;;; Prettifying naked urls: 
+;;; See https://github.com/mtravers/voracious/blob/master/src/voracious/projects/clothe_naked_urls.clj
+
+
 ;;; Convenience
 (defn bm
   []

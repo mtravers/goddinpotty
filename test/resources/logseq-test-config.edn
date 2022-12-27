@@ -10,7 +10,8 @@
   :site-css ["assets/hyper-roam.css"]
   :short-title "Logseq:Goddinpotty Test Graph"
   :main-page "Front Page"
-  :right-navbar [["All Pages" "Index-Date"]] ; "About" replaced with side widget
+  :right-navbar [["All Pages" "Index-Date"]
+                 ["Tests" "test"]]
   :output-dir "target/logseq-test" 
   }]
 

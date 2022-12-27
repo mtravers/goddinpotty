@@ -7,9 +7,11 @@
             [me.raynes.fs :as fs]
             ))
 
+;;; bin/serve.sh 3889 "target/logseq-test"
+
 ;;; Test build from Logseq
 (deftest generate-from-logseq
-  (fs/delete-dir "taget/logseq-test")
+  (fs/delete-dir "target/logseq-test")
   (main "resources/test/logseq-test-config.edn")
   (is (fs/exists? "target/logseq-test/Superman"))
   ;; MORE!
