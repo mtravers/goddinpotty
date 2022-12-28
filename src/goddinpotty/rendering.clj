@@ -15,11 +15,13 @@
             )
   )
 
+;;; Sidenotes are a complete hairy mess, see logseq://graph/doc?page=sidenotes
+
 ;;; Turn parsed content into hiccup. 
 
 (declare block-content->hiccup)         ;allow recursion on this
 (declare block-full-hiccup)
-(declare block-full-hiccup-sidenotes)
+(declare block-full-hiccup-guts)
 
 ;;; Boostrap icons, see css and https://icons.getbootstrap.com/
 (defn- icon
@@ -129,7 +131,7 @@
 
 ;;; Extremely smelly. 
 (defn unspan
-  "Remove :span elts that are basically no-ops. Would be cleaner to not generate"
+  "Remove :span elts that are basically no-ops. Would be cleaner to not generate in the first place."
   [hiccup]
   (if (and (vector? hiccup)
            (= :span (first hiccup))
@@ -187,13 +189,18 @@
 
 ;;; Blocks used as sidenotes get recorded here so they skip their normal render
 ;;; Yes this is global state and bad practice. Shoot me.
+;;; TODO should get reset like u/memoizers
 (def sidenotes (atom #{}))
+
+(defn sidenote?
+  [id]
+  (contains? @sidenotes id))
 
 ;;; This is used to suppress sidenotes in the Incoming links panel
 ;;; TODO now misnamed, we now just supress RENDERING them as sidenotes, still want them 
 (def ^{:dynamic true} *no-sidenotes* false)
 
-;;; Render a sidenote
+;;; Render a sidenote (and both *s)
 (defn sidenote
   [block-map sidenote-block]
   (swap! sidenotes conj (:id sidenote-block))
@@ -201,7 +208,7 @@
    [:span.superscript]
    [:div.sidenote                     ;TODO option to render on left/right
     [:span.superscript.side]
-    (block-full-hiccup-sidenotes (:id sidenote-block) block-map)]])
+    (block-full-hiccup-guts (:id sidenote-block) block-map)]])
 
 ;;; Not strictly necessary, but makes tests come out better
 (defn- maybe-conc-string
@@ -231,8 +238,8 @@
 
 (def hidden-properties
   #{"title" "original-title"
-    ;; Actually want aliases, I think? Could be an option
-    ;; "alias"
+    ;; You might actually want aliases, could be an option (but looks kind of fugly now)
+    "alias"
     "id" "created-at" "updated-at" "public" "collapsed"
     ;; Zotero tags that aren't very interesting
     "access-date" "library-catalog"
@@ -282,12 +289,13 @@
                                                                         str/trim
                                                                         utils/remove-double-delimiters))]
                          (try 
+                           ;; :block-ref is repurposed for sidenotes, see doc
                            (if (and block
-                                    (= (bd/block-page block-map ref-block)
-                                       (bd/block-page block-map block))
-                                    (not *no-sidenotes*))
-                             (sidenote block-map ref-block)
-                             [:div.block-ref
+                                    (= (bd/block-page block-map ref-block) ;if ref and block are on the same page
+                                       (bd/block-page block-map block)))
+                             (when-not *no-sidenotes*
+                               (sidenote block-map ref-block)) ;render the sidenote
+                             [:div.block-ref                   ;render a real blockref
                               (block-hiccup ref-block block-map)])
                            ;; Specifically, bad block refs will cause this.
                            (catch Throwable e
@@ -337,6 +345,7 @@
   (ele->hiccup (parser/parse-to-ast block-content) {}))
 
 ;;; Total hack because I failed to figure this out in instaparse, and its a one-shot thing...
+;;; TODO fragile
 (defn remove-logseq-title
   [[_ h1 title h2 :as parsed]]
   (if (and (= h1 [:hr "---"])
@@ -346,12 +355,13 @@
     parsed))
 
 ;;; In lieu of putting this in the blockmap
-(u/defn-memoized block-hiccup
+;;; TODO  memoization runs into *no-sidenotes* dynamic variable I think. So turned off. Shouldn't be calling this too many times I think?
+(defn block-hiccup
   "Convert Roam markup to Hiccup"
   [block block-map]
   ;; When an excluded block is target of a :block-ref, it needs to be parsed here
   ;; Note: this might produce inconsistent results, if a block is excluded early but included here, its referernces won't be chased. I guess a correct solution would require following :block-refs at parse time or ref time. Argh.
-  (when-let [parsed (or (:parsed block) (db/parse-block block))]
+  (when-let [parsed (or (:parsed block) (:parsed (db/parse-block block)))]
     (let [parsed (remove-logseq-title parsed)
           basic (ele->hiccup parsed block-map block)]
       (cond (and (:heading block) (> (:heading block) 0))
@@ -361,8 +371,7 @@
             :else
             basic))))
 
- ;Has to do full hiccup to include children
-(defn block-full-hiccup-sidenotes
+(defn- block-full-hiccup-guts
   [block-id block-map & [depth]]
   (let [depth (or depth 0)
         block (bd/get-with-aliases block-map block-id)]
@@ -375,7 +384,7 @@
         ;; TODO Would be cool if could jigger logseq into viewing the page, but a no-op for now
         #_
         (when (config/config :dev-mode)
-                [:a.edit {:href (roam-url block-id)
+          [:a.edit {:href (roam-url block-id)
                     :target "_roam"}
            (icon "pencil")
            ])           
@@ -398,7 +407,7 @@
   [block-id block-map & [depth]]
   ;; This logic is very squirelly...we want sidenote blocks to render normally when they are in the linked-ref pane
   (when (or *no-sidenotes* (not (sidenote? block-id)))
-    (block-full-hiccup-sidenotes block-id block-map depth)))
+    (block-full-hiccup-guts block-id block-map depth)))
 
 (defn block-full-hiccup-no-sidenotes
   [& args]
