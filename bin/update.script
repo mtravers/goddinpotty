@@ -1,0 +1,6 @@
+set ctrlS to character id 19
+set ctrlX to character id 24
+tell application "Logseq" to activate
+tell application "System Events" to keystroke ctrlX
+tell application "System Events" to keystroke ctrlS
+

@@ -7,6 +7,8 @@
             [goddinpotty.graph :as graph]
             [goddinpotty.search :as search]
             [goddinpotty.batadase :as bd]
+            [goddinpotty.import.edit-times :as et]
+            [goddinpotty.context :as context]
             [org.parkerici.multitool.core :as u]
             ))
 
@@ -29,7 +31,7 @@
        ;; TODO this might want to do an expand thing like in recent-changes page? Does't actually seem necessary here
        ;; TODO has been assuming this is in a low-level block, but that's not necessarily the case. For [[Introduction to [[Inventive Minds]]]], it includes the whole page!
        ;; See bd/expand-to, but we want to shrink in this case
-       [:div (render/block-full-hiccup r block-map)]])))
+       [:div (render/block-full-hiccup-no-sidenotes r block-map)]])))
 
 (defn linked-references-template
   [references block-map]
@@ -159,28 +161,30 @@
   [:div.date (utils/render-time from) " - " (utils/render-time to)])
 
 
-;;; Note: not as elegant as it could be, but works
 (defn render-page-hierarchy-1
   [path page-struct bm this]
-  (let [top (clojure.string/join "/" path)]
-    [:div
-     (render/page-link top :bm bm :alias (last path))
-   ;; TODO tweak css so long things look rightish
-   ;; whitespace: nowrap (but needs to truncate or something)
-   [:ul
-    (for [child (sort (keys page-struct))] ;Sort imposes some order, better than random I guess
-      (if (map? (get page-struct child))
-        (render-page-hierarchy-1 (conj path child)
-                                 (get page-struct child)
-                                 bm this)
-        [:li (render/page-link (str top "/" child) :bm bm :alias child :current this)]))]]))
+  (let [top (clojure.string/join "/" path)
+        page (bd/get-with-aliases bm top)]
+    (when (and page (bd/displayed? page))
+      [:div
+       [:li (render/page-link top :bm bm :alias (last path))]
+       ;; TODO tweak css so long things look rightish
+       ;; whitespace: nowrap (but needs to truncate or something)
+       (when (map? page-struct)
+         [:ul
+          (for [child (u/sort-with-numeric-prefix (keys page-struct))] ;Sort imposes some order, better than random I guess
+            (render-page-hierarchy-1 (conj path child)
+                                     (get page-struct child)
+                                     bm this)
+            )])])))
 
 
 (defn render-page-hierarchy
   [page-name bm]
-  (let [[_ top] (or (re-find #"^(.*?)/(.*)$" page-name) [nil page-name])
-        page-struct (get (bd/page-hierarchies bm) top)]
-    (render-page-hierarchy-1 [top] page-struct bm page-name)))
+  (context/with-context [:page page-name]
+    (let [[_ top] (or (re-find #"^(.*?)/(.*)$" page-name) [nil page-name])
+          page-struct (get (bd/page-hierarchies bm) top)]
+      (render-page-hierarchy-1 [top] page-struct bm page-name))))
 
 ;;; Note: these links have a different semnatics than normal ones, and so maybe should be styled differently
 (defn render-toc
@@ -189,47 +193,62 @@
    (for [[indent id] toc]
      [:li 
       [:span {:style (utils/css-style {:width (* 15 (-  indent 1))})}]     ;ech
-      [:a {:href (str "#" id)} (render/block-local-text (get bm id))]]
+      [:a {:href (str "#" id)} (render/block-local-text bm (get bm id))]]
      )])
+
+;; TODO this page should be hidden probably
+(def about-block-title "AboutBlock")    ;TODO config option
+
+(defn about-content
+  [bm]
+  (when-let [block (bd/get-with-aliases bm about-block-title)]
+    (render/block-full-hiccup about-block-title bm)))
+
+(defn about-widget
+  [bm]
+  (when-let [about-content (about-content bm)]
+          [:div.card.my-3
+           [:h5.card-header "About"]
+           [:div.card-body.minicard-body
+            about-content]]))
+
+(defn search-widget
+  [bm#]
+  [:div.card.my-3
+   [:h5.card-header
+    [:span#searchh
+     "Search"]
+    [:input#searcht.form-control {:type "text"
+                                  ;; :placeholder "Search for..."
+                                  :onkeyup "keypress(event)"
+                                  }]
+    ]
+   [:div#searchb.card-body
+    ;; output goes here
+    [:div#searcho] 
+    ]])
 
 (defn block-page-hiccup
   [block-id block-map output-dir]
   (let [block (get block-map block-id)
         title-hiccup (render/block-content->hiccup (:title block))
-        title-text (:title block) ; was render/block-local-text
+        title-text (:title block)
         contents
         [:div
          [:div
           (u/ignore-errors
-           (render-date-range (bd/date-range block)))]
+           (render-date-range
+            #_ (bd/date-range block)
+            (et/page-date-range block)  ;TODO LOGSEQ specific (file-based), should be configurable
+            ))]
          (when-not (:include? block)
            [:span [:b "EXCLUDED"]])       ;TODO make this pop more
          [:hr {}]
          (render/page-hiccup block-id block-map)
          [:hr {}]]
 
-        search-widget
-        [:div.card.my-3
-         [:h5.card-header
-          [:span#searchh
-           "Search"]
-          [:input#searcht.form-control {:type "text"
-                                        ;; :placeholder "Search for..."
-                                        :onkeyup "keypress(event)"
-                                        }]
-          ]
-         [:div#searchb.card-body
-          ;; output goes here
-          [:div#searcho] 
-          ]]
-        about-widget
-        ;; TODO this page should be hidden, or something
-        (when-let [about-content (render/block-full-hiccup "AboutBlock" block-map)]
-          [:div.card.my-3
-           [:h5.card-header "About"]
-           [:div.card-body.minicard-body
-            about-content]])
-
+        search-widget (search-widget block-map)
+        about-widget (about-widget block-map)
         map-widget
         [:div.card.my-3
          [:h5.card-header
@@ -247,12 +266,13 @@
                            })}
            (render/page-link-by-name block-map "Map" :alias "Full" )]]
          [:div#mapgraph.collapse
+          {:class "show"};; Default to open, remove if default closed (TODO make configurable)
           [:div.card-body {:style (utils/css-style {:padding "2px"})}
            ;; TODO possible config to do embedded vs external
            (graph/render-graph ;; render-graph-embedded
             block-map
             output-dir
-            {:name (utils/clean-page-title block-id)
+            {:name (utils/clean-page-title title-text)
              :width 290                  ;This depends on the column width css, currently my-3
              :height 350
              :controls? false

@@ -323,11 +323,18 @@ iframe {
 }
 
 /* for sidenote supscripts */
+/* Incredible rigamarole, CSS is an abomination unto god */
+
+.sidenote-container {
+    break-before: avoid;
+    break-after: avoid;
+    break-inside: avoid;
+}
 
 .superscript {
     position: relative;
     top: -0.3rem;
-    left: -0.2rem;
+    margin-left: 0;
     color: var(--link);
 }
 
@@ -351,6 +358,7 @@ iframe {
 /* When we show all blocks, highlight the private ones */
 .excluded {
     background: lightgoldenrodyellow;
+    padding-top: 10px;		/* don't ask */
 }
 
 /* This makes internal hrefs scroll to visibility. See https://css-tricks.com/hash-tag-links-padding/ */

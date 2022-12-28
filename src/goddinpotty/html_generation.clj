@@ -8,7 +8,10 @@
             [goddinpotty.recent :as recent]
             [goddinpotty.index :as index]
             [goddinpotty.search :as search]
-            [goddinpotty.config :as config]))
+            [goddinpotty.config :as config]
+            [goddinpotty.context :as context]
+            [clojure.tools.logging :as log]
+            ))
 
 ;;; Translate Hiccup into actual pages.
 ;;; NOTE: I wish Hiccup had an option to prettyprint HTML, but it doesn't
@@ -31,9 +34,12 @@
   "Write out a single page. Content is hiccup. " 
   [content fname output-dir]
   (ensure-directories (str output-dir fname))
-  (spit (str output-dir fname)
-        (hiccup/html content)))
+  (context/with-context [:file fname]
+    (log/info "Writing" fname)
+    (spit (str output-dir fname)
+          (hiccup/html content))))
 
+;;; Not actually used
 (defn export-pages
   "Write out pages. Content is map of filenames → hiccup." 
   [content output-dir]
@@ -42,19 +48,20 @@
 
 (defn generate-content-page
   [block-map output-dir block]
-  (prn :generate-page (:id block))
-  (let [fname (str "/" (utils/html-file-title (:id block)))]
-    (export-page (if (:special? block)
-                   ((:generator block) block-map)
-                   (page-hiccup block-map output-dir block))
-                 fname
-                 output-dir)))
+  (log/info "Generating" (:title block))
+  (context/with-context [:page (:title block)]
+    (let [fname (str "/" (utils/clean-page-title (:title block)))]
+      (export-page (if (:special? block)
+                     ((:generator block) block-map)
+                     (page-hiccup block-map output-dir block))
+                   fname
+                   output-dir))))
 
 (defn generate-index-redir
   [output-dir]
   (export-page
    [:meta {:http-equiv "refresh"
-           :content (format "0; url=%s" (str (utils/html-file-title (config/config :main-page))))}]
+           :content (format "0; url=%s" (str (utils/clean-page-title (config/config :main-page))))}]
    "/index.html"
    output-dir))
 
@@ -79,10 +86,12 @@
    "/New.html"
    output-dir))
 
+;;; Not actually called, useful for dev
 (defn generate-index-pages
   [block-map output-dir]
   (export-pages
-   (index/make-index-pages block-map)
+   (u/map-values #((:generator %) block-map)
+                 (index/make-index-pages block-map))
    output-dir))
 
 (defn generate-global-map

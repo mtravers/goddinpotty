@@ -5,15 +5,25 @@
             [mock-clj.core :as mc]
             [clojure.test :refer :all]))
 
+;;; TODO add some aliases
 (def fake-block-map
-  {"foo" {:id "foo" :page? true :include? true :content "foo"}
-   "bar" {:id "bar" :page? true :include? true :content "short"}
-   "baz" {:id "baz" :page? true :include? true :content (str (range 1000))}})
+  {1 {:id 1 :page? true :include? true :content "foo" :title "foo"}
+   2 {:id 2 :page? true :include? true :content "short" :title "bar"}
+   3 {:id 3 :page? true :include? true :content (str (range 1000)) :title "baz"}})
+
+(defn prep-block
+  [b]
+  (-> b
+      (assoc :parsed (parser/parse-to-ast (:content b)))
+      (assoc :id (or (:id b) (gensym "id")))))
 
 (defn fake-block
   [content]
-  {:content content
-   :parsed (parser/parse-to-ast content)})
+  (prep-block {:content content}))
+
+(defn fake-block-map+
+  [block]
+  (assoc fake-block-map (:id block) block))
 
 (deftest alias-html-test
   (is (= [:span "what " [:a.external {:href "fuck"} "the"] " is this"]
@@ -21,16 +31,26 @@
   (is (= [:span "what " [:a.external {:href "fuck"} "the fucking"] " is this"]
          (block-content->hiccup "what [the fucking](fuck) is this")))
 
-  (is (= [:span "foo " [:a {:href "bar" :class "empty"} "bar"] " baz " [:a.external {:href "yuck"} "ugh"]]
-         (block-hiccup (fake-block "foo [[bar]] baz [ugh](yuck)") fake-block-map)))
-  (is (= [:span "foo " [:a.external {:href "yuck"} "ugh"] " baz " [:a {:href "bar" :class "empty"} "bar"]]
+  ;; TODO shouldn't this be [:span.empty ...] ??? Are both of those needed or should they be collapsed
+  (testing "link to real block"
+    (is (= [:span "foo " [:a {:href "bar"} "bar"] " baz " [:a.external {:href "yuck"} "ugh"]]
+           (block-hiccup (fake-block "foo [[bar]] baz [ugh](yuck)") fake-block-map)))
+    (is (= [:span "foo " [:a {:href "bar"} "bar"] " and " [:a {:href "baz"} "baz"]]
+           (block-hiccup (fake-block "foo [[bar]] and [[baz]]") fake-block-map)
+         )))
+
+  (testing "link to missing block"
+    (is (= [:span "foo " [:span.empty "zorch"] " baz " [:a.external {:href "yuck"} "ugh"]]
+           (block-hiccup (fake-block "foo [[zorch]] baz [ugh](yuck)") fake-block-map)))
+    )
+
+  (is (= [:span "foo " [:a.external {:href "yuck"} "ugh"] " baz " [:a {:href "bar"} "bar"]]
          (block-hiccup (fake-block "foo [ugh](yuck) baz [[bar]]") fake-block-map)
          ))
   (is (= [:span "foo " [:a.external {:href "yuck"} "ugh"] " baz " [:a.external {:href "zippy"} "yow"]]
+
          (block-hiccup (fake-block "foo [ugh](yuck) baz [yow](zippy)") {})))
-  (is (= [:span "foo " [:a {:href "bar" :class "empty"} "bar"] " and " [:a {:href "baz"} "baz"]]
-         (block-hiccup (fake-block "foo [[bar]] and [[baz]]") fake-block-map)
-         ))
+
   )
 
 (deftest blockquote-gen-test
@@ -56,10 +76,14 @@ And its fallen Emanation, the Spectre and its cruel Shadow.") {}))))
  and so is this.```") {})))))
 
 (deftest markup-in-page-names-test
-  (is (= [:a {:href "__foo__" :class "empty"} [:i "foo"]] 
+  (is (= [:a {:href "__foo__"} [:i "foo"]] 
          (block-hiccup (fake-block "[[__foo__]]")
-                       (assoc fake-block-map "__foo__"
-                              {:id "__foo__" :include? true :page? true :content "eh"})))))
+                       (fake-block-map+
+                        (prep-block
+                         {:title "__foo__"
+                          :include? true
+                          :page? true
+                          :content "eh"}))))))
 
 (deftest italic-link-bug
   (testing "link inside italics"
@@ -107,10 +131,16 @@ And its fallen Emanation, the Spectre and its cruel Shadow.") {}))))
       (block-content->hiccup "Blah blah [finished coherent essay]([[What Motivated Rescuers During the Holocaust?]])")))
 
 (deftest page-alias-test
-  (mc/with-mock [utils/html-file-title "link-url"]
-    (is (= [:span "A show about " [:a {:href "link-url" :class "empty"} "The Big Nada"] ]
-           (block-hiccup (fake-block "A show about {{alias:[[nihilism]]The Big Nada}}")
-                         {"nihilism" {:id "nihilism" :page? true :include? true :content "foo"}})))
-    (is (= [:span "A show about " [:a {:href "link-url"} "The Big Nada"] ]
-           (block-hiccup (fake-block "A show about {{alias:[[nihilism]]The Big Nada}}")
-                         {"nihilism" {:id "nihilism" :page? true :include? true :content (str (range 1000))}})))))
+  (is (= [:span "A show about " [:span.empty "The Big Nada"] ]
+         (block-hiccup (fake-block "A show about {{alias:[[nihilism]]The Big Nada}}")
+                       {"nihilism" {:id "nihilism" :page? true :include? true :content "foo"}})))
+  (is (= [:span "A show about " [:span.empty "The Big Nada"] ]
+         (block-hiccup (fake-block "A show about {{alias:[[nihilism]]The Big Nada}}")
+                       {"nihilism" {:id "nihilism" :page? true :include? true :content (str (range 1000))}}))))
+
+(deftest hiccup-render-test
+  (= [:table.table
+      [:tr [:th "The Magician"] [:td "concentration without effort"] [:td "pure act"]]
+      [:tr [:th "The High Priestess"] [:td "vigilant inner silence"] [:td "reflection of pure act"]]
+      ]
+     (block-content->hiccup "[:table \n[:tr [:th \"The Magician\"] [:td \"concentration without effort\"] [:td \"pure act\"]]\n [:tr [:th \"The High Priestess\"] [:td \"vigilant inner silence\"] [:td \"reflection of pure act\"]]]")))

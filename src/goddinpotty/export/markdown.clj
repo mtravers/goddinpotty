@@ -1,13 +1,12 @@
-(ns goddinpotty.markdown
+(ns goddinpotty.export.markdown
   "Rendering to Markdown"
-  (:require [goddinpotty.config :as config]
-            [goddinpotty.batadase :as bd]
+  (:require [goddinpotty.batadase :as bd]
             [goddinpotty.rendering :as render]
             [goddinpotty.utils :as utils]
             [clojure.string :as str]
             [org.parkerici.multitool.core :as u]
             [org.parkerici.multitool.cljcore :as ju]
-            [taoensso.truss :as truss :refer (have have! have?)]
+            [clojure.tools.logging :as log]
             )
   )
 
@@ -16,9 +15,14 @@
 
 (def +for-export+ true)                ;TODO stopgap
 
+(defn clean-file-name
+  [f]
+  (-> f
+      (str/replace #"\/" "\\∕")))
+
 (defn md-file-name
   [page-name]
-  (str (utils/clean-page-title page-name) ".md"))
+  (str (clean-file-name page-name) ".md"))
 
 (defn html-file-name
   [page-name]
@@ -72,55 +76,39 @@
 
 ;;; Returns list of lines
 (defn block->md
-  [depth block]
+  [bm depth block]
+  (let [block (bd/coerce-block block bm)]
   (when (or +for-export+
             (bd/displayed? block))
     (cons (str (if +for-export+
-                 (n-chars depth \tab)
-                 (n-chars (* depth 4) \space))
+                 (u/n-chars depth \tab)
+                 (u/n-chars (* depth 4) \space))
                "- "
                ;; Might not want to do this in +for-export+ mode, but doesn't matter
                (when (and (:heading block) (> (:heading block) 0))
-                 (str (n-chars (:heading block) \#) " "))
+                 (str (u/n-chars (:heading block) \#) " "))
                (if +for-export+
                  (:content block)
                  (markdown-content block)))
-          (filter identity (mapcat (partial block->md (+ 1 depth)) (:dchildren block))))))
+          (u/mapcatf (partial block->md bm (+ 1 depth)) (:children block))))))
 
-(defn render-date-range
-  [[from to]]
-  (when (and from to)
-    (str (utils/render-time from) " - " (utils/render-time to))))
-
-(defn real-url
-  [page]
-  (str (config/config :real-base-url) (html-file-name (:content page))))
-
-(defn real-page-pointer
-  [page]
-  (format "> This is a markdown backup. The [real page is part of %s](%s).\n\n"
-          (config/config :main-page)
-          (real-url page)))
-
+;;; Pretty minimal now, but has hooks for adding header things like aliases, title, properties
 (defn page->md
-  [block]
-  (let [title (or (:title block) (:content block))
-        footer-lines []                 ;TODO colophon is in hiccup 
-        header-lines
-        (list (real-page-pointer block)
-              title
-              (n-chars (count title) \=)
-              (render-date-range (bd/date-range block))
-              )]
+  [bm block]
+  (let [_title (or (:title block) (:content block))
+        footer-lines []
+        header-lines []]
     (concat header-lines
-            (mapcat (partial block->md 0) (:dchildren block))
+            (mapcat (partial block->md bm 0) (:children block))
             footer-lines)))
 
 (defn write-page
-  [block file]
-  (ju/file-lines-out file (page->md block)))
+  [bm block file]
+  (let [lines  (page->md bm block)]
+    (if (empty? lines)
+      (log/warn "Skipping empty file" file)
+      (ju/file-lines-out file lines))))
 
-(defn write-displayed-pages
-  [bm directory]
-  (doseq [page (bd/displayed-pages bm)]
-    (write-page page (str directory (md-file-name (:content page))))))
+
+
+

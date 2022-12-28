@@ -1,7 +1,6 @@
 (ns goddinpotty.config
   (:require [aero.core :as aero]
             [clojure.string :as s]
-            [clojure.java.io :as io]
             [clojure.pprint :as pprint]
             ))
 
@@ -16,14 +15,18 @@
 (defn set-config-map!
   [m]
   (reset! the-config m)
-  (pprint/pprint @the-config))
+  (pprint/pprint @the-config)
+  m)
+
+(defn read-config
+  [path]
+  (aero/read-config path))
 
 (defn set-config-path!
   [path]
-   (if-let [resource (io/resource path)]
-     (set-config-map! (aero/read-config resource))
-     (throw (ex-info "Config not found" {:resource path}))))
+  (set-config-map! (read-config path)))
 
+;;; TODO should take paths
 (defn config
   [& [att]]
   (if att

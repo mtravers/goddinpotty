@@ -84,7 +84,8 @@ function displayResults(results) {
     }
 }
     
-// Not search, just here for convenience: persist collaps state of map
+// Following code is not search related, just here for convenience
+// Persist collaps state of map
 
 function maybeOpenMap() {
     var open = sessionStorage.getItem('map') == 'true';
@@ -97,7 +98,14 @@ function maybeOpenMap() {
 document.addEventListener("DOMContentLoaded", maybeOpenMap);
 
 function toggleMap() {
-    var open = sessionStorage.getItem('map') == 'true';
+    var saved = sessionStorage.getItem('map');
+    var open = null;
+    if (saved == null) {
+	var map = document.getElementById("mapgraph");
+	open = (map.getAttribute("class") == 'show');	
+    } else {
+	open = saved == 'true';
+    }
     console.log('map is', open);
     sessionStorage.setItem('map', !open);
 }

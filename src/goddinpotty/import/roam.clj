@@ -1,20 +1,41 @@
-(ns goddinpotty.import.edn
+(ns goddinpotty.import.roam
   (:require [goddinpotty.utils :as utils]
             [goddinpotty.batadase :as bd]
-            [org.parkerici.multitool.core :as u]))
+            [goddinpotty.database :as db]
+            [me.raynes.fs :as fs]
+            [org.parkerici.multitool.core :as u]
+            [org.parkerici.multitool.cljcore :as ju]
+            [clojure.edn :as edn]
+            [clojure.java.io :as io]
+            [clojure.tools.logging :as log]
+            )
+    (:import (java.util.zip ZipFile)))
 
-;;; Currently unused I believe
+(defn unzip-roam
+  "Takes the path to a zipfile `source` and unzips it to `target-dir`, returning the path of the target file"
+  [source]
+  (let [target-dir (str (fs/parent source) "/")]
+    (str target-dir (with-open [zip (ZipFile. (fs/file source))]
+                      (let [entries (enumeration-seq (.entries zip))
+                            target-file #(fs/file target-dir (str %))
+                            database-file-name (.getName (first entries))]
+                        (doseq [entry entries :when (not (.isDirectory ^java.util.zip.ZipEntry entry))
+                                :let [f (target-file entry)]]
+                          (log/info :writing f)
+                          (fs/mkdirs (fs/parent f))
+                          (io/copy (.getInputStream zip entry) f))
+                        database-file-name)))))
 
-;;; Experiments in reading Roam EDN dump
-;;; Why? The JSON format is lossy, it turns out. It is missing the UIDs for pages;
-;;; needed to make links back to Roam.
+(defn read-roam-json-from-zip
+  [path-to-zip]
+  (let [json-path (unzip-roam path-to-zip)]
+    (utils/read-json json-path)))
 
-(defn read-roam-edn-raw
+(defn read-roam-edn
   [f]
-  (with-open [infile (java.io.PushbackReader. (clojure.java.io/reader f))]
-    (binding [*in* infile
-              *data-readers* (assoc *data-readers* 'datascript/DB identity)]
-      (read))))
+  (with-open [infile (java.io.PushbackReader. (io/reader (fs/expand-home f)))]
+    (edn/read {:readers (assoc *data-readers* 'datascript/DB identity)}
+              infile)))
 
 (def schema (atom nil))
 
@@ -63,7 +84,11 @@
    :db/id
    (ffirst datoms)))
 
-;;; TODO do the unzip if we really use this
+(defn capture-to-file
+  [f struct]
+  (ju/schppit f struct)
+  struct)
+
 (defn process-roam-edn
   "Read a Roam EDN export. Produces an indexed map of block entities"
   [datascript]
@@ -87,7 +112,7 @@
   [edn]
   (let [eblocks (remove #(and (nil? (:block/string %)) (nil? (:node/title %)))
                         (vals edn))]
-    (utils/add-parent
+    (u/add-inverse
      (u/index-by :id
                  (map (fn [eblock]
 
@@ -157,7 +182,7 @@
   []
   (->> (utils/latest-export)
        utils/unzip-roam
-       read-roam-edn-raw
+       read-roam-edn
        process-roam-edn
        vals
        (u/index-by #(or (:node/title %)
@@ -235,11 +260,11 @@
         (.write w "#datascript/DB\n")
         (.write w (str db))))))
 
+;;; Not called?
 (defn subset-bm
   [bm page-pred]
   (let [pages (filter page-pred (bd/pages bm))
         included (mapcat bd/block-descendents pages)]
-    (prn :foo (count pages) ( count included) (count bm))
     (u/index-by :id included)))
 
 (defn daily-notes-page?
@@ -248,19 +273,20 @@
     (when title
       (re-matches bd/daily-notes-regex title))))
 
+;;; Mistitled, its roam-edn->bm
 (defn roam-db-edn
   [roam-edn-file]
   (-> roam-edn-file
-      read-roam-edn-raw
+      read-roam-edn
       process-roam-edn
       edn->block-map
-      roam-db-1
+      db/build-db-1
       ))
 
 ;;; Dev only, generate a reasonable representation of the raw edn
 (defn roam-db-edn-lightly-processed
   [roam-edn-file]
   (-> roam-edn-file
-      read-roam-edn-raw
+      read-roam-edn
       process-roam-edn
       ))
