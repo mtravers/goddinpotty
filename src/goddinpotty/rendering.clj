@@ -156,13 +156,14 @@
         page-title (:title page)]
     (if (and page (bd/displayed? page) page-title)
       [:a (u/clean-map
-           {:href (str (utils/clean-page-title page-title))
+           {:href (utils/clean-page-title page-title)
             ;; TODO behavior with empties should be configurable, I keep
             ;; changing my own mind about it.
             :class (str/join " "
                              (filter identity
                                      (list (when (bd/page-empty? page) "empty")
                                            (when (= current page-id) "self")
+                                           (when-not (:include? page) "excluded")
                                            class)))})
        (block-content->hiccup (or alias page-title))]
       (do

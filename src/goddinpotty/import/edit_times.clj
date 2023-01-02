@@ -6,6 +6,7 @@
             [goddinpotty.config :as config]
             [goddinpotty.endure :as e]
             [goddinpotty.utils :as utils]
+            [clojure.tools.logging :as log]
             [clojure.string :as str]
             )
   )
@@ -22,26 +23,6 @@
       #_ (str/replace #"/" "-")            ;sometimes this becomes a . Argh
       (str/replace #"[:\?\"]" "_")  ; \(\) but these seem just as often passed through...argh
       ))
-
-;;; TODO Logseq specific, should be elsewhere.
-;;; No longer doing this here, instead import saves the source file in the bm
-#_
-(defn source-file
-  [page]
-  (let [page-name (:title page)]
-    (and page-name
-         (str (get-in (config/config) [:source :repo])
-              (if (bd/daily-notes-page? page)
-                "/journals/"
-                "/pages/")
-              (clean-page-name page-name)
-              ".md"))))                          ;TODO could be .org
-
-(defn safe-mod-time
-  [f]
-  (if (fs/exists? f)
-    (java.util.Date. (fs/mod-time f))
-    (prn :file-not-found f)))           ;temp
 
 ;;; Alternative to this shell nonsense https://www.eclipse.org/jgit/
 (def git-date-formatter
@@ -91,24 +72,23 @@
       (utils/strip-chars #{\" \newline})
       ((u/saferly parse-git-date))))
 
-(defn git-last-mod-time
+(defn- git-last-mod-time
   [f]
   (git-last-mod-time-1 f (fs/mod-time f)))
 
-(defn safe-times
+(defn- safe-times
   [f]
   (u/ignore-report
-   (if (fs/exists? f)                    ;TODO this is not adequate check due to retarded case folding
-     [(git-first-mod-time f)
-      (git-last-mod-time f)]
-     (prn :file-not-found f)
-     )))
+   [(git-first-mod-time f)
+    (git-last-mod-time f)]
+   ))
 
 (defn page-date-range
-  [page]
-  (-> page
-      :file
-      safe-times))
+  [{:keys [file title id] :as page}]
+  (if (fs/exists? file)                ;TODO this is not adequate check due to retarded case folding
+    (safe-times file)
+    (log/warn "File not found" file "for" title))) ;return nil
+
 
 (defn page-edit-time
   [page]
