@@ -24,7 +24,7 @@
 (declare block-full-hiccup-guts)
 
 ;;; Boostrap icons, see css and https://icons.getbootstrap.com/
-(defn- icon
+(defn icon
   [name]
   [:i {:class (str "bi-" name)}])
 

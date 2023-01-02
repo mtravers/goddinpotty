@@ -100,9 +100,6 @@
        "<!-- Sidebar Widgets Column -->"
        [:div.col-md-3
 
-        ;; TODO Is there a reason this isn't under widget mechanism?
-        "<!-- Search Widget -->"
-
         ~@widgets
         ]
 
@@ -112,9 +109,18 @@
         [:div.ptitle
          [:h1 ~title-hiccup]
          ~contents
-
-         ]]
-       ]]
+         ]
+        ;; Comments – resuing card machinery, probably not a great idea TODO
+        ~(when (config/config :comments)
+           `[:div.card
+             [:h5.card-header {:style "margin-bottom:-12px;"} "Comments"]
+             [:div.card-body
+              [:div#remarkbox-div
+               [:noscript
+                [:iframe#remarkbox-iframe {:src "https://my.remarkbox.com/embed?nojs=true"
+                                           :style "height:600px;width:100%;border:none!important"
+                                           :tabindex 0}]]]]])
+        ]]]
      "<!-- Footer -->"
      [:footer.py-5.footer
       [:div.container
@@ -206,12 +212,40 @@
     [:input#searcht.form-control {:type "text"
                                   ;; :placeholder "Search for..."
                                   :onkeyup "keypress(event)"
-                                  }]
-    ]
+                                  }]]
    [:div#searchb.card-body
     ;; output goes here
     [:div#searcho] 
     ]])
+
+
+;;; Light weight and incomplete cal widget, only of use when showing journal pages
+
+(defn journal-page-inc
+  [bm page inc]
+  ;; TODO filter to existing pages, eg increment until one os hit
+  (utils/clean-page-title (utils/inc-page (:title page) inc)))
+
+(defn calendar-widget
+  [bm page]
+  (let [today (utils/parse-journal-page-name (:title page))]
+    (prn :foo today)
+    [:div.card.my-3
+     [:h5.card-header
+      [:span#searchh
+       "Calendar"]
+      ]
+     [:divcard-body
+      [:span.btn-group
+       [:a.btn {:href (journal-page-inc bm page -1)} (render/icon "chevron-left")]
+       ;; Note: this doesn't work yet – not clear how it could without recapitulating a lot of date parse logic
+       [:input {:type "date"
+                :name "date"
+                :value (.format utils/html-date-formatter today)
+                :onchange "x = event; alert(event.value)"
+                }]
+       [:a.btn {:href (journal-page-inc bm page 1)} (render/icon "chevron-right")]]
+      ]]))
 
 (defn block-page-hiccup
   [block-id block-map output-dir]
@@ -234,6 +268,8 @@
 
         search-widget (search-widget block-map)
         about-widget (about-widget block-map)
+        calendar-widget (when (bd/daily-notes-page? block)
+                          (calendar-widget block-map block))
         map-widget
         [:div.card.my-3
          [:h5.card-header
@@ -314,6 +350,7 @@
                  ;; TODO also all widgets should be collapsible and the state remembered (map does this, but they all should)
                  :widgets [about-widget ;eg don't need this in my personal versioN!
                            search-widget
+                           calendar-widget
                            page-contents-widget ;TODO only render when needed
                            map-widget
                            page-hierarchy-widget
