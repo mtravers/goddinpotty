@@ -486,9 +486,5 @@
 (defn toc
   [block]
   (partition 2 (flatten (toc-1 block))))
-
-
           
-          
-          
-        
+  

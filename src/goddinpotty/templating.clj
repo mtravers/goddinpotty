@@ -1,5 +1,6 @@
 (ns goddinpotty.templating
   (:require [clojure.string :as s]
+            [clojure.java.io :as io]
             [goddinpotty.rendering :as render]
             [goddinpotty.config :as config]
             [goddinpotty.utils :as utils]
@@ -54,6 +55,26 @@
   gtag('config', '%s');
 " (config/config :google-analytics))]))
 
+;;; → multitool
+(def template-regex2 #"\{\{(.*?)\}\}")
+
+(defn expand-template-string2
+  "Template is a string containing {foo} elements, which get replaced by corresponding values from bindings. See tests for examples."
+  [template bindings]
+  (let [matches (->> (re-seq template-regex2 template) 
+                     (map (fn [[match key]]
+                            [match (or (bindings (name key)) "")])))]
+    (reduce (fn [s [match key]]
+              (s/replace s (u/re-pattern-literal match) (str key)))
+            template matches)))
+
+
+(u/def-lazy comment-script
+  (expand-template-string2
+   (slurp (io/resource "remarkbox.js"))
+   ;; u/map-keys because expand-template-string is dumb
+   (u/map-keys name (config/config))))
+
 ;;; TODO much of this should be configurable
 (defn page-hiccup
   [contents title-text title-hiccup block-map & {:keys [head-extra widgets]}]
@@ -91,7 +112,6 @@
         ~@(for [page (config/config :right-navbar)]
             [:li.nav-item
              (if (vector? page) 
-               ;[:a {:href (second page) :class "nav-link"} (first page)]
                (render/page-link (second page) :class "nav-link" :bm block-map :alias (first page))
                (render/page-link page :class "nav-link" :bm block-map))]
             )]]]
@@ -134,6 +154,10 @@
      [:script {:src "https://cdn.jsdelivr.net/npm/bootstrap@5.1.1/dist/js/bootstrap.bundle.min.js"
                :integrity "sha384-/bQdsTh/da6pkI1MST/rWKFNjaCP5gBSY4sEBT38Q/9RBh9AH40zEOg7Hlq2THRZ"
                :crossorigin "anonymous"}]
+     ;; Comment box
+     ~@(when (config/config :comments)
+         `[[:script {:src "https://my.remarkbox.com/static/js/iframe-resizer/iframeResizer.min.js"}]
+           [:script ~(deref comment-script)]])
      ]])
 
 (defn map-page
