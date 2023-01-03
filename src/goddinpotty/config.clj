@@ -28,9 +28,9 @@
 
 ;;; TODO should take paths
 (defn config
-  [& [att]]
-  (if att
-    (att @the-config)
+  [& atts]
+  (if atts
+    (get-in @the-config atts)
     @the-config))
 
 

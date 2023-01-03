@@ -109,3 +109,13 @@ function toggleMap() {
     console.log('map is', open);
     sessionStorage.setItem('map', !open);
 }
+
+// Also not search related: Expose elements tagged "local" if we are running from a local server
+function maybeExposeLocal() {
+    var locals = document.getElementsByClassName("local");
+    for(var i = 0; i < locals.length; i++) {
+	locals[i].classList.remove("local");
+    }
+}
+
+document.addEventListener("DOMContentLoaded", maybeExposeLocal);

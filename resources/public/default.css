@@ -374,3 +374,8 @@ ul::before {
 .ulz {
     padding-left: 0;
 }
+
+/* Gets removed by js when running from a local server */
+.local {
+    display: none;
+}

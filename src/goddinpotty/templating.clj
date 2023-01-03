@@ -229,7 +229,6 @@
 (defn calendar-widget
   [bm page]
   (let [today (utils/parse-journal-page-name (:title page))]
-    (prn :foo today)
     [:div.card.my-3
      [:h5.card-header
       [:span#searchh
@@ -242,10 +241,16 @@
        [:input {:type "date"
                 :name "date"
                 :value (.format utils/html-date-formatter today)
-                :onchange "x = event; alert(event.value)"
+                :onchange "var d = event.target.value; alert(d)"
                 }]
        [:a.btn {:href (journal-page-inc bm page 1)} (render/icon "chevron-right")]]
       ]]))
+
+(defn logseq-url
+  [page]
+  (format "logseq://graph/%s?page=%s"
+          (config/config :source :graph)
+          (:title page)))
 
 (defn block-page-hiccup
   [block-id block-map output-dir]
@@ -261,7 +266,10 @@
             (et/page-date-range block)  ;TODO LOGSEQ specific (file-based), should be configurable
             ))]
          (when-not (:include? block)
-           [:span [:b "EXCLUDED"]])       ;TODO make this pop more
+           [:span [:b "EXCLUDED"]])
+         [:span.local                   ;Hidden unless running locally.
+          " "
+          [:a {:href (logseq-url block)} "Open in Logseq"]]
          [:hr {}]
          (render/page-hiccup block-id block-map)
          [:hr {}]]
