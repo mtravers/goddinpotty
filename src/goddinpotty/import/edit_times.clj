@@ -72,11 +72,11 @@
       (utils/strip-chars #{\" \newline})
       ((u/saferly parse-git-date))))
 
-(defn- git-last-mod-time
+(defn git-last-mod-time
   [f]
   (git-last-mod-time-1 f (fs/mod-time f)))
 
-(defn- safe-times
+(defn safe-times
   [f]
   (u/ignore-report
    [(git-first-mod-time f)
@@ -89,20 +89,8 @@
     (safe-times file)
     (log/warn "File not found" file "for" title))) ;return nil
 
-
 (defn page-edit-time
   [page]
   (second (page-date-range page)))
 
-(comment 
-;;; Set last edit time of all blocks to file write date. Best we can do
 
-(defn get-edit-times
-  [bm]
-  (u/map-values (fn [b]
-                  (if (and (:include? b))
-                    (merge b
-                           (get-edit-times-from-repo (bd/block-page bm b))
-                           )
-                    b))
-                bm)))

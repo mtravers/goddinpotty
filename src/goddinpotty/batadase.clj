@@ -416,7 +416,6 @@
       (log/warn page-name "inexact match to" (:title res))
       res)))
 
-;;; → Multitool?  (Guess not, kind of special purpose)
 (defn vec->maps
   [v]
   (if (empty? v)
