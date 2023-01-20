@@ -108,12 +108,6 @@
    :links 12,
 })
 
-;;; TODO multitool unlist             
-(defn uncoll [thing]
-  (if (and (coll? thing) (= 1 (count thing)))
-    (first thing)
-    thing))
-
 ;;; TODO do something with :block/refs and/or :block/path-refs probably?
 ;;; path-refs seems to be union of refs and parent?
 (defn logseq-nbb->blocks-base
@@ -125,8 +119,8 @@
                       (str "Block is its own parent: " (:db/id block)))
                ;; TODO reexamine this – probably only pages should have title?
                {:title (or
-                        ;; uncoll because sometimes this is a set for no good reason
-                        (uncoll (get-in block [:block/properties :title]))
+                        ;; unlist because sometimes this is a set for no good reason
+                        (u/unlist (get-in block [:block/properties :title]))
                         (:block/original-name block) ;??? Not sure what actual semnatics are, but this is often better TODO should name be alias?
                         (:block/name block))
                 :id (:db/id block) ;note: has to be id so refs work

@@ -14,12 +14,6 @@
 
 ;;; TODO Note: the functions of templating and html-gen seem to overlap; not sure they should be separate.
 
-
-;;; TODO site-metadata stuff I don't use much, either get rid of it or spruce it up and use it
-(defn- metadata-properties
-  [metadata]
-  (into (hash-map) (filter #(= 2 (count %)) (map #(s/split % #":: ") metadata))))
-
 ;;; Annoying amount of id/block switcheroo
 (defn linked-reference-template
   [block-map r]
@@ -55,25 +49,12 @@
   gtag('config', '%s');
 " (config/config :google-analytics))]))
 
-;;; → multitool
-(def template-regex2 #"\{\{(.*?)\}\}")
-
-(defn expand-template-string2
-  "Template is a string containing {foo} elements, which get replaced by corresponding values from bindings. See tests for examples."
-  [template bindings]
-  (let [matches (->> (re-seq template-regex2 template) 
-                     (map (fn [[match key]]
-                            [match (or (bindings (name key)) "")])))]
-    (reduce (fn [s [match key]]
-              (s/replace s (u/re-pattern-literal match) (str key)))
-            template matches)))
-
-
 (u/def-lazy comment-script
-  (expand-template-string2
+  (u/expand-template-string
    (slurp (io/resource "remarkbox.js"))
    ;; u/map-keys because expand-template-string is dumb
-   (u/map-keys name (config/config))))
+   (u/map-keys name (config/config))
+   :param-regex u/double-braces))
 
 ;;; TODO much of this should be configurable
 (defn page-hiccup

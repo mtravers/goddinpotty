@@ -188,7 +188,6 @@
                      %)
                   bm)))
 
-
 ;;; → TODO Multitool
 (defn tap
   [x var f args]

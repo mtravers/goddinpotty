@@ -67,17 +67,12 @@
   (persistent!
    (reduce f (transient init) col)))
 
-;;; -> multitool, unaccountably missing from core
-(defn update!
-  [map k f & args]
-  (assoc! map k (apply f (get map k) args)))
-
 (defn entify
   [datoms]
   (assoc 
    (reduce-transient (fn [acc [_ att v _]]
                        (if (many-valued? att)
-                         (update! acc att conj v)
+                         (u/update! acc att conj v)
                          (assoc! acc att v)))
                      {}
                      datoms)

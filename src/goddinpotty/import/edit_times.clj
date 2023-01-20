@@ -2,7 +2,6 @@
   (:require [org.parkerici.multitool.core :as u]
             [clojure.java.shell :as sh]
             [me.raynes.fs :as fs]
-            [goddinpotty.batadase :as bd]
             [goddinpotty.config :as config]
             [goddinpotty.endure :as e]
             [goddinpotty.utils :as utils]

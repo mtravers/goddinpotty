@@ -445,34 +445,18 @@
   (or (page-parent page bm)
       (get (page-hierarchies bm) (:title page))))  ;top page
 
-
 ;;; Table o' contents
 
 ;;; This must exist? core.match, but not quite
 ;;; https://github.com/dcolthorp/matchure
-
-;;; Note: this is minimal, and in some cases just wrong, but good enough
-;;; → multitool
-(defn str-match
-  [pat thing]
-  (cond (and (list? pat) (= '? (first pat)))
-        (if thing
-          {(keyword (second pat)) thing}
-          nil)
-        (and (sequential? pat) (sequential? thing))
-        (reduce (fn [a b] (and a b (merge a b)))
-                {}
-                (map str-match pat (u/extend-seq thing)))
-        (= pat thing) {}
-        :else nil))
 
 ;;; Page table of contents generation
 (defn- toc-1
   [block]
   (let [head (when-let [{:keys [depth content]}
                         (and (displayed? block)
-                             (str-match '[:block [:heading (? depth) (? content)]]
-                                        (:parsed block)))]
+                             (u/pattern-match '[:block [:heading (? depth) (? content)]]
+                                              (:parsed block)))]
                [(count depth) (:id block)]) 
         rest
         (u/mapf toc-1 (:dchildren block))]

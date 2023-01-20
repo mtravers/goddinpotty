@@ -84,8 +84,6 @@
                          {:query-params {:url url}})]
     (clojure.data.json/read-str (:body resp) :keyword-fn keyword)))
 
-;;; TODO convert bare URLs into [label](url)
-
 
 ;;; Highly connected nodes
 (defn fan
@@ -116,13 +114,6 @@
         (let [local-file (str directory (:title (bd/block-page bm image-block)) "-" (:id image-block) "." ext)]
           (prn :download local-file image-source)
           (ju/local-file image-source local-file))))))
-
-
-
-
-
-
-;;; TODO Pici images
 
 ;;; Reexport from logseq
 

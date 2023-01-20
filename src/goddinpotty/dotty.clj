@@ -5,6 +5,8 @@
             [clojure.java.io :as io]
             ))
 
+;;; Status: not used and probably doesn't work
+
 (defn- sh-errchecked
   [& args]
   (let [res (apply shell/sh args)]

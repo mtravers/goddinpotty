@@ -4,7 +4,7 @@ A  generator for Digital Gardens based on graph-based Personal Knowledge Managem
 
 This is a fork from [static-roam](https://github.com/TomLisankie/static-roam) by Tom Lisankie. It's pretty diverged from the original by now, maybe 20% of the code is inherited.
 
-[The name explained](http://www.hyperphor.com/ammdi/pages/goddinpotty.html).
+[The name explained](http://hyperphor.com/ammdi/goddinpotty%E2%88%95name).
 
 # Status
 

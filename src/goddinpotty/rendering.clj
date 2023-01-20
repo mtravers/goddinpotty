@@ -377,6 +377,7 @@
   (let [depth (or depth 0)
         block (bd/get-with-aliases block-map block-id)]
     (when (bd/displayed? block)
+      ;; TODO with Logseq, block-id is useless for long-term persistent links; ids chane with every reindex. Need to rethink. A synthetic id based on page name and block position maybe.
       [:ul {:id block-id :class (cond (not (bd/included? block)) "excluded"
                                       (< depth 2) "nondent" ;don't indent the first 2 levels
                                       :else "")}

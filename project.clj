@@ -14,7 +14,7 @@
 ;; Used by logseq-from-md, not there yet
 ;;                 [org.commonmark/commonmark "0.18.0"]
                  [html-to-md/html-to-md "0.3.0"]
-                 [org.parkerici/multitool "0.0.24"]
+                 [org.parkerici/multitool "0.0.26"]
                  [com.taoensso/truss "1.6.0"]
                  [alandipert/enduro "1.2.0"] ;persistence for expensive calculations
                  [hiccup "1.0.5"]
