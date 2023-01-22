@@ -4,10 +4,12 @@
 
 block = block-property* (heading | hiccup | blockquote | prop-block | (syntax-in-block / text)*) block-property*
 
-<syntax-in-block> = ( image | alias | block-embed | hashtag | page-link | block-ref | code-line | code-block | video | bold | italic | bare-url | hr | latex | tweet ) (* add query later*)
+<syntax-in-block> = ( image | alias | hashtag | page-link | block-ref | code-line | code-block | video | bold | italic | bare-url | hr | latex | tweet ) (* add query later*)
 
 (* page links do not want their innards parsed *)
 page-link = #"\[\[.*?\]\]" 
+
+(* TODO misnamed, this is just an external link *)
 alias = #"\[([^\[\]]+?)\]\(.+?\)"  (* Note this hairy but correct char class that means everything but square brackets *)
 image = #"!\[(.*?)\]\(.*?\)(\{.*\})?"   (* image = "!" alias doesn't quite work *)
 hashtag = #"\#[\w-:]+" | #"#\[\[.*?\]\]"
@@ -16,7 +18,6 @@ block-ref = #"\s*\(\(([\w\s\d-]+)\)\)"
 block-property =  #"(\n)?.+?:: .+(\n)?"
 code-line = #"\`.*?\`"
 code-block = #"(?is)^```.*```"
-(* query = #"\{\{query: .*?:.*?\}\}" | #"\{\{[[query]]: .*?:.*?\}\}" *)
 
 bold = <"**">, (!bold syntax-in-block / textier)* , <"**">
 roam-italic = <"__">, (!italic syntax-in-block / textier)+ , <"__">
@@ -28,7 +29,6 @@ italic = roam-italic | logseq-italic | logseq-italic2
  strikethrough = "~~", (syntax-in-block / text)* , "~~"
  highlight = "^^", (syntax-in-block / text)* , "^^"  *)
 
-block-embed = #"\{\{embed: .*?\}\}" | #"\{\{\[\[embed\]\]: .*?\}\}"
 bare-url =  #"https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)"
 
 blockquote = <"> "> block
