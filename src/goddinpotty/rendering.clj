@@ -265,10 +265,6 @@
          (unspan
           (case (first ast-ele)
             nil nil
-
-            ;; Might want this old behavior under a flag, but definitely not wanted in Logseq context.
-;;            :metadata-tag [:b [:a {:href (utils/clean-page-title ele-content)}
-;;                               (subs ele-content 0 (dec (count ele-content)))]]
             :block-property
             (let [[_ label value] (re-matches #"\n?(.+?):: (.+)\n?" (second ast-ele))]
               (when-not (contains? hidden-properties label)

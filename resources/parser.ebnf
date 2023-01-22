@@ -14,7 +14,6 @@ alias = #"\[([^\[\]]+?)\]\(.+?\)"  (* Note this hairy but correct char class tha
 image = #"!\[(.*?)\]\(.*?\)(\{.*\})?"   (* image = "!" alias doesn't quite work *)
 hashtag = #"\#[\w-:]+" | #"#\[\[.*?\]\]"
 block-ref = #"\s*\(\(([\w\s\d-]+)\)\)"
-(* metadata-tag = #"^.+?::" *) (* Roam *)
 block-property =  #"(\n)?.+?:: .+(\n)?"
 code-line = #"\`.*?\`"
 code-block = #"(?is)^```.*```"
@@ -44,6 +43,7 @@ heading = #"#{1,3}" block
 prop-block = #"---\n(.|\n)*---\n\n"
 
 (* TODO maybe a general {{ }} rule *)
+
 tweet = <"{{tweet ">, bare-url, <"}}">
 video = ( <"{{video"> |  <"{{youtube">), #"\s+", bare-url, <"}}">  
 zotero = <"{{zotero-imported-file ">, #"\s+" , <"}}">
