@@ -4,7 +4,7 @@
 
 block = block-property* (heading | hiccup | blockquote | prop-block | (syntax-in-block / text)*) block-property*
 
-<syntax-in-block> = (todo | done | image | alias | block-embed | hashtag | page-link | block-ref | code-line | code-block | video | bold | italic | bare-url | page-alias | hr | latex | tweet ) (* add query later*)
+<syntax-in-block> = (todo | done | image | alias | block-embed | hashtag | page-link | block-ref | code-line | code-block | video | bold | italic | bare-url | hr | latex | tweet ) (* add query later*)
 
 (* page links do not want their innards parsed *)
 page-link = #"\[\[.*?\]\]" 
@@ -17,7 +17,6 @@ block-property =  #"(\n)?.+?:: .+(\n)?"
 code-line = #"\`.*?\`"
 code-block = #"(?is)^```.*```"
 (* query = #"\{\{query: .*?:.*?\}\}" | #"\{\{[[query]]: .*?:.*?\}\}" *)
-page-alias = #"\{\{alias\:\[\[.+\]\].*\}\}"
 
 bold = <"**">, (!bold syntax-in-block / textier)* , <"**">
 roam-italic = <"__">, (!italic syntax-in-block / textier)+ , <"__">

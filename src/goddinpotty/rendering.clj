@@ -282,10 +282,7 @@
                          2 [:h2 base]
                          3 [:h3 base]))
             :page-link (page-link-by-name block-map (utils/remove-double-delimiters ele-content))
-            ;; Roam only feature, TODO should convert these to Logseq alliases and remove from parser
-            :page-alias (let [[_ page alias] (re-matches #"\{\{alias\:\[\[(.+)\]\](.*)\}\}"
-                                                         ele-content)]
-                          (page-link-by-name block-map page :alias alias))
+            
             :block-ref (let [ref-block (get (uid-indexed block-map) (-> ele-content
                                                                         str/trim
                                                                         utils/remove-double-delimiters))]

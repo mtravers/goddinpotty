@@ -130,14 +130,6 @@ And its fallen Emanation, the Spectre and its cruel Shadow.") {}))))
           [:a.external {:href "http://link"} "normal"]])
       (block-content->hiccup "Blah blah [finished coherent essay]([[What Motivated Rescuers During the Holocaust?]])")))
 
-(deftest page-alias-test
-  (is (= [:span "A show about " [:span.empty "The Big Nada"] ]
-         (block-hiccup (fake-block "A show about {{alias:[[nihilism]]The Big Nada}}")
-                       {"nihilism" {:id "nihilism" :page? true :include? true :content "foo"}})))
-  (is (= [:span "A show about " [:span.empty "The Big Nada"] ]
-         (block-hiccup (fake-block "A show about {{alias:[[nihilism]]The Big Nada}}")
-                       {"nihilism" {:id "nihilism" :page? true :include? true :content (str (range 1000))}}))))
-
 (deftest hiccup-render-test
   (= [:table.table
       [:tr [:th "The Magician"] [:td "concentration without effort"] [:td "pure act"]]

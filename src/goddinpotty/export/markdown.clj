@@ -53,9 +53,6 @@
                (if (str/starts-with? target "[[")
                  (page-link (utils/remove-double-delimiters target) text)
                  (second parse)))
-      ;; TODO [:page-alias "{{alias:[[Meditations on Meditations on Moloch]]Meditations on Moloch}}"]
-      :page-alias (second parse)
-
       (:italic :bold) (second parse)    ;TODO no longer correct
       (:image :code-block :code-line :hr) (second parse)
       :metadata-tag (second parse)
