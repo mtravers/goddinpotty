@@ -4,7 +4,7 @@
 
 block = block-property* (heading | hiccup | blockquote | prop-block | (syntax-in-block / text)*) block-property*
 
-<syntax-in-block> = (todo | done | image | alias | block-embed | hashtag | page-link | block-ref | code-line | code-block | video | bold | italic | bare-url | hr | latex | tweet ) (* add query later*)
+<syntax-in-block> = ( image | alias | block-embed | hashtag | page-link | block-ref | code-line | code-block | video | bold | italic | bare-url | hr | latex | tweet ) (* add query later*)
 
 (* page links do not want their innards parsed *)
 page-link = #"\[\[.*?\]\]" 
@@ -27,9 +27,6 @@ italic = roam-italic | logseq-italic | logseq-italic2
 (* Don't use these so turning off for performance
  strikethrough = "~~", (syntax-in-block / text)* , "~~"
  highlight = "^^", (syntax-in-block / text)* , "^^"  *)
-
-todo = "{{[[TODO]]}}"
-done = "{{[[DONE]]}}"
 
 block-embed = #"\{\{embed: .*?\}\}" | #"\{\{\[\[embed\]\]: .*?\}\}"
 bare-url =  #"https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)"

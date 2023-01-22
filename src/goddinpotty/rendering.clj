@@ -307,8 +307,6 @@
             :bold `[:b ~@(maybe-conc-string (nrecurse (rest ast-ele)))]
             :alias (format-alias ele-content)
             :image (format-image ele-content)
-            :todo [:input {:type "checkbox" :disabled "disabled"}]
-            :done [:input {:type "checkbox" :disabled "disabled" :checked "checked"}]
             :code-line [:code (utils/remove-n-surrounding-delimiters 1 ele-content)]
             :code-block (format-codeblock ele-content)
             :video (if-let [youtube-id (get-youtube-id (second (nth ast-ele 2)))] ; block is [:video " " [:bare-url rul]]
