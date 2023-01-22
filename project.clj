@@ -5,7 +5,7 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.11.1"]
                  [me.raynes/fs "1.4.6"]
-                 [ch.qos.logback/logback-classic "1.2.11"]
+                 [ch.qos.logback/logback-classic "1.4.5"]
                  [org.clojure/data.json "2.4.0"]
                  [org.clojure/data.xml "0.2.0-alpha6"] ;just for blogger
 ;                 [org.clojars.simon_brooke/html-to-md "0.3.0"] 
