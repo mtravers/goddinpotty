@@ -6,6 +6,7 @@
             [goddinpotty.graph :as graph]
             [goddinpotty.utils :as utils]
             [goddinpotty.context :as context]
+            [goddinpotty.endure :as e]
             [clojure.data.json :as json]
             [clojure.string :as str]
             [org.parkerici.multitool.core :as u]
@@ -111,7 +112,8 @@
 
 ;;; TODO fails for image links like https://twitter.com/lastpositivist/status/1341720934735069184/photo/1 but Logseq does these...
 ;;; Temp kludge solution: grep and remove "/photo/1"
-(defn- embed-twitter
+;;; Actually it can change, if the backing tweet is deleted. Oh well.
+(e/defn-memoized embed-twitter          ;memoize this, it doesn't change and API c
   [url]
   (try
     (let [oembed (json/read-str (slurp (str "https://publish.twitter.com/oembed?url=" url)) :key-fn keyword)]
@@ -128,6 +130,34 @@
         (youtube-vid-embed (get-youtube-id url))
         :else
         (make-link-from-url url)))
+
+;;; Census from AMMDI 21 Jan 2023
+#_
+{nil 19,
+ "tweet" 365,
+ "youtube" 29,
+ "video" 38,
+ "zotero-imported-file" 8,
+ "POMO" 14,
+ "mentions" 1,
+ "[youtube" 1,
+ "pdf" 2,
+ "∆" 3,
+ "alias" 3,
+ "embed" 3,
+ "timer" 1}
+
+
+(defn double-braces [command arg]
+  (case command
+    "tweet" (embed-twitter arg)
+    ("youtube" "video") (if-let [youtube-id (get-youtube-id arg)]
+                          (youtube-vid-embed youtube-id)
+                          [:span "Non-youtube video" arg])
+    ;; Default
+    (do
+      (log/warn "Unknown {{}} command" command arg) ;TODO should have full element
+      [:span.warn "{{" command arg "}}"])))
 
 ;;; Extremely smelly. 
 (defn unspan
@@ -305,9 +335,7 @@
             :image (format-image ele-content)
             :code-line [:code (utils/remove-n-surrounding-delimiters 1 ele-content)]
             :code-block (format-codeblock ele-content)
-            :video (if-let [youtube-id (get-youtube-id (second (nth ast-ele 2)))] ; block is [:video " " [:bare-url rul]]
-                     (youtube-vid-embed youtube-id)
-                     [:span "Non-youtube video" ele-content]) ;TODO temp, do something better
+
             :bare-url (make-content-from-url ele-content)
             :blockquote (new-head (ele->hiccup ele-content block-map block) :blockquote)
                                         ;ast-ele
@@ -326,9 +354,11 @@
             :hr [:hr]
             ;; See https://www.mathjax.org/ This produces an inline LaTex rendering.
             :latex [:span.math.display (str "\\(" (utils/remove-double-delimiters ele-content) "\\)")]
-            :tweet (embed-twitter (second (second ast-ele)))
             ;; TODO better error handling
-            :hiccup (hiccup-fixups (u/ignore-report (read-string ele-content))))))))))
+            :hiccup (hiccup-fixups (u/ignore-report (read-string ele-content)))
+            :doublebraces (let [[_ command arg] (re-find #"\{\{(\S+) (.+)\}\}" ele-content)]
+                            (double-braces command arg))
+            )))))))
 
 ;;; Used for converting things like italics in blocknames
 (defn block-content->hiccup

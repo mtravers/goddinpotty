@@ -4,7 +4,7 @@
 
 block = block-property* (heading | hiccup | blockquote | prop-block | (syntax-in-block / text)*) block-property*
 
-<syntax-in-block> = ( image | alias | hashtag | page-link | block-ref | code-line | code-block | video | bold | italic | bare-url | hr | latex | tweet ) (* add query later*)
+<syntax-in-block> = ( image | alias | hashtag | page-link | block-ref | code-line | code-block | bold | italic | bare-url | hr | latex |  doublebraces ) (* add query later*)
 
 (* page links do not want their innards parsed *)
 page-link = #"\[\[.*?\]\]" 
@@ -44,8 +44,6 @@ prop-block = #"---\n(.|\n)*---\n\n"
 
 (* TODO maybe a general {{ }} rule *)
 
-tweet = <"{{tweet ">, bare-url, <"}}">
-video = ( <"{{video"> |  <"{{youtube">), #"\s+", bare-url, <"}}">  
-zotero = <"{{zotero-imported-file ">, #"\s+" , <"}}">
-
 hiccup = #"(?s)\[\:[a-z]+.*"
+
+doublebraces = #"\{\{.+?\}\}"

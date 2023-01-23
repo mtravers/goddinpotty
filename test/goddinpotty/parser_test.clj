@@ -13,7 +13,10 @@
     (is (contains? parsed [:hashtag "#[[difficulty matching]]"]))
     (is (contains? parsed [:hashtag "#yessereebob"]))
     (is (contains? parsed [:alias "[fasfa]([[Hello page]])"]))
-    (is (contains? parsed [:video " " [:bare-url "https://youtu.be/5iI_0wnwIpU"]]))
+
+    ;; Note: this checks that doublebrace parse can handle >1 in a line
+    (is (contains? parsed [:doublebraces "{{query: {and: [[note]] [[January]] }}"]))
+    (is (contains? parsed [:doublebraces "{{video https://youtu.be/5iI_0wnwIpU}}"]))
     (is (contains? parsed [:bold "IMPORTANT"]))
     (is (contains? parsed [:italic "emphasis"]))
     ;; Turned off for performance
