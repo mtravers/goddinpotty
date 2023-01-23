@@ -193,6 +193,7 @@
 ;;; Assumes config is already set
 ;;; OK this was a really bad idea. To be workable, it would have
 ;;; to recompute :children
+;;; Also doesn't even seem to work with a reindoex
 (defn update-page
   [page-name]
     (u/memoize-reset!)

@@ -262,3 +262,11 @@
 ;;; TODO run this daily (and in the past with git) and make a graph
 
 
+
+;;; Converting old sidenotes to new
+(def sidenote-report
+  (map (fn [id]
+         (let [block  (get bm id) 
+               page (bd/block-page bm block)]
+           {:id id :content (:content block) :page (:title page)}))
+       @sidenotes))

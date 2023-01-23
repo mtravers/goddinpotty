@@ -131,34 +131,6 @@
         :else
         (make-link-from-url url)))
 
-;;; Census from AMMDI 21 Jan 2023
-#_
-{nil 19,
- "tweet" 365,
- "youtube" 29,
- "video" 38,
- "zotero-imported-file" 8,
- "POMO" 14,
- "mentions" 1,
- "[youtube" 1,
- "pdf" 2,
- "∆" 3,
- "alias" 3,
- "embed" 3,
- "timer" 1}
-
-
-(defn double-braces [command arg]
-  (case command
-    "tweet" (embed-twitter arg)
-    ("youtube" "video") (if-let [youtube-id (get-youtube-id arg)]
-                          (youtube-vid-embed youtube-id)
-                          [:span "Non-youtube video" arg])
-    ;; Default
-    (do
-      (log/warn "Unknown {{}} command" command arg) ;TODO should have full element
-      [:span.warn "{{" command arg "}}"])))
-
 ;;; Extremely smelly. 
 (defn unspan
   "Remove :span elts that are basically no-ops. Would be cleaner to not generate in the first place."
@@ -227,6 +199,7 @@
   [id]
   (contains? @sidenotes id))
 
+;;; TODO flush all this kludgey machinery, new way is much simpler. Need to convert existing files
 ;;; This is used to suppress sidenotes in the Incoming links panel
 ;;; TODO now misnamed, we now just supress RENDERING them as sidenotes, still want them 
 (def ^{:dynamic true} *no-sidenotes* false)
@@ -240,6 +213,47 @@
    [:div.sidenote                     ;TODO option to render on left/right
     [:span.superscript.side]
     (block-full-hiccup-guts (:id sidenote-block) block-map)]])
+
+
+;;; A much easier way to do sidenotes
+(declare ele->hiccup)
+(defn new-sidenote
+  [sidenote-text]
+  [:span.sidenote-container
+   [:span.superscript]
+   [:div.sidenote                     ;TODO option to render on left/right
+    [:span.superscript.side]
+    ;; TODO might need a real blockmap for dealing with links
+    (ele->hiccup (parser/parse-to-ast sidenote-text) {})]])
+
+
+;;; Census from AMMDI 21 Jan 2023
+#_
+{nil 19,
+ "tweet" 365,
+ "youtube" 29,
+ "video" 38,
+ "zotero-imported-file" 8,
+ "POMO" 14,
+ "mentions" 1,
+ "[youtube" 1,
+ "pdf" 2,
+ "∆" 3,
+ "alias" 3,
+ "embed" 3,
+ "timer" 1}
+
+(defn double-braces [command arg]
+  (case command
+    "tweet" (embed-twitter arg)
+    ("youtube" "video") (if-let [youtube-id (get-youtube-id arg)]
+                          (youtube-vid-embed youtube-id)
+                          [:span "Non-youtube video" arg])
+    "sidenote" (new-sidenote arg)
+    ;; Default
+    (do
+      (log/warn "Unknown {{}} command" command arg) ;TODO should have full element
+      [:span.warn "{{" command arg "}}"])))
 
 ;;; Not strictly necessary, but makes tests come out better
 (defn- maybe-conc-string
