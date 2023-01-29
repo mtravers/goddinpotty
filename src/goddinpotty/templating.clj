@@ -339,7 +339,8 @@
         twin-pages-widget
         (when (config/config :twin-pages?)
           [:div.card.my-3
-           [:h5.card-header "Twin Pages"]
+           ;; Note: this is a link to AMMDI, may or may not be right for other uses
+           [:h5.card-header [:a {:href "http://hyperphor.com/ammdi/Twin-Pages"} "Twin Pages"]]
            [:div.card-body
             [:div#twin_pages
              {:style {}} ;"border:1px; vertical-align:top; horizontal-align:center"
