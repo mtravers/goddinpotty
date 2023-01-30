@@ -114,6 +114,7 @@
           :special? true                ;I miss OOP
           :generator generator
           :include? true
+          :display? true
           :page? true
           }))
 

@@ -97,6 +97,11 @@
                                          (not (empty? %))))
                 block-map))
 
+(defn compute-displayed
+  [block-map]
+  (u/map-values #(assoc % :display? (bd/compute-display? block-map %))
+                block-map))
+
 (defn parse-block
   [block]
   (assoc block :parsed (parser/parse-to-ast (:content block))))
@@ -104,7 +109,8 @@
 (defn parse
   [db]
   (ju/pmap-values (fn [block]
-                    (if (:excluded? block)
+                    ;; TEMP do all blocks, so we get all refs computed...
+                    (if false ; (:excluded? block)
                       block
                       (parse-block block)))
                   db))
@@ -215,6 +221,7 @@
          generate-inverse-refs
          compute-depths
          compute-includes
+         compute-displayed
          add-direct-children))              ; makes it easier to use, harder to dump. This needs to be last
 
 (defn add-uids

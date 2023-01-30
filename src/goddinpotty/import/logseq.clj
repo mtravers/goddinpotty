@@ -139,6 +139,8 @@
                 ;; TODO not used yet – we pull out the useful ones, maybe don't need
                 :properties (get block :block/properties)
                 :file (get-in block [:block/file :file/path])
+                ;; Refs are computed later, but these would be useful as a check at least
+                ;; :refs (set (map :db/id [:block/refs block]))
                 }
               ))
        (u/index-by :id)

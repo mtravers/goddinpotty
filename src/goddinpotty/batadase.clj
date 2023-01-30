@@ -55,24 +55,42 @@
        (not (:special? block))
        (not special-tag-block?)))
 
-(defn displayed?
-  ([block]
-   (assert-block block)
-   (if (config/config :unexclude?)
-     true
-     (and (:include? block)
-          ;; TODO yet another definition of empty?
+;;; TODO DWIMish. Maybe turn into a macro and use everywhere. Or put the map in a global, I don't care if that's bad Clojure
+(defn coerce-block
+  [b block-map]
+  (if (block? b)
+    b
+    (or (get block-map b)
+        (throw (ex-info "Not a block" {:thing b})))))
+
+;;; Called during bm build, computes :display?
+(defn compute-display?
+  [bm block]
+  (if (config/config :unexclude?)
+    true
+    (and (:include? block)
+         ;; TODO yet another definition of empty?
+         (boolean
           (or (:content block)
               (:special? block)
               (not (empty? (:children block)))
               ;; TODO should only count included/displayed blocks, but needs bm then
-              (> (count (:ref-by block)) 1) ;if a page has >1 ref, it is worth generating (TODO maybe this should be option)
+              ;; Filter by included?, doing displayed? would be more accurate but risk of infinite recursion and other issues
+              (> (count (filter (partial included? bm)
+                                (:ref-by block)))
+                 1) ;if a page has >1 ref, it is worth generating (TODO maybe this should be option)
 
-              ))))
-  ([block-map block-id]
-   (displayed? (get block-map block-id))))
+              )))))
 
-(defn- get-linked-references
+(defn displayed?
+  ([bm block]                           ;obso, here for compatibility
+   (let [block (coerce-block block bm)]
+     (:display? block)))
+  ([block]
+   (assert-block block)
+   (:display? block)))
+
+(defn get-linked-references
   [block-id block-map]
   (filter #(get-in block-map [% :id])      ;trying to filter out bogus entries, not working
           (get-in block-map [block-id :ref-by])))
@@ -87,13 +105,6 @@
 (def descendents
   (u/transitive-closure :dchildren))
 
-;;; TODO DWIMish. Maybe turn into a macro and use everywhere. Or put the map in a global, I don't care if that's bad Clojure
-(defn coerce-block
-  [b block-map]
-  (if (block? b)
-    b
-    (or (get block-map b)
-        (throw (ex-info "Not a block" {:thing b})))))
 
 (defn block-parent
   [block-map block]
@@ -135,11 +146,11 @@
   [b1 b2]
   (contains? (set (map :id (descendents b1))) (:id b2)))
 
-(defn forward-page-refs
+(defn- forward-page-refs
   "Forward page refs. Returns set of ids"
-  [page]
+  [bm page]
   (apply clojure.set/union
-         (map :refs (filter displayed? (block-descendents page)))))
+         (map :refs (filter (partial displayed? bm) (block-descendents page)))))
 
 (defn block-page
   [block-map block]
@@ -244,6 +255,17 @@
   (and block
        (or (tagged? block-map block tag)
            (tagged-or-contained? block-map (block-page-parent block-map block) tag))))
+
+(defn with-tag
+  [block-map tag]
+  (let [tag-id (:id (get (with-aliases block-map) tag))]
+    (filter #(contains? (:refs %) tag-id) (vals block-map))))
+
+#_
+(defn with-text
+  [block-map text]
+  (filter #(str/includes? (goddinpotty.rendering/block-full-text block-map %) text)
+          (vals block-map)))
 
 ;;; These are the top-level entrypoints, other than those defined by tags. Crude at the moment
 (defn advertised-page-names
@@ -447,15 +469,37 @@
 
 ;;; Table o' contents
 
-;;; This must exist? core.match, but not quite
-;;; https://github.com/dcolthorp/matchure
+;;; Extended from multitool, (?? var) will match nil.
+;;; This is completely wrong, needs to do a kind of nondeterministic search. Adequate for toc
+(defn pattern-match
+  "Ultra-simple structure pattern matcher. Variables are (? <name>), bindings "
+  [pat thing]
+  (cond (and (list? pat) (= '? (first pat)))
+        (if thing
+          {(keyword (second pat)) thing}
+          nil)
+        (and (list? pat) (= '?? (first pat)))
+        {(keyword (second pat)) thing}        
+        (and (sequential? pat)
+             (sequential? thing)
+             )
+        (reduce (fn [a b] 
+                  (when (and a b
+                             (every? (fn [key] (= (a key) (b key)))
+                                     (u/lintersection (keys a) (keys b))))
+                    (merge a b)))
+                {}
+                (map pattern-match pat thing))
+        (= pat thing) {}
+        :else nil))
+
 
 ;;; Page table of contents generation
 (defn- toc-1
   [block]
   (let [head (when-let [{:keys [depth content]}
                         (and (displayed? block)
-                             (u/pattern-match '[:block [:heading (? depth) (? content)]]
+                             (pattern-match '[:block [:heading (? depth) (? content)] (? other)]
                                               (:parsed block)))]
                [(count depth) (:id block)]) 
         rest

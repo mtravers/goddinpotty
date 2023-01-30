@@ -7,15 +7,18 @@
 
 ;;; TODO add some aliases
 (def fake-block-map
-  {1 {:id 1 :page? true :include? true :content "foo" :title "foo"}
-   2 {:id 2 :page? true :include? true :content "short" :title "bar"}
-   3 {:id 3 :page? true :include? true :content (str (range 1000)) :title "baz"}})
+  {1 {:id 1 :page? true :include? true :display? true :content "foo" :title "foo"}
+   2 {:id 2 :page? true :include? true :display? true :content "short" :title "bar"}
+   3 {:id 3 :page? true :include? true :display? true :content (str (range 1000)) :title "baz"}})
+
+(def block-id (atom 4))
 
 (defn prep-block
   [b]
   (-> b
       (assoc :parsed (parser/parse-to-ast (:content b)))
-      (assoc :id (or (:id b) (gensym "id")))))
+      (assoc :display? true)
+      (assoc :id (or (:id b) (swap! block-id inc)))))
 
 (defn fake-block
   [content]
