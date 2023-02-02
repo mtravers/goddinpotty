@@ -34,4 +34,5 @@
  :bullets? false                        ;TODO not implemented; change this in CSS
  :twin-pages? false                     ;Whether to include twin pages widget, requires being registered at http://webseitz.fluxent.com/wiki/TwinPages
  :comments false                        ;Set to Remarkbox user key
+ :mastodon-token nil                    ;Mastodon API key
  }

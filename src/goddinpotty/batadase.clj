@@ -174,7 +174,7 @@
 
 (defn page-refs
   [bm page]
-  (set/union (forward-page-refs page)
+  (set/union (forward-page-refs bm page)
              (backward-page-refs bm page)))
 
 (defn pages
