@@ -35,4 +35,5 @@
  :twin-pages? false                     ;Whether to include twin pages widget, requires being registered at http://webseitz.fluxent.com/wiki/TwinPages
  :comments false                        ;Set to Remarkbox user key
  :mastodon-token nil                    ;Mastodon API key
+ :link-new-tabs :external               ;Controls whether HTML links open in new tab. Can be changed to nil or :all
  }

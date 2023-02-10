@@ -1,0 +1,5 @@
+#merge
+[#include "default-config.edn"
+
+ {:link-new-tabs nil 
+  }]

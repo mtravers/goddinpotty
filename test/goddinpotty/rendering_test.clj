@@ -5,6 +5,17 @@
             [mock-clj.core :as mc]
             [clojure.test :refer :all]))
 
+(defn with-config
+  [file f]
+  (goddinpotty.config/set-config-path! file)
+  (f))
+
+(defn with-rendering-config
+  [f]
+  (with-config "test/resources/rendering-test-config.edn" f))
+
+(use-fixtures :once with-rendering-config)
+
 ;;; TODO add some aliases
 (def fake-block-map
   {1 {:id 1 :page? true :include? true :display? true :content "foo" :title "foo"}

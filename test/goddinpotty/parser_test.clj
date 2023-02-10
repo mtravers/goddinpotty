@@ -38,8 +38,13 @@
   (is (= [:block "foo " [:alias "[ugh](yuck)"] " baz " [:alias "[yow](zippy)"]]
          (parse-to-ast "foo [ugh](yuck) baz [yow](zippy)")))
   (is (= [:block "foo " [:page-link "[[bar]]"] " and " [:page-link "[[baz]]"]]
-         (parse-to-ast "foo [[bar]] and [[baz]]")
-         )))
+         (parse-to-ast "foo [[bar]] and [[baz]]")))
+  ;; Tried getting parser to do this but it breaks other things.
+  #_
+  (testing "aliases with brackets in label"
+    (is (= [:block "Ooh good word " [:alias "[[German] Schwuppdizität (die), perceived speed at which a computer or program operates](https://www.reddit.com/)"]]
+           (parse-to-ast "Ooh good word [[German] Schwuppdizität (die), perceived speed at which a computer or program operates : DoesNotTranslate](https://www.reddit.com/)")))
+    ))
 
 
 
@@ -181,5 +186,4 @@ And its fallen Emanation, the Spectre and its cruel Shadow.")))))
 (deftest parse-unicode-letters
   (is (= [:block [:bold "Sarvakarmaphalatyâga"] " . . . Years ago, "]
          (parse-to-ast "**Sarvakarmaphalatyâga** . . . Years ago, "))))
-
 

@@ -12,7 +12,6 @@
             [org.parkerici.multitool.core :as u]
             [org.parkerici.multitool.dev :as udev]
             [clojure.tools.logging :as log]
-            [taoensso.truss :as truss :refer (have have! have?)]
             )
   )
 
@@ -41,10 +40,17 @@
         alias-link (if internal?
                      (utils/clean-page-title alias-dest)
                      alias-dest)
+        alias-target (case (config/config :link-new-tabs)
+                       (:all true) "_blank"
+                       :external (if internal? nil "_blank")
+                       nil)
+        alias-props (if alias-target
+                      {:href alias-link :target alias-target}
+                      {:href alias-link})
         content (block-content->hiccup alias-text)]
     (if internal?
-      [:a {:href alias-link} content]
-      [:a.external {:href alias-link} content])))
+      [:a alias-props content]
+      [:a.external alias-props content])))
 
 ;;; Track local image files so they can be copied to output
 (def published-images (atom #{}))

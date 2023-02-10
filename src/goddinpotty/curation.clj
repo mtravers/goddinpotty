@@ -270,3 +270,24 @@
                page (bd/block-page bm block)]
            {:id id :content (:content block) :page (:title page)}))
        @sidenotes))
+
+
+;; NLP!
+
+(defn block-freq
+  [bm block]
+  (->> block
+       (goddinpotty.rendering/block-local-text bm)
+       nlp/tokens
+       nlp/remove-ruthlessly
+       frequencies))
+
+(defn full-freq
+  [bm]
+  ;; Probanly a dumb way to compute this
+  (reduce (fn [a b] (merge-with + a b))
+          (map (partial block-freq bm) (vals bm))))
+
+(defn frequency-table
+  [bm]
+  
