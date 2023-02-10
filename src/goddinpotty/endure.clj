@@ -1,5 +1,6 @@
 (ns goddinpotty.endure
-  (:require [alandipert.enduro :as e]))
+  (:require [alandipert.enduro :as e]
+            [org.parkerici.multitool.core :as u]))
 
 ;;; TODO also in voracious, sync these up
 ;;; Generalized persistent memoizing based on Enduro https://github.com/alandipert/enduro
@@ -12,14 +13,20 @@
 
 (def memoizers (e/file-atom {} ".enduro" :pending-dir "/tmp"))
 
+;;; There are two different usages of "memoize" going on, which is confusing. This is a u/ memoizer
+;;; that keeps track of the e/memoizers
+(u/defn-memoized memoizer
+  [name]
+  (e/file-atom {}  (str ".enduro.d/" name) :pending-dir "/tmp"))
+
 (defn memoize-named
   [name f]
   (fn [& args]
-    (let [mem (get @memoizers name)]
-      (if-let [e (find mem args)]
+    (let [mem (memoizer name)]
+      (if-let [e (find @mem args)]
         (val e)
         (let [ret (apply f args)]
-          (e/swap! memoizers assoc-in [name args] ret)
+          (e/swap! mem assoc args ret)
           ret)))))
 
 (defmacro defn-memoized
@@ -36,3 +43,7 @@
   (if f
     (e/swap! memoizers update (first f) {})
     (e/reset! memoizers {})))
+
+(defn reset-all!
+  []
+  (e/reset! memoizers {}))
