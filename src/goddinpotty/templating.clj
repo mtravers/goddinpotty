@@ -322,7 +322,7 @@
           (when-not (empty? linked-refs)
             [:div.card.my-3
              [:h5.card-header "Incoming links"]
-             [:div.card-body
+             [:div.card-body.gp-card-body
               [:div.incoming
                (linked-references-template linked-refs block-map)]]]))
 
@@ -332,7 +332,7 @@
         (when (bd/page-in-hierarchy? block block-map)
           [:div.card.my-3
            [:h5.card-header "Page Tree"] ;was Contents but now we have intrapage contents...
-           [:div.card-body
+           [:div.card-body.gp-card-body
             (render-page-hierarchy (:title block) block-map)]])
 
         ;; See http://webseitz.fluxent.com/wiki/TwinPages 
@@ -353,7 +353,7 @@
           (when (> (count toc) 2)       ;TODO maybe make this configurable
             [:div.card.my-3
              [:h5.card-header "Page Contents"]
-             [:div.card-body
+             [:div.card-body.gp-card-body
               (render-toc toc block-map)
               ]]))
         ]

@@ -246,6 +246,13 @@ iframe {
     font-size: 11pt;
 }
 
+.gp-card-body {
+    /* Will indent lines of long links */
+    padding-left: 20px;
+    text-indent: -8px;
+    font-size: 12pt;
+}
+
 
 /* Search related */
 
