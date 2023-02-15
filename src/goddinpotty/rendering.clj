@@ -153,6 +153,10 @@
     ;; There are packages that will do language-specific highlighting, don't care at the moment.
     [:code.codeblock content]))
 
+(defn pagify
+  [name]
+  (str "[[" name  "]]"))
+
 ;;;  page can be page or page-id (requires bm)
 (defn page-link
   [opage & {:keys [alias class bm current]}]     
@@ -176,7 +180,7 @@
        (block-content->hiccup (or alias page-title))]
       (do
         ;; This is normal but a sign that target might want to be exposed.
-        (log/warn "Ref to excluded or missing page" (or opage page-id) "from" (context/get-context :page))
+        (log/warn "Ref to excluded or missing page" (pagify (or opage page-id)) "from" (context/get-context))
         [:span.empty
          (block-content->hiccup (or alias page-title))]))))
 
@@ -397,6 +401,7 @@
 
 ;;; In lieu of putting this in the blockmap
 ;;; TODO  memoization runs into *no-sidenotes* dynamic variable I think. So turned off. Shouldn't be calling this too many times I think?
+;;; TODO turn it back on with old sidenote feature is history
 (defn block-hiccup
   "Convert Roam markup to Hiccup"
   [block block-map]

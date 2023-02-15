@@ -146,7 +146,7 @@
   (let [block (or (bd/get-with-aliases bm page-name)
                   (bd/get-with-inexact-aliases-warn bm page-name))]
     (when-not (:id block)
-      (log/error "Page not found" page-name))
+      (log/error "Page not found" page-name (context/get-context)))
     (:id block)))
 
 ;;; Adds forward :refs field. 

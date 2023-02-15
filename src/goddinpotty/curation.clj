@@ -288,6 +288,4 @@
   (reduce (fn [a b] (merge-with + a b))
           (map (partial block-freq bm) (vals bm))))
 
-(defn frequency-table
-  [bm]
   

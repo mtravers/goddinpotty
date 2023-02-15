@@ -108,15 +108,16 @@
 (defn generated-page
   "Add a generated page to the block map"
   [block-map name generator]
-  (assoc block-map name
-         {:id name
-          :title name
-          :special? true                ;I miss OOP
-          :generator generator
-          :include? true
-          :display? true
-          :page? true
-          }))
+  (context/with-context [:page name]
+    (assoc block-map name
+           {:id name
+            :title name
+            :special? true                ;I miss OOP
+            :generator generator
+            :include? true
+            :display? true
+            :page? true
+            })))
 
 #_
 (defn generated-pages
