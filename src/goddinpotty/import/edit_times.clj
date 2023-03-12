@@ -84,9 +84,12 @@
 
 (defn page-date-range
   [{:keys [file title id] :as page}]
-  (if (fs/exists? file)                ;TODO this is not adequate check due to retarded case folding
-    (safe-times file)
-    (log/warn "File not found" file "for" title))) ;return nil
+  (when file                           ;
+    (if (fs/exists? file)              ;TODO this is not adequate check due to retarded case folding
+      (safe-times file)
+      (do
+        (log/warn "File not found" file "for" title)
+        nil))))
 
 (defn page-edit-time
   [page]

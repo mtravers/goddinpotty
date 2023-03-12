@@ -2,22 +2,21 @@
   (:require [alandipert.enduro :as e]
             [org.parkerici.multitool.core :as u]))
 
-;;; TODO also in voracious, sync these up
+;;; TODO also in voracious, sync these up.
+;;; not → multitool, don't want to bring along the dependencies (includes postgres)
+
 ;;; Generalized persistent memoizing based on Enduro https://github.com/alandipert/enduro
 
 ;;; This is a loose copy of stuff in multitool, modified to work with an enduro atom
 ;;; Enduro can support different backing stores, might want to support that.
-;;; TODO would be better to have separate atom and file for each fn, if there are ever > 1. 
-;;; → multitool except I don't want to bring along the dependencies (includes postgres)
 ;;; TODO should be a version of Enduro that backs onto gcs or other cloud service.
-
-(def memoizers (e/file-atom {} ".enduro" :pending-dir "/tmp"))
+;;; TODO too slow, n^2 performance. Need something that is more controlled (eg only does writes at end of a long operation)
 
 ;;; There are two different usages of "memoize" going on, which is confusing. This is a u/ memoizer
-;;; that keeps track of the e/memoizers
+;;; that keeps track of the e/memoizer
 (u/defn-memoized memoizer
   [name]
-  (e/file-atom {}  (str ".enduro.d/" name) :pending-dir "/tmp"))
+  (e/file-atom {} (str ".enduro.d/" name) :pending-dir "/tmp"))
 
 (defn memoize-named
   [name f]
@@ -39,11 +38,6 @@
 
 ;;; Call with the quoted function name (eg (reset 'git-first-mod-time))
 (defn reset!
-  [& f]
-  (if f
-    (e/swap! memoizers update (first f) {})
-    (e/reset! memoizers {})))
+  [f]
+  (e/reset! (memoizer f) {}))
 
-(defn reset-all!
-  []
-  (e/reset! memoizers {}))

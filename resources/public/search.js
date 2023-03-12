@@ -111,7 +111,6 @@ function toggleMap() {
 }
 
 // Also not search related: Expose elements tagged "local" if we are running from a local server
-// TODO tie this to a cookie or something so it works on public pages (for me only)
 function exposeLocals() {
     var locals = document.getElementsByClassName("local");
     for(var i = 0; i < locals.length; i++) {
@@ -120,7 +119,8 @@ function exposeLocals() {
 }
 
 function maybeExposeLocal() {
-    if (window.document.location.hostname == "localhost") {
+    if (window.document.location.hostname == "localhost" ||
+	sessionStorage.getItem("admin") == "true") { // I set this by hand
 	exposeLocals();
     }
 }
