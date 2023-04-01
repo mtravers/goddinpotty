@@ -3,9 +3,9 @@
               [goddinpotty.utils :as utils]
               [goddinpotty.batadase :as bd]
               [goddinpotty.core :as core]
-              [org.parkerici.multitool.core :as u]
-              [org.parkerici.multitool.nlp :as nlp]
-              [org.parkerici.multitool.cljcore :as ju]
+              [org.candelbio.multitool.core :as u]
+              [org.candelbio.multitool.nlp :as nlp]
+              [org.candelbio.multitool.cljcore :as ju]
               [me.raynes.fs :as fs]
               [clojure.string :as str]
               [clj-http.client :as client]
@@ -289,3 +289,30 @@
           (map (partial block-freq bm) (vals bm))))
 
   
+;;; Images
+(defn all-images
+  [bm]
+  (for [image-block (filter #(= :image (first (second (:parsed %)))) (vals bm))]
+    (let [markdown (second (second (:parsed image-block)))
+          ;; See rendering/format-image
+          image-source (utils/remove-n-surrounding-delimiters 1 (re-find  #"\(.*?\)" markdown))]
+      image-source)))
+
+(defn repo-images
+  [bm]
+  (->> bm
+       all-images
+       (map #(second (re-matches #"\.\./assets/(.*)" %)))
+       (filter identity)))
+
+(defn assets
+  []
+  (map fs/base-name  (fs/list-dir "/opt/mt/repos/ammdi/assets")))
+
+(defn unused-images
+  []
+  (clojure.set/difference
+   (set (assets))
+   (set (repo-images @goddinpotty.core/last-bm))))
+
+;;: TODO for remote-hosted images, copy them locally and update links

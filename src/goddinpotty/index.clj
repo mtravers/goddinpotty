@@ -5,7 +5,7 @@
             [goddinpotty.templating :as templating]
             [goddinpotty.rendering :as render]
             [goddinpotty.config :as config]
-            [org.parkerici.multitool.core :as u]
+            [org.candelbio.multitool.core :as u]
             [clojure.string :as s]))
 
 ;;; depth tree

@@ -2,8 +2,8 @@
   (:require [me.raynes.fs :as fs]
             [clojure.java.io :as io]
             [clojure.string :as s]
-            [org.parkerici.multitool.core :as u]
-            [org.parkerici.multitool.cljcore :as ju]
+            [org.candelbio.multitool.core :as u]
+            [org.candelbio.multitool.cljcore :as ju]
             [clojure.data.json :as json]
             ))
 

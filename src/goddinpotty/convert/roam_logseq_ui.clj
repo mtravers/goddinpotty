@@ -1,7 +1,7 @@
 (ns goddinpotty.convert.roam-logseq-ui
   (:require [seesaw.core :as ss]
             [seesaw.mig :as sm]
-            [org.parkerici.multitool.cljcore :as ju]
+            [org.candelbio.multitool.cljcore :as ju]
             [goddinpotty.convert.roam-logseq :as rl])
   (:gen-class))
 

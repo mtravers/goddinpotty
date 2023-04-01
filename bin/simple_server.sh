@@ -1,4 +1,4 @@
-#!/usr/local/bin/python3
+#!/usr/bin/python3
 
 # usage: bin/simple_server.sh port base-dir
 

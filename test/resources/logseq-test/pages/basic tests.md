@@ -1,5 +1,6 @@
 - #test
 - Text with **bold** and *italic* styling
 - > A quote!
-- A [[page]] link
+- A page link to [[some actual content]]
+- A page link to [[nonexistent content]]
 - An [external link](https://vagueness.herokuapp.com)

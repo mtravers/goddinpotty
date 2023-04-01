@@ -4,8 +4,8 @@
             [goddinpotty.utils :as utils]
             [goddinpotty.context :as context]
             [goddinpotty.config :as config]
-            [org.parkerici.multitool.core :as u]
-            [org.parkerici.multitool.cljcore :as ju]
+            [org.candelbio.multitool.core :as u]
+            [org.candelbio.multitool.cljcore :as ju]
             [clojure.set :as set]
             [clojure.walk :as walk]
             [clojure.tools.logging :as log]
@@ -138,6 +138,12 @@
       (filter identity base)))))
 
 
+(defn print-context
+  [bm block-id]
+  (when block-id
+    (let [page (or (get-in bm [block-id :page]) block-id)]
+      [block-id (get-in bm [page :title])])))
+
 ;;; TODO inexact matching:
 ;;; - should probably be under an option
 ;;; - this is only used to build ref graph, probably ought to apply to links as well
@@ -146,16 +152,18 @@
   (let [block (or (bd/get-with-aliases bm page-name)
                   (bd/get-with-inexact-aliases-warn bm page-name))]
     (when-not (:id block)
-      (log/error "Page not found" page-name (context/get-context)))
+      (log/error "Page not found" page-name (print-context bm (context/get-context :block)))
+      )
     (:id block)))
 
 ;;; Adds forward :refs field. 
 (defn generate-refs
   [db]
   (ju/pmap-values (fn [block]
-                    (assoc block :refs (set
-                                        (u/mapf (partial resolve-page-name db)
-                                                (block-refs block)))))
+                    (context/with-context [:block (:id block)]
+                      (assoc block :refs (set
+                                          (u/mapf (partial resolve-page-name db)
+                                                  (block-refs block))))))
                   db))
 
 (defn generate-inverse-refs
@@ -194,27 +202,30 @@
                      %)
                   bm)))
 
-;;; → TODO Multitool
 (defn tap
-  [x var f args]
-  (reset! var x)
+  [x var label f args]
+  (swap! var assoc label x)
   (apply f x args))
 
+;;; --> multitool 
 (defmacro tap->
   [var x & forms]
   `(-> ~x
        ~@(map (fn [form]
-                (if (seq? form)
-                  `(tap ~var ~(first form) ~(rest form))
-                  `(tap ~var ~form nil)))
+                (if (vector? form)
+                  `(tap ~var '~(first form) ~(first form) ~(rest form))
+                  `(tap ~var '~form ~form nil)))
               forms)))
 
 
-(def interim-db (atom nil))
+(def interim-db (atom {}))
 
 (defn build-db-1
   [db]
-  (tap-> interim-db db
+  ;; For debugging
+  (;; tap-> interim-db
+   ->
+         db
          exclude-blocks
          parse
          generate-refs

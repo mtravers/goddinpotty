@@ -1,6 +1,6 @@
 (ns goddinpotty.import.roam-images
-  (:require [org.parkerici.multitool.core :as u]
-            [org.parkerici.multitool.cljcore :as ju]
+  (:require [org.candelbio.multitool.core :as u]
+            [org.candelbio.multitool.cljcore :as ju]
             [me.raynes.fs :as fs]
             [goddinpotty.batadase :as bd]
             [goddinpotty.rendering :as render]

@@ -3,7 +3,7 @@
             [goddinpotty.batadase :as bd]
             [goddinpotty.rendering :as render]
             [goddinpotty.templating :as templating]
-            [org.parkerici.multitool.core :as u]
+            [org.candelbio.multitool.core :as u]
             ))
 
 ;;; Broken with Logseq because we don't really have block-level change times

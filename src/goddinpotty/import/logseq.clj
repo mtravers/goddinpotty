@@ -4,8 +4,8 @@
             [goddinpotty.rendering :as rendering]
             [goddinpotty.config :as config]
             [me.raynes.fs :as fs]
-            [org.parkerici.multitool.core :as u]
-            [org.parkerici.multitool.cljcore :as ju]
+            [org.candelbio.multitool.core :as u]
+            [org.candelbio.multitool.cljcore :as ju]
             [clojure.java.shell :as sh]
             [clojure.tools.logging :as log]
             )
@@ -148,7 +148,7 @@
        (order-children)
        ))
 
-;;; Requires nbb-logseq to be installed
+;;; Requires nbb-logseq to be installed: https://github.com/logseq/nbb-logseq
 (defn nbb-query
   [graph-name query]
   (let [{:keys [exit out err]}
@@ -202,8 +202,6 @@
       (snapshot "nbb-extract.edn")
       logseq-nbb->blocks-base
       db/build-db-1
-      ;; Disabled for now
-      #_ get-edit-times                  
       ;; Going to guess this is no longer necessary?
       #_ bd/add-empty-pages
       db/generate-inverse-refs ;have to redo this after add-empty-pages

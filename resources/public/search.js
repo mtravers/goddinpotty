@@ -120,7 +120,7 @@ function exposeLocals() {
 
 function maybeExposeLocal() {
     if (window.document.location.hostname == "localhost" ||
-	sessionStorage.getItem("admin") == "true") { // I set this by hand
+	localStorage.getItem("admin") == "true") { // I set this by hand
 	exposeLocals();
     }
 }

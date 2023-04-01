@@ -8,8 +8,8 @@
             [me.raynes.fs :as fs]
             [clojure.string :as str]
             [clojure.tools.logging :as log]
-            [org.parkerici.multitool.core :as u]
-            [org.parkerici.multitool.cljcore :as ju]
+            [org.candelbio.multitool.core :as u]
+            [org.candelbio.multitool.cljcore :as ju]
             [environ.core :as env])
   (:gen-class))
 

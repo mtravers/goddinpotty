@@ -5,8 +5,8 @@
             [goddinpotty.batadase :as bd]
             [goddinpotty.config :as config]
             [me.raynes.fs :as fs]
-            [org.parkerici.multitool.core :as u]
-            [org.parkerici.multitool.cljcore :as ju]
+            [org.candelbio.multitool.core :as u]
+            [org.candelbio.multitool.cljcore :as ju]
             [clojure.string :as str]
             )
   (:import [org.commonmark.parser Parser])

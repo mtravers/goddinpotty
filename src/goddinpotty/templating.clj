@@ -9,7 +9,7 @@
             [goddinpotty.batadase :as bd]
             [goddinpotty.import.edit-times :as et]
             [goddinpotty.context :as context]
-            [org.parkerici.multitool.core :as u]
+            [org.candelbio.multitool.core :as u]
             ))
 
 ;;; TODO Note: the functions of templating and html-gen seem to overlap; not sure they should be separate.

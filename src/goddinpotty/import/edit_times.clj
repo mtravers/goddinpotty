@@ -1,5 +1,5 @@
 (ns goddinpotty.import.edit-times
-  (:require [org.parkerici.multitool.core :as u]
+  (:require [org.candelbio.multitool.core :as u]
             [clojure.java.shell :as sh]
             [me.raynes.fs :as fs]
             [goddinpotty.config :as config]

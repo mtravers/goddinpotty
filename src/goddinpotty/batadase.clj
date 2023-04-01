@@ -1,7 +1,7 @@
 (ns goddinpotty.batadase
   (:require [goddinpotty.utils :as utils]
             [goddinpotty.config :as config]
-            [org.parkerici.multitool.core :as u]
+            [org.candelbio.multitool.core :as u]
             [clojure.set :as set]
             [clojure.string :as str]
             [clojure.tools.logging :as log]
@@ -30,7 +30,7 @@
   ([block-map block-id]
    (included? (get block-map block-id))))
 
-(u/defn-memoized special-tags
+(u/defn-memoized boundary-tags
   []
   (set (concat (config/config :exit-tags)
                (config/config :entry-tags))))
@@ -42,9 +42,9 @@
     (conj (:alias block) (:title block))
     (:alias block)))
 
-(defn special-tag-block?
+(defn boundary-tag-block?
   [block]
-  (some (special-tags) (block-names block)))
+  (some (boundary-tags) (block-names block)))
 
 ;;; Logseq makes a lot of these, I think for links to unrealized pages. They suck and the interfere with aliases, so weeding them early
 (defn block-empty?
@@ -53,7 +53,7 @@
        (u/nullish? (:content block))
        (u/nullish? (:children block))
        (not (:special? block))
-       (not special-tag-block?)))
+       (not (boundary-tag-block? block))))
 
 ;;; TODO DWIMish. Maybe turn into a macro and use everywhere. Or put the map in a global, I don't care if that's bad Clojure
 (defn coerce-block

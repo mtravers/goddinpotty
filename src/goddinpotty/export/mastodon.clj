@@ -6,7 +6,7 @@
             [clj-http.client :as client]
             [clojure.string :as str]
             [clojure.data.json :as json]
-            [org.parkerici.multitool.core :as u]
+            [org.candelbio.multitool.core :as u]
   ))
 
 ;;; Note: requires parsing whole graph, see database/parse
@@ -48,6 +48,25 @@
   )
 
 
+(defn get-auth-code
+  []
+  )
+
+;;; From browser
+(def auth-code "WutfYNiHxA_0NGRugrPTINvgtkPZbC0Sm6QHBRtUcnM")
+
+
+(defn get-access-token
+  []
+  ;; TODO extract access token
+  (client/post "https://mastodon.social/oauth/token"
+               {:query-params {:client_id "CVSY3Z4uDp-MyZohKk9zgJ1ZyD4eSg_RHHsyZTyQMMo"
+                               :client_secret "32lgOi4mPyt3AQmwCPICBZnVcWBYbKFTo4k7ojZ8TUA"
+                               :redirect_uri "urn:ietf:wg:oauth:2.0:oob"
+	                       :grant_type "authorization_code"
+	                       :code auth-code}
+                }))
+
 ;;; Should do a length See
 ;;; checkt https://docs.joinmastodon.org/methods/statuses/#create
 ;;; TODO Error handling
@@ -58,6 +77,6 @@
   (let [resp
         (client/post "https://mastodon.social/api/v1/statuses"
                {:query-params {:status text}
-                :headers {:Authorization (config/config :mastodon-token)}})]
+                :headers {:Authorization (str "Bearer " (config/config :mastodon-token))}})]
     (json/read-str (:body resp) :key-fn keyword )))
                

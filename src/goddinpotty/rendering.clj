@@ -9,8 +9,8 @@
             [goddinpotty.endure :as e]
             [clojure.data.json :as json]
             [clojure.string :as str]
-            [org.parkerici.multitool.core :as u]
-            [org.parkerici.multitool.dev :as udev]
+            [org.candelbio.multitool.core :as u]
+            [org.candelbio.multitool.dev :as udev]
             [clojure.tools.logging :as log]
             )
   )

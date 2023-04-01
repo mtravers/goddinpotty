@@ -4,7 +4,7 @@
             [goddinpotty.config :as config]
             [goddinpotty.utils :as utils]
             [clojure.data.json :as json]
-            [org.parkerici.multitool.core :as u]
+            [org.candelbio.multitool.core :as u]
             ))
 
 ;;; Based on https://vega.github.io/vega/examples/force-directed-layout/

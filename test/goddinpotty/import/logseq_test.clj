@@ -23,16 +23,16 @@
         bm (sut/produce-bm config)]
     (is (map? bm))
     (let [{:keys [parsed refs] :as block}
-          (u/some-thing #(= "A [[page]] link"
+          (u/some-thing #(= "A page link to [[some actual content]]"
                                   (:content %))
                               (vals bm))]
 
-      (is (= [:block "A " [:page-link "[[page]]"] " link"] parsed))
+      (is (= [:block "A page link to " [:page-link "[[some actual content]]"]] parsed))
       (is (set? refs))
       (is (= 1 (count refs)))
       (let [ref-block (get bm (first refs))]
         (is (:page? ref-block))
-        (is (= "page" (:title ref-block)))))))
+        (is (= "some actual content" (:title ref-block)))))))
 
 
   

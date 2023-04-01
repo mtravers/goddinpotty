@@ -4,8 +4,8 @@
             [goddinpotty.rendering :as render]
             [goddinpotty.utils :as utils]
             [clojure.string :as str]
-            [org.parkerici.multitool.core :as u]
-            [org.parkerici.multitool.cljcore :as ju]
+            [org.candelbio.multitool.core :as u]
+            [org.candelbio.multitool.cljcore :as ju]
             [clojure.tools.logging :as log]
             )
   )
