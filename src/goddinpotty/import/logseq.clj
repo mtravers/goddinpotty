@@ -138,6 +138,7 @@
                 :alias (get-in block [:block/properties :alias])
                 ;; TODO not used yet – we pull out the useful ones, maybe don't need
                 :properties (get block :block/properties)
+                ;; path relative to repo root (used to be absolute, this changed around Logseq 0.9.1)
                 :file (get-in block [:block/file :file/path])
                 ;; Refs are computed later, but these would be useful as a check at least
                 ;; :refs (set (map :db/id [:block/refs block]))
