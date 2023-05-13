@@ -228,13 +228,12 @@
 ;;; A much easier way to do sidenotes
 (declare ele->hiccup)
 (defn new-sidenote
-  [sidenote-text]
+  [block-map sidenote-text]
   [:span.sidenote-container
    [:span.superscript]
    [:div.sidenote                     ;TODO option to render on left/right
     [:span.superscript.side]
-    ;; TODO might need a real blockmap for dealing with links
-    (ele->hiccup (parser/parse-to-ast sidenote-text) {})]])
+    (ele->hiccup (parser/parse-to-ast sidenote-text) block-map)]])
 
 
 ;;; Census from AMMDI 21 Jan 2023
@@ -253,13 +252,13 @@
  "embed" 3,
  "timer" 1}
 
-(defn double-braces [command arg]
+(defn double-braces [block-map command arg]
   (case command
-    "tweet" (embed-twitter arg)
+    ("tweet" "twitter") (embed-twitter arg)
     ("youtube" "video") (if-let [youtube-id (get-youtube-id arg)]
                           (youtube-vid-embed youtube-id)
                           [:span "Non-youtube video" arg])
-    "sidenote" (new-sidenote arg)
+    "sidenote" (new-sidenote block-map arg)
     ;; Default
     (do
       (log/warn "Unknown {{}} command" command arg) ;TODO should have full element
@@ -381,7 +380,7 @@
             ;; TODO better error handling
             :hiccup (hiccup-fixups (u/ignore-report (read-string ele-content)))
             :doublebraces (let [[_ command arg] (re-find #"\{\{(\S+) (.+)\}\}" ele-content)]
-                            (double-braces command arg))
+                            (double-braces block-map command arg))
             )))))))
 
 ;;; Used for converting things like italics in blocknames
