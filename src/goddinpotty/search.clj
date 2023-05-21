@@ -29,5 +29,5 @@
 
 (defn search-head
   []
-  [[:script {:src "https://elasticlunr.com/elasticlunr.min.js"}]
+  [[:script {:src "assets/elasticlunr.min.js"}] ; From https://elasticlunr.com/elasticlunr.min.js
    [:script {:src "assets/search.js"}]])
