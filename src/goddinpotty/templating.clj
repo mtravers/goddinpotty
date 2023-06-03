@@ -25,7 +25,7 @@
        ;; TODO this might want to do an expand thing like in recent-changes page? Does't actually seem necessary here
        ;; TODO has been assuming this is in a low-level block, but that's not necessarily the case. For [[Introduction to [[Inventive Minds]]]], it includes the whole page!
        ;; See bd/expand-to, but we want to shrink in this case
-       [:div (render/block-full-hiccup-no-sidenotes r block-map)]])))
+       [:div (render/block-full-hiccup r block-map)]])))
 
 (defn linked-references-template
   [references block-map]

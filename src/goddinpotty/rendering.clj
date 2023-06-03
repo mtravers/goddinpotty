@@ -15,8 +15,6 @@
             )
   )
 
-;;; Sidenotes are a complete hairy mess, see logseq://graph/doc?page=sidenotes
-
 ;;; Turn parsed content into hiccup. 
 
 (declare block-content->hiccup)         ;allow recursion on this
@@ -200,29 +198,7 @@
 
 (declare block-hiccup)
 
-;;; Blocks used as sidenotes get recorded here so they skip their normal render
-;;; Yes this is global state and bad practice. Shoot me.
-;;; TODO should get reset like u/memoizers
-(def sidenotes (atom #{}))
 
-(defn sidenote?
-  [id]
-  (contains? @sidenotes id))
-
-;;; TODO flush all this kludgey machinery, new way is much simpler. Need to convert existing files
-;;; This is used to suppress sidenotes in the Incoming links panel
-;;; TODO now misnamed, we now just supress RENDERING them as sidenotes, still want them 
-(def ^{:dynamic true} *no-sidenotes* false)
-
-;;; Render a sidenote (and both *s)
-(defn sidenote
-  [block-map sidenote-block]
-  (swap! sidenotes conj (:id sidenote-block))
-  [:span.sidenote-container
-   [:span.superscript]
-   [:div.sidenote                     ;TODO option to render on left/right
-    [:span.superscript.side]
-    (block-full-hiccup-guts (:id sidenote-block) block-map)]])
 
 
 ;;; A much easier way to do sidenotes
@@ -335,18 +311,8 @@
             :block-ref (let [ref-block (get (uid-indexed block-map) (-> ele-content
                                                                         str/trim
                                                                         utils/remove-double-delimiters))]
-                         (try 
-                           ;; :block-ref is repurposed for sidenotes, see doc
-                           (if (and block
-                                    (= (bd/block-page block-map ref-block) ;if ref and block are on the same page
-                                       (bd/block-page block-map block)))
-                             (when-not *no-sidenotes*
-                               (sidenote block-map ref-block)) ;render the sidenote
                              [:div.block-ref                   ;render a real blockref
                               (block-hiccup ref-block block-map)])
-                           ;; Specifically, bad block refs will cause this.
-                           (catch Throwable e
-                             [:div.error "Couldn't render: " (str ast-ele)])))
             :hashtag (let [ht (utils/parse-hashtag ele-content)]
                        (or (bd/special-hashtag-handler block-map ht block)
                            (page-link-by-name block-map ht)))
@@ -399,7 +365,6 @@
     parsed))
 
 ;;; In lieu of putting this in the blockmap
-;;; TODO  memoization runs into *no-sidenotes* dynamic variable I think. So turned off. Shouldn't be calling this too many times I think?
 ;;; TODO turn it back on with old sidenote feature is history
 (defn block-hiccup
   "Convert Roam markup to Hiccup"
@@ -444,21 +409,10 @@
        (map #(block-full-hiccup % block-map (inc depth))
             (:children block))])))
 
-(defn sidenote?
-  [id]
-  (contains? @sidenotes id))
-
 ;;; The real top-level call
 (defn block-full-hiccup
   [block-id block-map & [depth]]
-  ;; This logic is very squirelly...we want sidenote blocks to render normally when they are in the linked-ref pane
-  (when (or *no-sidenotes* (not (sidenote? block-id)))
-    (block-full-hiccup-guts block-id block-map depth)))
-
-(defn block-full-hiccup-no-sidenotes
-  [& args]
-  (binding [*no-sidenotes* true]
-    (apply block-full-hiccup args)))
+  (block-full-hiccup-guts block-id block-map depth))
 
 (defn page-hiccup
   [block-id block-map]

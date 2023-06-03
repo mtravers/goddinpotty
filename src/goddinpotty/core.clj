@@ -53,9 +53,13 @@
 ;;; BTW I want this available in all namespaces and it should be easy to do that.
 (defonce last-bm (atom nil))
 
-(defn pages
+(defn page-ids
   []
   (keys (u/dissoc-if (fn [[_ v]] (not (:page? v))) @last-bm)))
+
+(defn pages
+  []
+  (map @last-bm (page-ids)))
 
 (defn dump
   [bm]

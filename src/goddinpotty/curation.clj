@@ -316,3 +316,61 @@
    (set (repo-images @goddinpotty.core/last-bm))))
 
 ;;: TODO for remote-hosted images, copy them locally and update links
+
+;;; Converting old sidenotes
+;;; find block-refs to blocks on same page (repurpose old code)
+
+
+;;; Block has a :block-ref, this determines if it is a sidenote or not
+(defn block-block-refs
+  [block]
+  (->> block
+       :parsed
+       (u/walk-collect #(and (sequential? %)
+                             (= :block-ref (first %))
+                             (second %)
+                             ))
+       (map utils/remove-double-delimiters)
+       ))
+
+(defn block-has-sidenote?
+  [block]
+  (some (fn [ref]
+          (some (fn [child]
+                  (= ref (get-in child [:properties :id])))
+                (:dchildren block)))
+        (block-block-refs block)))
+
+(defn sidenote-pages
+  [bm]
+  (let [sidenote-blocks
+        (->> bm
+             vals
+             (filter block-has-sidenote?))
+        sidenote-pages
+        (distinct (map (partial bd/block-page bm) sidenote-blocks))]
+    (prn [(count sidenote-blocks) :sidenotes (count sidenote-pages) :pages])
+    (map :title sidenote-pages)))
+
+;;; Not that many
+#_
+("__Materialism__, Terry Eagleton"
+ "Media Science"
+ "Patterns of Refactored Agency"
+ "Introduction to __Inventive Minds__"
+ "LWMap/What Motivated Rescuers During the Holocaust?"
+ "Demeney Voting"
+ "nihilism"
+ "Buddhism"
+ "nebulosity"
+ "Urizen"
+ "Nihilism and Agency"
+ "Notes on __Daybreak__"
+ "LWMap/Meta-honesty"
+ "Vimalakirti Sutra"
+ "Goddinpotty"
+ "Mastery of Non-Mastery in the Age of Meltdown"
+ "Labor and Embodiment"
+ "__On Purpose__")
+    
+ ;;; Alright easier to just hand edit.
