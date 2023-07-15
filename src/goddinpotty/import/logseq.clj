@@ -135,7 +135,8 @@
                 :left (get-in block [:block/left :db/id])
                 :page? (boolean (:block/name block)) ;???
                 :page (:db/id (:block/page block))
-                :alias (get-in block [:block/properties :alias])
+                :alias (or (get-in block [:block/properties :aliases]) ;not sure why but it appears both ways
+                           (get-in block [:block/properties :alias]))
                 ;; TODO not used yet – we pull out the useful ones, maybe don't need
                 :properties (get block :block/properties)
                 ;; path relative to repo root (used to be absolute, this changed around Logseq 0.9.1)

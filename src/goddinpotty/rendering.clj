@@ -235,10 +235,15 @@
                           (youtube-vid-embed youtube-id)
                           [:span "Non-youtube video" arg])
     "sidenote" (new-sidenote block-map arg)
+    ;; TODO this usually follows a link to a zotero: url which is useless on a public page, so maybe do something more intelligent
+    "zotero-imported-file" nil          
+    "pdf" [:a {:href arg} "PDF"]
+    "toot" [:div.toot
+            (ele->hiccup (parser/parse-to-ast arg) block-map)]
     ;; Default
     (do
-      (log/warn "Unknown {{}} command" command arg) ;TODO should have full element
-      [:span.warn "{{" command arg "}}"])))
+      (log/error "Unknown {{}} command" command arg) ;TODO should have full element
+      nil)))
 
 ;;; Not strictly necessary, but makes tests come out better
 (defn- maybe-conc-string
@@ -258,7 +263,7 @@
 ;;; for other things. Not sure this is right thing, but solves an immediate problem
 (defn hiccup-fixups
   [hic]
-  (u/substitute hic {:table :table.table-bordered}))
+  (u/substitute hic {:table :table.table.table-bordered}))
 
 (u/defn-memoized uid-indexed
   [bm]
@@ -346,8 +351,9 @@
             ;; TODO better error handling
             :hiccup (hiccup-fixups (u/ignore-report (read-string ele-content)))
             :doublebraces (let [[_ command arg] (re-find #"\{\{(\S+) (.+)\}\}" ele-content)]
-                            (double-braces block-map command arg))
-            )))))))
+                            (if command
+                              (double-braces block-map command arg)
+                              (log/error "Unknown {{}} elt " ast-ele))))))))))
 
 ;;; Used for converting things like italics in blocknames
 (defn block-content->hiccup
