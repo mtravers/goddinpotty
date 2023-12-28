@@ -151,6 +151,7 @@
        ))
 
 ;;; Requires nbb-logseq to be installed: https://github.com/logseq/nbb-logseq
+;;;   npm install @logseq/nbb-logseq -g
 (defn nbb-query
   [graph-name query]
   (let [{:keys [exit out err]}

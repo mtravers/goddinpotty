@@ -40,6 +40,7 @@ body {
 
 .block {
     margin-bottom: 15px;
+    white-space: pre-line;	/* preserve newline */
 }
 
 .title {

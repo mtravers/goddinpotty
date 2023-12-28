@@ -208,6 +208,7 @@
            [:div.card-body.minicard-body
             about-content]]))
 
+;;; TODO move to search.clj
 (defn search-widget
   [bm#]
   [:div.card.my-3
@@ -260,7 +261,7 @@
 (defn block-page-hiccup
   [block-id block-map output-dir]
   (let [block (get block-map block-id)
-        title-hiccup (render/block-content->hiccup (:title block))
+        title-hiccup (render/block-content->hiccup (:title block) block-map)
         title-text (:title block)
         contents
         [:div

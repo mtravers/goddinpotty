@@ -96,33 +96,48 @@
   (doseq [f (fs/list-dir dir)]
     (fs/delete-dir f)))
 
-(defn reset-output
-  []
-  (let [pages-dir (config/config :output-dir)]
-    (delete-dir-contents pages-dir)
-    (fs/mkdir pages-dir)))
-
 (defn reset
   []
   (u/memoize-reset!)
   (reset! goddinpotty.rendering/published-images #{})
-  (reset-output)
   )
+
+;;; Candidates for multitool
+(defn delete-dir-if
+  [dir]
+  (if (fs/exists? dir)
+    (fs/delete-dir dir)))
+
+(defn rename-dirs
+  [old new]
+  (delete-dir-if new)                   ;buh bye
+  (when-not (fs/rename old new)
+    (throw (ex-info "Rename failed" {:old old :new new}))))
+
+(defn replace-directory
+  [old new]
+  (rename-dirs new (str new ".old"))       ;temp
+  (rename-dirs old new)
+  )  
 
 (defn output-bm
   [bm]
-  (let [output-dir (config/config :output-dir)]
+  (let [output-dir (str (fs/temp-dir "goddinpotty"))]
+    (log/info "Writing to" output-dir)
     (graph/write-page-data bm output-dir)
     (html-gen/generate-goddinpotty bm output-dir)
-    (html-gen/generate-index-redir output-dir))
-  ;; TODO options for writing all pages
-  ;;; Turning this off for now, Logseqe output is more important
-  ;;; Should be rationalized; html and md output should be modules
-  #_
-  (when (config/config :markdown-output-dir)
-    (md/write-displayed-pages @last-bm (config/config :markdown-output-dir)))
-  (log/info (bd/stats @last-bm))
-  #_ (dump bm))
+    (html-gen/generate-index-redir output-dir)
+    ;; TODO options for writing all pages
+    ;; Turning this off for now, Logseqe output is more important
+    ;; Should be rationalized; html and md output should be modules
+    #_
+    (when (config/config :markdown-output-dir)
+      (md/write-displayed-pages @last-bm (config/config :markdown-output-dir)))
+    (log/info "Build stats:" (bd/stats @last-bm))
+    #_ (dump bm)
+    ;; Copy to
+    (replace-directory  output-dir (config/config :output-dir))
+  ))
 
 (defmulti produce-bm (fn [{:keys [source]}] (:type source)) )
   
@@ -171,12 +186,9 @@
   (u/memoize-reset!)
   (goddinpotty.rendering/block-full-hiccup block-id @last-bm))
 
-
-
 (defn gen-pages
   []
   (u/memoize-reset!)
-  (reset-output)
   (html-gen/generate-goddinpotty @last-bm (config/config :output-dir))
   (post-generation (config/config) @last-bm))
 
@@ -225,12 +237,6 @@
   (main config-or-path)
   (when-not (= "repl" (:profile env/env))
     (System/exit 0)))
-
-#_
-(defn scarf-images
-  [roam-export dir]
-  (let [bm (block-map-json roam-export)]
-    (goddinpotty.curation/image-copy-script bm dir)))
 
 
 ;;; Fails bad in compiled code

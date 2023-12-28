@@ -310,6 +310,14 @@
       (some #(tagged-or-contained? block-map block %)
             (config/config :exit-tags))))
 
+(defn exit-point-why
+  [block-map block]
+  (cond (:excluded? block)
+        :excluded
+        :else
+        (u/some-thing #(tagged-or-contained? block-map block %)
+                      (config/config :exit-tags))))
+
 ;;; Temp
 (def min* (partial u/min-by identity))
 (def max* (partial u/max-by identity))

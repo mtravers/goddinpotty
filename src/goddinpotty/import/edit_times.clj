@@ -11,7 +11,6 @@
   )
 
 ;;; Was in logseq, not needed any more and its kind of its own thing.
-;;; Some of this would be good for multitool?
 
 ;;; Determined empirically. This still fails on a few files
 (defn clean-page-name

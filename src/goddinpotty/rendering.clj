@@ -357,8 +357,8 @@
 
 ;;; Used for converting things like italics in blocknames
 (defn block-content->hiccup
-  [block-content]
-  (ele->hiccup (parser/parse-to-ast block-content) {}))
+  [block-content & [block-map]]
+  (ele->hiccup (parser/parse-to-ast block-content) (or block-map {})))
 
 ;;; Total hack because I failed to figure this out in instaparse, and its a one-shot thing...
 ;;; TODO fragile
