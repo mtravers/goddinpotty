@@ -99,7 +99,7 @@
      [:div.container.main
       [:div.row
        "<!-- Sidebar Widgets Column -->"
-       [:div.col-md-3
+       [:div.col-md-3.sidebar
 
         ~@widgets
         ]
@@ -247,7 +247,7 @@
        [:input {:type "date"
                 :name "date"
                 :value (.format utils/html-date-formatter today)
-                :onchange "var d = event.target.value; alert(d)"
+                :onchange "var d = event.target.value; window.location.href = d;"
                 }]
        [:a.btn {:href (journal-page-inc bm page 1)} (render/icon "chevron-right")]]
       ]]))

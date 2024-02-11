@@ -1,7 +1,7 @@
 (ns goddinpotty.core-test
   (:require [clojure.test :refer :all]
             [goddinpotty.core :refer :all]
-            [org.parkerici.multitool.core :as u]
+            [org.candelbio.multitool.core :as u]
             [me.raynes.fs :as fs]
             ))
 

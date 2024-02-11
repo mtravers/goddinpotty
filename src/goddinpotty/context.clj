@@ -19,7 +19,7 @@
   [[tag value] & body]
   `(binding [*context* (assoc *context* ~tag ~value)]
      (with-redefs [ex-info ~(fn [& args]           ;Make the context available for all clj exceptions (unfortunately won't do anything about normal java errors)
-                              (apply original-ex-info (assoc-in args [1 :context] *context*)))]
+                              (apply original-ex-info (assoc-in (vec args) [1 :context] *context*)))]
        ~@body)))
 
 (defn get-context

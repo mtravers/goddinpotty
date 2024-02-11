@@ -241,6 +241,10 @@ iframe {
 
 /* LH widget related */
 
+.sidebar {
+  overflow-x: hidden;
+}
+
 .minicard-body {
     padding-top: 0;
     padding-bottom: 0;

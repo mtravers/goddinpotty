@@ -26,6 +26,12 @@ Currently Logseq site generation is driven from a Logseq EDN export. This may ch
 
 Because Logseq stores images locally rather than on the cloud, we now have to publish them along with the html. To suppor this, the config has a pointer into the repo, and there is logic to figure out which images are published and need to be copied to the output.
 
+# Installation
+
+Requires nbb-logseq to be installed: https://github.com/logseq/nbb-logseq
+
+    npm install @logseq/nbb-logseq -g
+
 
 # Usage
 
