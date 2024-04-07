@@ -150,6 +150,17 @@
        (order-children)
        ))
 
+;;; → Multitool, a variant of saferfly. Needs better name
+(defn safely-or
+  "Given f, produce new function that will return the original value if exception is thrown. Not recommended for production code"
+  [f]
+  (fn [x] (or (u/ignore-errors (f x)) x)))
+
+(defn read-string-safely
+  [s]
+  (binding [*data-readers* (update *data-readers* 'uuid safely-or)]
+    (read-string s)))
+
 (defn nbb-query
   [graph-name query]
   (let [{:keys [exit out err]}
@@ -161,7 +172,7 @@
                graph-name
                (str query))]
     (if (= exit 0)
-      (read-string out)
+      (read-string-safely out)
       (throw (ex-info err {:exit exit :err err})))))
 
 (def extract-query
