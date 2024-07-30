@@ -93,6 +93,7 @@
 
 (defn page-edit-time
   [page]
-  (second (page-date-range page)))
+  (let [[from to] (page-date-range page)]
+    (or to from)))
 
 

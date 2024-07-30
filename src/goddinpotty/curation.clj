@@ -411,6 +411,8 @@
        (format "[%s](%s)" title url)
        url))))
 
+;;; This doesn't work, regex is too restrictive
+;;; Want to match any url that isn't in parens
 (defn maybe-fix-bare-url
   [line]
   (if-let [[m prefix url suffix] (re-matches #"^(\s*- )(http\S*)(.*)$" line)]
@@ -419,15 +421,20 @@
       line)
     line))
 
+;;; New, untested?
+(defn fix-bare-urls-file
+  [f]
+  (->> f
+       ju/file-lines
+       (map maybe-fix-bare-url)
+       doall
+       (file-lines-out-over f)
+       ))
+
 (defn fix-bare-urls
   []
   (doseq [f (all-content-pages)]
-    (->> f
-         ju/file-lines
-         (map maybe-fix-bare-url)
-         doall
-         (file-lines-out-over f)
-         )))
+    (fix-bare-urls-file f)))
 
 (defn rewrite
   []
@@ -444,6 +451,7 @@
     (goddinpotty.curation/image-copy-script bm dir)))
 
 ;;; Finding multi-line-quotes
+(comment
 (def blocks (vals @last-bm))
 (def content (u/mapf :content blocks))
 (def content-lines (map (fn [oline]
@@ -451,3 +459,4 @@
                                   (clojure.string/split oline #"\n"))) content))
 (def multi-lines (filter #(> (count %) 1) content-lines))
 (def multi-lines2 (remove #(some (fn [l] (= l "---")) %) multi-lines))
+)

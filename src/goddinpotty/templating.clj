@@ -256,7 +256,7 @@
   [page]
   (format "logseq://graph/%s?page=%s"
           (config/config :source :graph)
-          (:title page)))
+          (java.net.URLEncoder/encode (:title page))))
 
 (defn block-page-hiccup
   [block-id block-map output-dir]

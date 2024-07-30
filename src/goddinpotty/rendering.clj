@@ -88,6 +88,13 @@
     [:a.imga {:href image-published :target "_image"} ;cheap way to get expansion. TODO link highlighhting looking slightly crufty
      [:img {:src image-published :alt alt-text}]]))
 
+
+
+(defn get-youtube-id
+  [string]
+  (or (second (re-find #"https\:\/\/youtu\.be/([\w_-]*)" string))
+      (second (re-find #"https\:\/\/www.youtube.com\/watch\?v=([\w_-]*)" string))))
+
 (defn youtube-vid-embed
   "Returns an iframe for a YouTube embedding"
   [youtube-id]
@@ -98,10 +105,19 @@
             :allow "accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
             :allowfullscreen ""}])
 
-(defn get-youtube-id
+(defn get-vimeo-id
   [string]
-  (or (second (re-find #"https\:\/\/youtu\.be/([\w_-]*)" string))
-      (second (re-find #"https\:\/\/www.youtube.com\/watch\?v=([\w_-]*)" string))))
+  (second (re-find #"https\:\/\/vimeo\.com/([\w_-]*)" string)))
+
+(defn vimeo-vid-embed
+  [id]
+  [:iframe {:width "560"
+            :height "315"
+            :src (str "https://player.vimeo.com/video/" id)
+            :frameborder "0"
+            :allow "accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+            :allowfullscreen ""}])
+
 
 ;;; Not used much
 (defn- make-link-from-url
@@ -233,7 +249,9 @@
     ("tweet" "twitter") (embed-twitter arg)
     ("youtube" "video") (if-let [youtube-id (get-youtube-id arg)]
                           (youtube-vid-embed youtube-id)
-                          [:span "Non-youtube video" arg])
+                          (if-let [vimeo-id (get-vimeo-id arg)] ;TODO there are a lot of links to vimeo which could be turned into embeds.
+                            (vimeo-vid-embed vimeo-id)
+                            [:span.error "Non-youtube video" arg])) ;TODO should log
     "sidenote" (new-sidenote block-map arg)
     ;; TODO this usually follows a link to a zotero: url which is useless on a public page, so maybe do something more intelligent
     "zotero-imported-file" nil          
