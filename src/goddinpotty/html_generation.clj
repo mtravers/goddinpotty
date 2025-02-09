@@ -87,14 +87,6 @@
    "/New.html"
    output-dir))
 
-;;; Not actually called, useful for dev
-(defn generate-index-pages
-  [block-map output-dir]
-  (export-pages
-   (u/map-values #((:generator %) block-map)
-                 (index/make-index-pages block-map))
-   output-dir))
-
 (defn generate-global-map
   [bm]
    (templating/map-page bm)
