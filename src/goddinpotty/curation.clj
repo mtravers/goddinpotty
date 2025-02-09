@@ -460,3 +460,7 @@
 (def multi-lines (filter #(> (count %) 1) content-lines))
 (def multi-lines2 (remove #(some (fn [l] (= l "---")) %) multi-lines))
 )
+
+
+;;; Random idea (not curatorial)
+;;; Whenever I use the word "current" or something like that, put a timestamp in a sidenote

@@ -51,33 +51,33 @@
         ]
     (into {}
           (for [{:keys [name sort-key filter-key] :as index :or {filter-key identity}} indexes]
-            (let [hiccup
-                  [:table.table.table-sm.table-hover 
-                   [:thead
-                    ;; col headers
-                    [:tr
-                     (for [col indexes]
-                       [:th {:scope "col" :style (when (:col-width col)
-                                                   (format "width: %s;" (:col-width col)))}
-                        (if (= (:name col) name)
-                          (:name col)
-                          [:a {:href (page-id (:name col))} (:name col)])])]]
-                   [:tbody 
-                    (for [page (sort-by sort-key (filter filter-key pages))]
-                      [:tr
-                       (for [col indexes]
-                         [:td
-                          (u/ignore-errors
-                           ((:render col) page))])])
-                    ]]
-                  title (format "Index by %s" name)]
-              [(page-id name)
-               (generated-page
-                (page-id name)
-                (fn [bm]
+            [(page-id name)
+             (generated-page
+              (page-id name)
+              (fn [bm]
+                (let [hiccup
+                      [:table.table.table-sm.table-hover 
+                       [:thead
+                        ;; col headers
+                        [:tr
+                         (for [col indexes]
+                           [:th {:scope "col" :style (when (:col-width col)
+                                                       (format "width: %s;" (:col-width col)))}
+                            (if (= (:name col) name)
+                              (:name col)
+                              [:a {:href (page-id (:name col))} (:name col)])])]]
+                       [:tbody 
+                        (for [page (sort-by sort-key (filter filter-key pages))]
+                          [:tr
+                           (for [col indexes]
+                             [:td
+                              (u/ignore-errors
+                                ((:render col) page))])])
+                        ]]
+                      title (format "Index by %s" name)]
                   (templating/page-hiccup hiccup title title bm
                                           :widgets [(templating/about-widget bm)
                                                     (templating/search-widget bm)])
-                  ))])))))
+                  )))]))))
 
 

@@ -8,9 +8,6 @@
                  [ch.qos.logback/logback-classic "1.4.5"]
                  [org.clojure/data.json "2.5.0"]
                  [org.clojure/data.xml "0.2.0-alpha6"] ;just for blogger
-;                 [org.clojars.simon_brooke/html-to-md "0.3.0"] 
-;; Not suitable, it only renders html
-;;                 [markdown-clj "1.10.7"]
 ;; Used by logseq-from-md, not there yet
 ;;                 [org.commonmark/commonmark "0.18.0"]
                  [html-to-md/html-to-md "0.3.0"]
