@@ -4,6 +4,7 @@
             [goddinpotty.rendering :as render]
             [goddinpotty.utils :as utils]
             [clojure.string :as str]
+            [goddinpotty.import.edit-times :as et]
             ))
 
 ;;; Writes out a JSON search index for Elasticlunr
@@ -20,7 +21,12 @@
       :title (:title page)
       :alias (when-let [aliases (:alias page)]
                (str/join " " aliases))
-      :body (render/block-full-text bm page)})))
+      :body (render/block-full-text bm page)
+      ;; Adding these fields for index pages
+      :date (et/page-edit-time page)
+      :depth (:depth page)
+      :size (bd/size page)
+      })))
 
 (defn write-index
   [bm output-dir]

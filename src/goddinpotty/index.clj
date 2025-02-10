@@ -55,7 +55,7 @@
       "Index"
       (fn [bm]
         (let [hiccup
-              [:div#myGrid {:style {:height "800px"}}]
+              [:div#myGrid {:style "height:800px;"}]
               title "Index"]
           (templating/page-hiccup
            hiccup title title bm
@@ -75,4 +75,5 @@
    "/Index"
    (config/config :output-dir)))
 
-
+#_
+(write-index-page @goddinpotty.core/last-bm)

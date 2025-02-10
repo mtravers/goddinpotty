@@ -1,11 +1,16 @@
 document.addEventListener("DOMContentLoaded", function () {
     // Column definitions
+    // TODO renderes, links, privacy designator
     const columnDefs = [
-        { field: "id", headerName: "ID", sortable: true, filter: true },
-        { field: "title", headerName: "Title", sortable: true, filter: true }
+        // { field: "id", headerName: "ID", sortable: true, filter: true }, 
+        { field: "title", headerName: "Title", sortable: true, filter: true },
+	{ field: "date", headerName: "Date", sortable: true, filter: true },
+	{ field: "depth", headerName: "Depth", sortable: true, filter: true },
+	{ field: "size", headerName: "Size", sortable: true, filter: true }
     ];
 
     // Grid options
+    // TODO narrow rows
     const gridOptions = {
         columnDefs: columnDefs,
         rowData: [],
