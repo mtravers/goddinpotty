@@ -12,6 +12,7 @@
 
 ;;; TODO # of refs (incoming/outgoing/both)
 
+;;; Now in grid.js
 #_
 (def indexes
   [{:name "Title"
@@ -68,6 +69,7 @@
 
 
 ;;; Dev only
+#_
 (defn write-index-page
   [bm]
   (goddinpotty.html-generation/export-page

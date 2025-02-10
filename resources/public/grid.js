@@ -1,29 +1,32 @@
 document.addEventListener("DOMContentLoaded", function () {
     // Column definitions
-    // TODO renderes, privacy designator, widths
-    // TODO default to reverse sort by Date
+    // TODO  privacy designator
     const columnDefs = [
         // { field: "id", headerName: "ID", sortable: true, filter: true }, 
-        { field: "title", headerName: "Title", sortable: true, filter: true,
+        { field: "title", headerName: "Title",
+	  maxWidth: 350,
 	  cellRenderer: function(params) {
               return `<a href="${params.data.url}" target="_blank">${params.data.title}</a>`;
 	  }},
-	{ field: "date", headerName: "Date", sortable: true, filter: true },
-	{ field: "depth", headerName: "Depth", sortable: true, filter: true },
-	{ field: "size", headerName: "Size", sortable: true, filter: true }
+	{ field: "date", headerName: "Date", sort: "desc"},
+	{ field: "depth", headerName: "Depth" },
+	{ field: "size", headerName: "Size" }
     ];
 
     // Grid options
-    // TODO narrow rows
     const gridOptions = {
         columnDefs: columnDefs,
         rowData: [],
+	rowHeight: 20,
         pagination: true,
         defaultColDef: {
             sortable: true,
-            filter: true
-        }
-    };
+            filter: true,
+        },
+	onFirstDataRendered: function(params) {
+	    params.api.autoSizeAllColumns();
+	    
+	}};
 
     // Create the grid
     const eGridDiv = document.getElementById("myGrid");

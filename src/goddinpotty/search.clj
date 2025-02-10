@@ -23,7 +23,7 @@
                (str/join " " aliases))
       :body (render/block-full-text bm page)
       ;; Adding these fields for index pages
-      :date (et/page-edit-time page)
+      :date (et/page-edit-time page)    ;TODO format prettier
       :depth (:depth page)
       :size (bd/size page)
       })))
