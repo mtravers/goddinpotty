@@ -2,6 +2,7 @@
   (:require [aero.core :as aero]
             [clojure.string :as s]
             [clojure.pprint :as pprint]
+            [clojure.tools.logging :as log]
             ))
 
 ;;; For config specifics, see resources/default-config.edn
@@ -20,6 +21,7 @@
 
 (defn read-config
   [path]
+  (log/info "Read config" path)
   (aero/read-config path))
 
 (defn set-config-path!

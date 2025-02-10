@@ -113,6 +113,7 @@
 (defn logseq-nbb->blocks-base
   [blocks]
   (->> blocks
+       (remove #(get-in % [:block/properties :ls-type])) ; stuff from whiteboards creeps in and breaks thigns
        (map (fn [block]
               ;; Sanity check, this condition causes problems further down (order-children produces nils)
               (assert (not (= (:db/id block) (:db/id (:block/parent block))))
@@ -135,7 +136,8 @@
                 :left (get-in block [:block/left :db/id])
                 :page? (boolean (:block/name block)) ;???
                 :page (:db/id (:block/page block))
-                :alias (get-in block [:block/properties :alias])
+                :alias (or (get-in block [:block/properties :aliases]) ;not sure why but it appears both ways
+                           (get-in block [:block/properties :alias]))
                 ;; TODO not used yet – we pull out the useful ones, maybe don't need
                 :properties (get block :block/properties)
                 ;; path relative to repo root (used to be absolute, this changed around Logseq 0.9.1)
@@ -149,7 +151,17 @@
        (order-children)
        ))
 
-;;; Requires nbb-logseq to be installed: https://github.com/logseq/nbb-logseq
+;;; → Multitool, a variant of saferfly. Needs better name
+(defn safely-or
+  "Given f, produce new function that will return the original value if exception is thrown. Not recommended for production code"
+  [f]
+  (fn [x] (or (u/ignore-errors (f x)) x)))
+
+(defn read-string-safely
+  [s]
+  (binding [*data-readers* (update *data-readers* 'uuid safely-or)]
+    (read-string s)))
+
 (defn nbb-query
   [graph-name query]
   (let [{:keys [exit out err]}
@@ -161,7 +173,7 @@
                graph-name
                (str query))]
     (if (= exit 0)
-      (read-string out)
+      (read-string-safely out)
       (throw (ex-info err {:exit exit :err err})))))
 
 (def extract-query
@@ -183,6 +195,18 @@
   [graph-name]
   (map first
        (nbb-query graph-name extract-query)))
+
+(defn block-query
+  [block-id]
+  ;; Note :file/content is also available, not really needed so not extracted here.
+  (u/de-ns
+  `[:find (pull ?b [* {:block/file [:db/id :file/path]}])
+    :where [?b :db/id ~block-id]]))
+
+;;; Doesn't work, reason unknown
+(defn nbb-block
+  [graph-name block-id]
+  (nbb-query graph-name (block-query block-id) ))
 
 ;;; dev only for now
 (defn nbb-datoms

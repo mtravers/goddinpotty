@@ -87,6 +87,7 @@
    (let [block (coerce-block block bm)]
      (:display? block)))
   ([block]
+   ;; TODO causing errors in size index, don't have time to fix right now
    (assert-block block)
    (:display? block)))
 
@@ -310,6 +311,14 @@
       (some #(tagged-or-contained? block-map block %)
             (config/config :exit-tags))))
 
+(defn exit-point-why
+  [block-map block]
+  (cond (:excluded? block)
+        :excluded
+        :else
+        (u/some-thing #(tagged-or-contained? block-map block %)
+                      (config/config :exit-tags))))
+
 ;;; Temp
 (def min* (partial u/min-by identity))
 (def max* (partial u/max-by identity))
@@ -320,6 +329,10 @@
 ;;; Some bogus dates creep in somehow, this removes them (TODO figure this out better)
 (def earliest-date  #inst "2020-01-01T00:00")
 
+
+;;;; No longer called I think - replaced with git mechanism
+
+#_
 (defn date-range [page]
   (let [blocks (block-descendents page)
         visible-blocks (filter displayed? blocks)
@@ -327,6 +340,17 @@
                               ;; TODO should use both
                               (map (some-fn :edit-time :create-time) visible-blocks))]
     [(min* visible-dates) (max* visible-dates)]))
+
+#_
+(defn date-range [page]
+  (et/page-date-range page))
+
+
+#_
+(u/defn-memoized edit-time
+  [page]
+  (second (date-range page)))
+
 
 ;;; TODO these are wrong because aliases get counted twice. Fuck.
 ;;; Pretty clear this is fucked; need a single bm and a separate naming/aliasing map. Fuck. 
@@ -339,9 +363,6 @@
 
 ;;; These could be part of the map but it's easier this way
 
-(u/defn-memoized edit-time
-  [page]
-  (second (date-range page)))
 
 (u/defn-memoized size
   [page]
@@ -513,5 +534,4 @@
 (defn toc
   [block]
   (partition 2 (flatten (toc-1 block))))
-          
-  
+

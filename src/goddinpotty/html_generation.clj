@@ -5,7 +5,7 @@
             [goddinpotty.utils :as utils]
             [goddinpotty.templating :as templating]
             [goddinpotty.batadase :as bd]
-            [goddinpotty.recent :as recent]
+            #_ [goddinpotty.recent :as recent]
             [goddinpotty.index :as index]
             [goddinpotty.search :as search]
             [goddinpotty.config :as config]
@@ -75,6 +75,7 @@
 ;;; Yeah this sucks, each special page has like 3 parts where 1 would do (here, templating, and core).
 
 ;;; Out of service for Logseq
+#_
 (defn generate-recent-page
   [block-map output-dir]
   (export-page
@@ -84,14 +85,6 @@
     "Recently changed"
     block-map)
    "/New.html"
-   output-dir))
-
-;;; Not actually called, useful for dev
-(defn generate-index-pages
-  [block-map output-dir]
-  (export-pages
-   (u/map-values #((:generator %) block-map)
-                 (index/make-index-pages block-map))
    output-dir))
 
 (defn generate-global-map

@@ -8,9 +8,12 @@
             [org.candelbio.multitool.core :as u]
             [clojure.string :as s]))
 
-;;; depth tree
-;;; by size, # of refs (incoming/outgoing/both)
+;;; Used to generate a set of static pages, now a single page with ag-grid, much better!
 
+;;; TODO # of refs (incoming/outgoing/both)
+
+;;; Now in grid.js
+#_
 (def indexes
   [{:name "Title"
     :sort-key (comp u/numeric-prefix-sort-key s/upper-case :title)
@@ -49,35 +52,31 @@
   (let [pages (remove :special? (bd/displayed-regular-pages bm))
         page-id (fn [name] (format "Index-%s" name))
         ]
-    (into {}
-          (for [{:keys [name sort-key filter-key] :as index :or {filter-key identity}} indexes]
-            (let [hiccup
-                  [:table.table.table-sm.table-hover 
-                   [:thead
-                    ;; col headers
-                    [:tr
-                     (for [col indexes]
-                       [:th {:scope "col" :style (when (:col-width col)
-                                                   (format "width: %s;" (:col-width col)))}
-                        (if (= (:name col) name)
-                          (:name col)
-                          [:a {:href (page-id (:name col))} (:name col)])])]]
-                   [:tbody 
-                    (for [page (sort-by sort-key (filter filter-key pages))]
-                      [:tr
-                       (for [col indexes]
-                         [:td
-                          (u/ignore-errors
-                           ((:render col) page))])])
-                    ]]
-                  title (format "Index by %s" name)]
-              [(page-id name)
-               (generated-page
-                (page-id name)
-                (fn [bm]
-                  (templating/page-hiccup hiccup title title bm
-                                          :widgets [(templating/about-widget bm)
-                                                    (templating/search-widget bm)])
-                  ))])))))
+    {"Index"
+     (generated-page
+      "Index"
+      (fn [bm]
+        (let [hiccup
+              [:div#myGrid {:style "height:800px;"}]
+              title "Index"]
+          (templating/page-hiccup
+           hiccup title title bm
+                   :head-extra [[:script {:src "https://cdn.jsdelivr.net/npm/ag-grid-community/dist/ag-grid-community.min.js"}]
+                                [:script {:src "assets/grid.js"}]]
+                   :widgets [(templating/about-widget bm)
+                             (templating/search-widget bm)])
+          )))}))
 
 
+;;; Dev only
+#_
+(defn write-index-page
+  [bm]
+  (goddinpotty.html-generation/export-page
+   ((:generator (first (vals (make-index-pages @goddinpotty.core/last-bm))))
+    bm)
+   "/Index"
+   (config/config :output-dir)))
+
+#_
+(write-index-page @goddinpotty.core/last-bm)

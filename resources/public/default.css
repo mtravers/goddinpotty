@@ -40,6 +40,7 @@ body {
 
 .block {
     margin-bottom: 15px;
+    white-space: pre-line;	/* preserve newline */
 }
 
 .title {
@@ -186,6 +187,8 @@ blockquote {
 
 img {
     max-width: 90%;		/* TODO should have click-to-see-full-size as in Roam */
+    margin-left: auto;		/* center */
+    margin-right: auto;
 }
 
 .imga {
@@ -239,6 +242,10 @@ iframe {
 }
 
 /* LH widget related */
+
+.sidebar {
+  overflow-x: hidden;
+}
 
 .minicard-body {
     padding-top: 0;

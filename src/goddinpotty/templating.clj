@@ -99,7 +99,7 @@
      [:div.container.main
       [:div.row
        "<!-- Sidebar Widgets Column -->"
-       [:div.col-md-3
+       [:div.col-md-3.sidebar
 
         ~@widgets
         ]
@@ -208,6 +208,7 @@
            [:div.card-body.minicard-body
             about-content]]))
 
+;;; TODO move to search.clj
 (defn search-widget
   [bm#]
   [:div.card.my-3
@@ -246,7 +247,7 @@
        [:input {:type "date"
                 :name "date"
                 :value (.format utils/html-date-formatter today)
-                :onchange "var d = event.target.value; alert(d)"
+                :onchange "var d = event.target.value; window.location.href = d;"
                 }]
        [:a.btn {:href (journal-page-inc bm page 1)} (render/icon "chevron-right")]]
       ]]))
@@ -255,12 +256,12 @@
   [page]
   (format "logseq://graph/%s?page=%s"
           (config/config :source :graph)
-          (:title page)))
+          (java.net.URLEncoder/encode (:title page))))
 
 (defn block-page-hiccup
   [block-id block-map output-dir]
   (let [block (get block-map block-id)
-        title-hiccup (render/block-content->hiccup (:title block))
+        title-hiccup (render/block-content->hiccup (:title block) block-map)
         title-text (:title block)
         contents
         [:div

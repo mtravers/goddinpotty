@@ -10,10 +10,22 @@
   ))
 
 ;;; Note: requires parsing whole graph, see database/parse
+;;; But that doesn't work, refs still are limited. Argh.
 (defn blog-blocks
   [bm]
   (bd/with-tag bm "blog"))  
 
+(defn with-tag-complete
+  [bm tag]
+  (let [sharped (str "#" tag)]
+    (filter (fn [block]
+              (u/walk-find #(= % [:hashtag sharped])
+                           (:parsed block)))
+            (vals bm))))
+
+(defn toot-blocks
+  [bm]
+  (with-tag-complete bm "toot"))
 
 *(defmulti elt-toot-text first)
 

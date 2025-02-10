@@ -3,6 +3,7 @@
             [goddinpotty.batadase :as bd]
             [goddinpotty.config :as config]
             [goddinpotty.utils :as utils]
+            [goddinpotty.import.edit-times :as et]
             [clojure.data.json :as json]
             [org.candelbio.multitool.core :as u]
             ))
@@ -255,7 +256,7 @@
   "Generate a data table of pages (TODO or blocks) suitable for passing to Vega"
   [block-map]
   (for [page (graph-pages block-map)
-        :let [[start end] (bd/date-range page)
+        :let [[start end] (et/page-date-range page)
               title (or (:content page) (:title page))]]
     {:title title
      :fan (count (bd/page-refs block-map page))     ;TODO separate in and out 

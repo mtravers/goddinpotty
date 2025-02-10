@@ -13,13 +13,24 @@
 
 (def ^:dynamic *context* {})
 
+(def original-ex-info ex-info)
+
 (defmacro with-context
   [[tag value] & body]
   `(binding [*context* (assoc *context* ~tag ~value)]
-     ~@body))
+     (with-redefs [ex-info ~(fn [& args]           ;Make the context available for all clj exceptions (unfortunately won't do anything about normal java errors)
+                              (apply original-ex-info (assoc-in (vec args) [1 :context] *context*)))]
+       ~@body)))
 
 (defn get-context
   ([tag]
    (get *context* tag))
   ([]
    *context*))
+
+;;; Foo, errors have to check this explicitly, that sucks.
+
+
+
+
+       

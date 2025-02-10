@@ -157,8 +157,8 @@
 ;;; Note: doesn't find files in nested directories. 
 (defn all-content-pages
   []
-  (concat (fs/list-dir "/opt/mt/repos/ammdi/journals/")
-          (fs/list-dir "/opt/mt/repos/ammdi/pages")))
+  (concat (list-dir-recursive "/opt/mt/repos/ammdi/journals/")
+          (list-dir-recursive "/opt/mt/repos/ammdi/pages")))
 
 
 (defn convert-twitter-links
@@ -264,6 +264,7 @@
 
 
 ;;; Converting old sidenotes to new
+#_
 (def sidenote-report
   (map (fn [id]
          (let [block  (get bm id) 
@@ -330,8 +331,8 @@
                              (= :block-ref (first %))
                              (second %)
                              ))
-       (map utils/remove-double-delimiters)
-       ))
+       (map (comp utils/remove-double-delimiters str/trim)
+       )))
 
 (defn block-has-sidenote?
   [block]
@@ -374,3 +375,92 @@
  "__On Purpose__")
     
  ;;; Alright easier to just hand edit.
+
+
+;;; Gather some files and mark them
+
+(defn file-lines-out [file seq]
+  (let [w (clojure.java.io/writer file)]
+    (binding [*out* w]
+      (doseq [l seq]
+        (println l))
+      (newline))))
+
+(defn file-lines-out-over
+  [f lines]
+  (let [tmp (fs/temp-file "foo")]
+    (file-lines-out tmp lines)
+    (fs/rename tmp f)))
+
+(defn tag-files
+  [files tag]
+  (doseq [f files]
+    (->> f
+         ju/file-lines
+         (cons (format "- #%s" tag))
+         (file-lines-out-over f))))
+
+;;; TODO might want special handling for video/twitter
+(u/defn-memoized expand-bare-url
+  [url]
+  ;; Damn I know I wrote this somewhere
+  (u/ignore-report                      ;network errors are common
+   (let [text (slurp url)
+         [title? title] (re-find #"<title>(.*)</title>" text)]
+     (if title?
+       (format "[%s](%s)" title url)
+       url))))
+
+;;; This doesn't work, regex is too restrictive
+;;; Want to match any url that isn't in parens
+(defn maybe-fix-bare-url
+  [line]
+  (if-let [[m prefix url suffix] (re-matches #"^(\s*- )(http\S*)(.*)$" line)]
+    (if-let [replacement (expand-bare-url url )]
+      (str prefix replacement suffix)
+      line)
+    line))
+
+;;; New, untested?
+(defn fix-bare-urls-file
+  [f]
+  (->> f
+       ju/file-lines
+       (map maybe-fix-bare-url)
+       doall
+       (file-lines-out-over f)
+       ))
+
+(defn fix-bare-urls
+  []
+  (doseq [f (all-content-pages)]
+    (fix-bare-urls-file f)))
+
+(defn rewrite
+  []
+  (doseq [f (all-content-pages)]
+    (->> f
+         ju/file-lines
+         (file-lines-out-over f)
+         )))
+
+#_
+(defn scarf-images
+  [roam-export dir]
+  (let [bm (block-map-json roam-export)]
+    (goddinpotty.curation/image-copy-script bm dir)))
+
+;;; Finding multi-line-quotes
+(comment
+(def blocks (vals @last-bm))
+(def content (u/mapf :content blocks))
+(def content-lines (map (fn [oline]
+                          (remove (fn [line] (re-find #"\:\: " line))
+                                  (clojure.string/split oline #"\n"))) content))
+(def multi-lines (filter #(> (count %) 1) content-lines))
+(def multi-lines2 (remove #(some (fn [l] (= l "---")) %) multi-lines))
+)
+
+
+;;; Random idea (not curatorial)
+;;; Whenever I use the word "current" or something like that, put a timestamp in a sidenote

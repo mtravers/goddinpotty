@@ -12,10 +12,14 @@
   (:import [org.commonmark.parser Parser])
   )
 
+;;; Trying to use a markdown parser library, so md can be the source of truth, rather than the
+;;; problematic Dataomic DB.
+
 ;;; This is unfinished, it seems like the wrong thing. I'd have to either bypass the normal parser
 ;;; (but that is still needed for page refs and tags and probably other things)
 ;;; OR re-convert the parsed stufff back to markdown, which seems stupid.
 ;;; Best solution would be to use Logseq's parser, but I can't even find it!
+;;; OK /opt/reposed/logseq/deps/graph-parser/
 
 ;;; From Markdown
 (def parser (.build (Parser/builder)))

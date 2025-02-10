@@ -3,12 +3,13 @@
             [goddinpotty.import.logseq :as sut]
             [goddinpotty.utils :as utils]
             [goddinpotty.config :as config]
-            [org.parkerici.multitool.core :as u]
+            [org.candelbio.multitool.core :as u]
             ))
 
 ;;; These are sort of high-level integration tests, to prove that the basic machinery is working.
 
-;;; TODO requires test graph be registered with Logseq
+;;; TODO requires test graph at test/resources/logseq-test be registered with Logseq
+
 (deftest nbb-extract-test
   (let [extract (sut/nbb-extract "logseq-test")]
     (is (seq? extract))

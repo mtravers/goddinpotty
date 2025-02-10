@@ -77,6 +77,7 @@
                              (bd/entry-points block-map))
            depth 0]
       (let [current (filter #(= (:depth %) depth) (vals block-map))
+            _ (prn :depth depth :current (count current))
             refs (apply set/union (map bd/all-refs current))
             nbm (reduce (fn [bm ref]
                           (if (or (get-in bm [ref :depth])

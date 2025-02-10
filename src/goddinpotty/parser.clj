@@ -44,6 +44,8 @@
   (slurp parser-file))
 
 ;;; Turned off memoization, shouldn't need it 
+;;; TODO this depends on markdown format, would be good to support org-mode
+;;; Could use :file property of page (or make it propagate down to children)
 (defn parse-to-ast
   "Converts a string of block syntax to an abstract syntax tree for SR markup."
   [block-content]
