@@ -8,10 +8,11 @@
             [org.candelbio.multitool.core :as u]
             [clojure.string :as s]))
 
-;;; Wanted to switch to ag-grid but would be easier with an app
+;;; Used to generate a set of static pages, now a single page with ag-grid, much better!
 
 ;;; TODO # of refs (incoming/outgoing/both)
 
+#_
 (def indexes
   [{:name "Title"
     :sort-key (comp u/numeric-prefix-sort-key s/upper-case :title)

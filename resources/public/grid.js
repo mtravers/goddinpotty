@@ -1,9 +1,13 @@
 document.addEventListener("DOMContentLoaded", function () {
     // Column definitions
-    // TODO renderes, links, privacy designator
+    // TODO renderes, privacy designator, widths
+    // TODO default to reverse sort by Date
     const columnDefs = [
         // { field: "id", headerName: "ID", sortable: true, filter: true }, 
-        { field: "title", headerName: "Title", sortable: true, filter: true },
+        { field: "title", headerName: "Title", sortable: true, filter: true,
+	  cellRenderer: function(params) {
+              return `<a href="${params.data.url}" target="_blank">${params.data.title}</a>`;
+	  }},
 	{ field: "date", headerName: "Date", sortable: true, filter: true },
 	{ field: "depth", headerName: "Depth", sortable: true, filter: true },
 	{ field: "size", headerName: "Size", sortable: true, filter: true }
