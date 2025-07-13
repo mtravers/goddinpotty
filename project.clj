@@ -11,10 +11,10 @@
 ;; Used by logseq-from-md, not there yet
 ;;                 [org.commonmark/commonmark "0.18.0"]
                  [html-to-md/html-to-md "0.3.0"]
-                 [org.candelbio/multitool "0.1.7"]
+                 [org.candelbio/multitool "0.1.12"]
                  [com.taoensso/truss "1.6.0"]
                  [alandipert/enduro "1.2.0"] ;persistence for expensive calculations
-                 [hiccup "1.0.5"]
+                 [hiccup "2.0.0"]
                  [instaparse "1.5.0"]
                  [aero "1.1.6"]
                  [metasoarous/oz "1.6.0-alpha36"] 

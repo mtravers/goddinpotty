@@ -1,6 +1,7 @@
 (ns goddinpotty.batadase
   (:require [goddinpotty.utils :as utils]
             [goddinpotty.config :as config]
+            [goddinpotty.import.edit-times :as et] ;smell – if this is import, the data should be in the bm
             [org.candelbio.multitool.core :as u]
             [clojure.set :as set]
             [clojure.string :as str]
@@ -534,4 +535,3 @@
 (defn toc
   [block]
   (partition 2 (flatten (toc-1 block))))
-

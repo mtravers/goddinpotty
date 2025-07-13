@@ -54,7 +54,7 @@
    (slurp (io/resource "remarkbox.js"))
    ;; u/map-keys because expand-template-string is dumb
    (u/map-keys name (config/config))
-   :param-regex u/double-braces))
+   ))
 
 ;;; TODO much of this should be configurable
 (defn page-hiccup
