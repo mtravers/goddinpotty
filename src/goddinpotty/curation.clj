@@ -78,11 +78,6 @@
           (prn :missing link :in (.getName f)))))))
 
 
-(defn wayback
-  [url]
-  (let [resp (client/get "http://archive.org/wayback/available"
-                         {:query-params {:url url}})]
-    (clojure.data.json/read-str (:body resp) :keyword-fn keyword)))
 
 
 ;;; Highly connected nodes

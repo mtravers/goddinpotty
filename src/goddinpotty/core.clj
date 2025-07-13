@@ -137,6 +137,7 @@
     #_ (dump bm)
     ;; Copy to
     (replace-directory  output-dir (config/config :output-dir))
+    bm
   ))
 
 (defmulti produce-bm (fn [{:keys [source]}] (:type source)) )
@@ -149,6 +150,10 @@
 
 (defmethod post-generation :logseq [_ _]
   (logseq/post-generation))
+
+(defn do-post-generation
+  [bm]
+  (post-generation (config/config) bm))
 
 ;;; Debugging/curation related
 
@@ -198,12 +203,15 @@
     (config/set-config-map! config-or-path)
     (config/set-config-path! (or config-or-path "default-config.edn")))
   (reset)
-  (let [bm (add-generated-pages (produce-bm (config/config)))]
-    (tap bm)
-    (output-bm bm)
-    (post-generation (config/config) bm)
-    (log/info "Done")
-    ))
+  (-> (config/config)
+      produce-bm
+      tap
+      add-generated-pages
+      tap
+      output-bm
+      do-post-generation)
+  (log/info "Done")
+  )
 
 ;;; HACK why don't I just get direct access to Datomic and make life easier?
 ;;; Assumes config is already set

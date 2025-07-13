@@ -1,6 +1,7 @@
 (ns goddinpotty.batadase
   (:require [goddinpotty.utils :as utils]
             [goddinpotty.config :as config]
+            [goddinpotty.import.edit-times :as et] ;smell – if this is import, the data should be in the bm
             [org.candelbio.multitool.core :as u]
             [clojure.set :as set]
             [clojure.string :as str]
@@ -87,6 +88,7 @@
    (let [block (coerce-block block bm)]
      (:display? block)))
   ([block]
+   ;; TODO causing errors in size index, don't have time to fix right now
    (assert-block block)
    (:display? block)))
 
@@ -328,6 +330,10 @@
 ;;; Some bogus dates creep in somehow, this removes them (TODO figure this out better)
 (def earliest-date  #inst "2020-01-01T00:00")
 
+
+;;;; No longer called I think - replaced with git mechanism
+
+#_
 (defn date-range [page]
   (let [blocks (block-descendents page)
         visible-blocks (filter displayed? blocks)
@@ -335,6 +341,16 @@
                               ;; TODO should use both
                               (map (some-fn :edit-time :create-time) visible-blocks))]
     [(min* visible-dates) (max* visible-dates)]))
+
+(defn date-range [page]
+  (et/page-date-range page))
+
+
+#_
+(u/defn-memoized edit-time
+  [page]
+  (second (date-range page)))
+
 
 ;;; TODO these are wrong because aliases get counted twice. Fuck.
 ;;; Pretty clear this is fucked; need a single bm and a separate naming/aliasing map. Fuck. 
@@ -347,9 +363,6 @@
 
 ;;; These could be part of the map but it's easier this way
 
-(u/defn-memoized edit-time
-  [page]
-  (second (date-range page)))
 
 (u/defn-memoized size
   [page]
@@ -523,3 +536,6 @@
   (partition 2 (flatten (toc-1 block))))
           
   
+(defn correct-spelling
+  [block]
+  )

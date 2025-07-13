@@ -255,7 +255,7 @@
   "Generate a data table of pages (TODO or blocks) suitable for passing to Vega"
   [block-map]
   (for [page (graph-pages block-map)
-        :let [[start end] (bd/date-range page)
+        :let [[start end] (bd/date-range page) 
               title (or (:content page) (:title page))]]
     {:title title
      :fan (count (bd/page-refs block-map page))     ;TODO separate in and out 

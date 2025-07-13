@@ -113,6 +113,7 @@
 (defn logseq-nbb->blocks-base
   [blocks]
   (->> blocks
+       (remove #(get-in % [:block/properties :ls-type])) ; stuff from whiteboards creeps in and breaks thigns
        (map (fn [block]
               ;; Sanity check, this condition causes problems further down (order-children produces nils)
               (assert (not (= (:db/id block) (:db/id (:block/parent block))))
@@ -194,6 +195,18 @@
   [graph-name]
   (map first
        (nbb-query graph-name extract-query)))
+
+(defn block-query
+  [block-id]
+  ;; Note :file/content is also available, not really needed so not extracted here.
+  (u/de-ns
+  `[:find (pull ?b [* {:block/file [:db/id :file/path]}])
+    :where [?b :db/id ~block-id]]))
+
+;;; Doesn't work, reason unknown
+(defn nbb-block
+  [graph-name block-id]
+  (nbb-query graph-name (block-query block-id) ))
 
 ;;; dev only for now
 (defn nbb-datoms
