@@ -98,7 +98,6 @@
 (defn date-to-journal-page-name
   [date]
   (let [dom (.getDate date)
-
         suffix (u/ordinal-suffix dom)
         formatter (java.text.SimpleDateFormat. (format "MMM d'%s', yyyy" suffix))]
     (.format formatter date)))

@@ -12,8 +12,9 @@
 ;;; Curation tool, refresh dead links by changing them to point to archive.org
 
 
-;;; TODO spin this out into its own thing, it is useful. See also https://github.com/mtravers/waybacker
-;;; TODO and/or put under goddinpotty.curate.wayback maybe
+;;; TODO spin this out into its own thing, maybe a CLI tool that can process a file or dir of markdown
+;;; See also https://github.com/mtravers/waybacker
+;;; and/or put under goddinpotty.curate.wayback maybe
 
 ;;; Returns a JSON struct like
 ;; {"url" "http://alumni.media.mit.edu/~mt/diss/index.html",
@@ -56,14 +57,19 @@
       (wayback-url-flagged new-url "if_") ; add flag that hides wayback header
       url)))
 
+;;; ???
+#_
 (defn url-pattern
   [string]
   (re-pattern (str "http\\S*" (u/re-quote string) "[^\\s\\)\\]]*")))
 
+;;; No parens
+(def url-pattern #"https?://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]")
+
 ;;; TODO should be smart and detect of url is already waybacked
 (defn process-string
-  [pattern s]
-  (s/replace s pattern replacement-url))
+  [s]
+  (s/replace s url-pattern replacement-url))
 
 #_
 (defn process-file
@@ -84,9 +90,6 @@
 ;;; Why am I doing patterns? Check if URL exists or not?
 
 
-;;; No parens
-(def url-pattern #"http\S*")            ;TODO get a better one
-(def url-pattern #"https?://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]")
 
 
 ;;; exceptions:
