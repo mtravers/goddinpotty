@@ -1,6 +1,6 @@
 (ns goddinpotty.html-generation
   (:require [org.candelbio.multitool.core :as u]
-            [hiccup.core :as hiccup]
+            [hiccup2.core :as hiccup2]
             [me.raynes.fs :as fs]
             [goddinpotty.utils :as utils]
             [goddinpotty.templating :as templating]
@@ -37,7 +37,7 @@
   (context/with-context [:file fname]
     (log/info "Writing" fname)
     (spit (str output-dir fname)
-          (hiccup/html content))))
+          (hiccup2/html content))))
 
 ;;; Not actually used
 (defn export-pages

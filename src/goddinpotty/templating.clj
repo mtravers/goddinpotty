@@ -9,6 +9,7 @@
             [goddinpotty.batadase :as bd]
             [goddinpotty.import.edit-times :as et]
             [goddinpotty.context :as context]
+            [goddinpotty.twin-pages :as tp]
             [org.candelbio.multitool.core :as u]
             ))
 
@@ -98,15 +99,15 @@
             )]]]
      [:div.container.main
       [:div.row
-       "<!-- Sidebar Widgets Column -->"
+       #_ "<!-- Sidebar Widgets Column -->"
        [:div.col-md-3.sidebar
 
         ~@widgets
         ]
 
-       "<!-- Post Content Column -->"
+       #_ "<!-- Post Con<tent Column -->"
        [:div.col-lg-7
-        "<!-- Title -->"
+        #_ "<!-- Title -->"
         [:div.ptitle
          [:h1 ~title-hiccup]
          ~contents
@@ -122,7 +123,7 @@
                                            :style "height:600px;width:100%;border:none!important"
                                            :tabindex 0}]]]]])
         ]]]
-     "<!-- Footer -->"
+     #_ "<!-- Footer -->"
      [:footer.py-5.footer
       [:div.container
        ~(when (config/config :colophon)
@@ -343,11 +344,9 @@
            ;; Note: this is a link to AMMDI, may or may not be right for other uses
            [:h5.card-header [:a {:href "http://hyperphor.com/ammdi/Twin-Pages"} "Twin Pages"]]
            [:div.card-body
-            [:div#twin_pages
-             {:style {}} ;"border:1px; vertical-align:top; horizontal-align:center"
-             [:script {:src "http://www.wikigraph.net/twinpages.js"
-                       :referrerpolicy "unsafe-url"
-                       }]]]])
+            ;; TODO configurable
+            #_ (tp/twin-pages-widget-dynamic)
+            (tp/twin-pages-widget-static title-text)]])
 
         page-contents-widget
         (let [toc (bd/toc block)]
