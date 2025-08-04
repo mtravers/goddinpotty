@@ -11,6 +11,7 @@
             [goddinpotty.context :as context]
             [goddinpotty.twin-pages :as tp]
             [org.candelbio.multitool.core :as u]
+            [hiccup2.core :as hiccup2]
             ))
 
 ;;; TODO Note: the functions of templating and html-gen seem to overlap; not sure they should be separate.
@@ -41,14 +42,16 @@
 (defn analytics-2
   []
   (and (config/config :google-analytics)
-       [:script (format
-                 "
+       [:script
+        (hiccup2/raw
+         (format
+          "
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
 
   gtag('config', '%s');
-" (config/config :google-analytics))]))
+" (config/config :google-analytics)))]))
 
 (u/def-lazy comment-script
   (u/expand-template-string

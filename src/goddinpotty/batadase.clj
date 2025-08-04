@@ -263,6 +263,7 @@
   (let [tag-id (:id (get (with-aliases block-map) tag))]
     (filter #(contains? (:refs %) tag-id) (vals block-map))))
 
+;;; Curatoriail Commented out because of compile issues
 #_
 (defn with-text
   [block-map text]

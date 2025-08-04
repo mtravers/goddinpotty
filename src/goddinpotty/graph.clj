@@ -6,6 +6,7 @@
             [goddinpotty.import.edit-times :as et]
             [clojure.data.json :as json]
             [org.candelbio.multitool.core :as u]
+            [hiccup2.core :as hiccup2]
             ))
 
 ;;; Based on https://vega.github.io/vega/examples/force-directed-layout/
@@ -216,7 +217,7 @@
       [:div
        [:div.graph {:id id :style (format "height: %spx;" (+ height (if controls? 300 0)))}]
        [:script
-        (format "vegaEmbed('#%s', '%s');" id base-name)
+        (hiccup2/raw (format "vegaEmbed('#%s', '%s');" id base-name))
         ]])))
 
 (defn render-vega-embedded
