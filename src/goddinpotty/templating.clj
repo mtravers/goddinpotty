@@ -158,8 +158,7 @@
 
 (defn render-date-range
   [[from to]]
-  [:div.date (utils/render-time from) " - " (utils/render-time to)])
-
+  [:div.date (utils/render-date from) " - " (utils/render-date to)])
 
 (defn render-page-hierarchy-1
   [path page-struct bm this]

@@ -133,11 +133,11 @@
 ;;; TODO fails for image links like https://twitter.com/lastpositivist/status/1341720934735069184/photo/1 but Logseq does these...
 ;;; Temp kludge solution: grep and remove "/photo/1"
 ;;; Actually it can change, if the backing tweet is deleted. Oh well.
-(e/defn-memoized embed-twitter          ;memoize this, it doesn't change and API c
+(defn embed-twitter
   [url]
   (try
     (let [oembed (json/read-str (slurp (str "https://publish.twitter.com/oembed?url=" url)) :key-fn keyword)]
-      (:html oembed))
+      (hiccup2/raw (:html oembed)))
     (catch Throwable e
       (log/error "twitter embed failed" e)
       (make-link-from-url url))))

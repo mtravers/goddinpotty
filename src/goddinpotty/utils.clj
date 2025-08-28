@@ -79,6 +79,9 @@
 ;;; Better https://github.com/dm3/clojure.java-time
 
 (def date-formatter
+  (java.text.SimpleDateFormat. "dd MMM yyyy"))
+
+(def time-formatter
   (java.text.SimpleDateFormat. "dd MMM yyyy hh:mm"))
 
 ;;; TODO fix time input
@@ -90,8 +93,12 @@
 
 (defn render-time
   [time]
-  (and time (.format date-formatter (coerce-time time))))         ;crude for now
+  (and time (.format time-formatter (coerce-time time))))         ;crude for now
   
+(defn render-date
+  [time]
+  (and time (.format date-formatter (coerce-time time))))
+
 (def html-date-formatter
   (java.text.SimpleDateFormat. "yyy-MM-dd"))
 
