@@ -12,6 +12,7 @@
             [org.candelbio.multitool.core :as u]
             [org.candelbio.multitool.dev :as udev]
             [clojure.tools.logging :as log]
+            [hiccup2.core :as hiccup2]
             )
   )
 
