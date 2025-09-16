@@ -13,7 +13,7 @@
 ;;; TODO too slow, n^2 performance. Need something that is more controlled (eg only does writes at end of a long operation)
 
 ;;; There are two different usages of "memoize" going on, which is confusing. This is a u/ memoizer
-;;; that keeps track of the e/memoizer
+;;; that keeps track of the e/ memoizer
 (u/defn-memoized memoizer
   [name]
   (e/file-atom {} (str ".enduro.d/" name) :pending-dir "/tmp"))

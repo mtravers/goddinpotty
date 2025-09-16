@@ -270,10 +270,10 @@
         [:div
          [:div
           (u/ignore-errors
-           (render-date-range
-            #_ (bd/date-range block)
-            (et/page-date-range block)  ;TODO LOGSEQ specific (file-based), should be configurable
-            ))]
+            (render-date-range
+             #_ (bd/date-range block)
+             (et/page-date-range block)  ;TODO LOGSEQ specific (file-based), should be configurable
+             ))]
          (when-not (:include? block)
            [:span [:b "EXCLUDED"]])
          [:span.local                   ;Hidden unless running locally.
@@ -342,13 +342,13 @@
         ;; See http://webseitz.fluxent.com/wiki/TwinPages 
         twin-pages-widget
         (when (config/config :twin-pages?)
-          [:div.card.my-3
-           ;; Note: this is a link to AMMDI, may or may not be right for other uses
-           [:h5.card-header [:a {:href "http://hyperphor.com/ammdi/Twin-Pages"} "Twin Pages"]]
-           [:div.card-body
-            ;; TODO configurable
-            #_ (tp/twin-pages-widget-dynamic)
-            (tp/twin-pages-widget-static title-text)]])
+          (when-let [content (tp/twin-pages-widget-static title-text)]
+            [:div.card.my-3
+             ;; Note: this is a link to AMMDI, may or may not be right for other uses
+             [:h5.card-header [:a {:href "http://hyperphor.com/ammdi/Twin-Pages"} "Twin Pages"]]
+             [:div.card-body
+              content
+              ]]))
 
         page-contents-widget
         (let [toc (bd/toc block)]

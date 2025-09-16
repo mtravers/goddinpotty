@@ -3,12 +3,13 @@
             [org.candelbio.multitool.cljcore :as ju]
             [hiccup2.core :as hiccup2]
             [clojure.string :as str]
+            [goddinpotty.endure :as e]
             )
   )
 
 ;;; See http://webseitz.fluxent.com/wiki/TwinPages
 
-;;; The standard Twin Pagesa widget. Will not work in https: sites
+;;; The standard Twin Pages widget. Will not work in https: sites
 (defn twin-pages-widget-dynamic
   []
   [:div#twin_pages
@@ -22,13 +23,13 @@
 (def html-link-re
   #"<a href=(.*?)>(.*?)</a>")
 
-;;; Doc ex\
+;;; Doc extraction
 (def doc-extract-re #"(?s).*document\.write\(\'(.*)\'\).*")
 
 ;;; Hack: generate it at compile time, why not?
 ;;; Might be putting undue load on their server, maybe should cache locally and only refresh ocassionaly
 ;;; TODO parse out urls and reformat and add _target etc, the default's a bit out of step with my design
-(defn twin-pages-widget-static
+(e/defn-memoized twin-pages-content
   [title]
   (u/ignore-report
     (->> (u/expand-template
@@ -37,4 +38,12 @@
          ju/sh-str
          (re-matches doc-extract-re)
          second
-         hiccup2/raw)))
+         )))
+
+
+(defn twin-pages-widget-static
+  [title]
+  (when-let [content (twin-pages-content title)]
+    (if (re-find #"No twinpages" content)
+      nil
+      hiccup2/raw)))
