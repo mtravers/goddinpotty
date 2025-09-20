@@ -18,10 +18,7 @@
              :referrerpolicy "unsafe-url"
              }]])
 
-;;; Actually why bother to parse it?
-#_
-(def html-link-re
-  #"<a href=(.*?)>(.*?)</a>")
+
 
 ;;; Doc extraction
 (def doc-extract-re #"(?s).*document\.write\(\'(.*)\'\).*")
@@ -46,4 +43,26 @@
   (when-let [content (twin-pages-content title)]
     (if (re-find #"No twinpages" content)
       nil
-      hiccup2/raw)))
+      (hiccup2/raw content))))
+
+;;; ⪡⦿⪢ ⪡⦿⪢ ⪡⦿⪢ ⪡⦿⪢ ⪡⦿⪢ ⪡⦿⪢ ⪡⦿⪢ ⪡⦿⪢ ⪡⦿⪢ ⪡⦿⪢ ⪡⦿⪢ ⪡⦿⪢ ⪡⦿⪢ ⪡⦿⪢ ⪡⦿⪢ ⪡⦿⪢ ⪡⦿⪢ ⪡⦿⪢ ⪡⦿⪢ ⪡⦿⪢ 
+
+;;; For GardenClub, not to be confused with goddinpotty
+(def html-link-re
+  #"<a href=\"(.*?)\">(.*?)</a>")
+
+;;; → Multitool 
+(defn third
+  [s]
+  (nth s 2))
+
+(defn extract
+  []
+  (->> @(e/memoizer 'twin-pages-content)
+       (filter (fn [[k v]] (and v  (re-find #"TwinPages\:" v))))
+       (into {})
+       (u/map-values #(let [m (re-seq html-link-re %)]
+                        (zipmap (map third m) (map second m))))
+       (u/map-keys first)))
+
+)
