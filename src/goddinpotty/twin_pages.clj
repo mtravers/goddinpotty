@@ -18,14 +18,10 @@
              :referrerpolicy "unsafe-url"
              }]])
 
-
-
 ;;; Doc extraction
 (def doc-extract-re #"(?s).*document\.write\(\'(.*)\'\).*")
 
 ;;; Hack: generate it at compile time, why not?
-;;; Might be putting undue load on their server, maybe should cache locally and only refresh ocassionaly
-;;; TODO parse out urls and reformat and add _target etc, the default's a bit out of step with my design
 (e/defn-memoized twin-pages-content
   [title]
   (u/ignore-report
@@ -37,7 +33,7 @@
          second
          )))
 
-
+;;; TODO parse out urls and reformat and add _target etc, the default's a bit out of step with my design
 (defn twin-pages-widget-static
   [title]
   (when-let [content (twin-pages-content title)]
@@ -65,4 +61,3 @@
                         (zipmap (map third m) (map second m))))
        (u/map-keys first)))
 
-)

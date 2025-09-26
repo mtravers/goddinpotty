@@ -160,7 +160,7 @@
 ;;; Adds forward :refs field. 
 (defn generate-refs
   [db]
-  (ju/pmap-values (fn [block]
+  (ju/pmap-values #_ u/map-values (fn [block]
                     (context/with-context [:block (:id block)]
                       (assoc block :refs (set
                                           (u/mapf (partial resolve-page-name db)
@@ -224,17 +224,16 @@
 (defn build-db-1
   [db]
   ;; For debugging
-  (;; tap-> interim-db
-   ->
-         db
-         exclude-blocks
-         parse
-         generate-refs
-         generate-inverse-refs
-         compute-depths
-         compute-includes
-         compute-displayed
-         add-direct-children))              ; makes it easier to use, harder to dump. This needs to be last
+  (-> ;; tap-> interim-db 
+   db
+   exclude-blocks
+   parse
+   generate-refs
+   generate-inverse-refs
+   compute-depths
+   compute-includes
+   compute-displayed
+   add-direct-children))              ; makes it easier to use, harder to dump. This needs to be last
 
 (defn add-uids
   [json]

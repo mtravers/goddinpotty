@@ -5,6 +5,8 @@
             [clojure.java.io :as io]))
 
 ;;; Turns Roam block content into an intermediate form (AST)
+;;; TODO when given garbage (eg raw HTML/JS) the parser can hang indefinitely. Not sure what to do about that, could have a timeout. 
+;;; TODO actually this is completely sucky, just use a standard md parser and add something
 
 ;;; TODO Maybe walk this over parser output
 (defn- combine-adjacent-strings

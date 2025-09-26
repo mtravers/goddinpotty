@@ -3,6 +3,7 @@
   :url "https://github.com/mtravers/goddinpotty"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
+  :jvm-opts ["-Xmx6G"]
   :dependencies [[org.clojure/clojure "1.11.3"]
                  [me.raynes/fs "1.4.6"]
                  [ch.qos.logback/logback-classic "1.4.5"]
