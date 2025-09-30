@@ -256,14 +256,19 @@
   [block-map block tag]
   (and block
        (or (tagged? block-map block tag)
-           (tagged-or-contained? block-map (block-page-parent block-map block) tag))))
+           (let [parent (block-page-parent block-map block)]
+             (when (= (:id parent) (:id block))
+               ;; TODO this can happen sometimes when aliases/page hierarchies get confused. should be handled better
+               (throw (ex-info "block is own parent" {:block block}))
+               )
+             (tagged-or-contained? block-map parent tag)))))
 
 (defn with-tag
   [block-map tag]
   (let [tag-id (:id (get (with-aliases block-map) tag))]
     (filter #(contains? (:refs %) tag-id) (vals block-map))))
 
-;;; Curatoriail Commented out because of compile issues
+;;; Curatorial. Commented out because of compile issues
 #_
 (defn with-text
   [block-map text]

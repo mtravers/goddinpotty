@@ -116,10 +116,9 @@ a:hover {
 }
 
 .empty {
-    /* People hate this but whatev */
-    text-decoration: line-through; 
     pointer-events: none;
-    color: gray;
+    color: red;
+    opacity: 0.5;
 }
 
 .self {

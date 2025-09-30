@@ -37,7 +37,8 @@
 (defn twin-pages-widget-static
   [title]
   (when-let [content (twin-pages-content title)]
-    (if (re-find #"No twinpages" content)
+    (if (or (re-find #"No twinpages" content)
+            (re-find #"No Space passed" content))
       nil
       (hiccup2/raw content))))
 

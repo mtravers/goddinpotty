@@ -166,10 +166,13 @@
   (:title (get-page id)))
 
 (defn find-pages
+  "Find pages whose name includes substring"
   [substring]
   (->> (bd/with-aliases @last-bm)
        keys
        (filter #(str/includes? % substring))))
+
+;;; TODO find by content substring
 
 (defn page-refs
   [name]
