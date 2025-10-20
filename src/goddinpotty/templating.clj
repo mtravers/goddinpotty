@@ -60,16 +60,37 @@
    (u/map-keys name (config/config))
    ))
 
+(defn find-image
+  [content]
+  (-> (u/walk-find #(and (vector? %) (= (first %) :img)) content)
+      second
+      :src))
+
 ;;; TODO much of this should be configurable
 (defn page-hiccup
   [contents title-text title-hiccup block-map & {:keys [head-extra widgets]}]
+  (let [page-title (str (config/config :short-title) ": " title-text)
+        page-url (str (config/config :real-base-url)
+                      (utils/clean-page-title title-text)) ;not sure this is right
+        image-url (find-image contents)
+        description (or (config/config :description) title-text)
+        ]
   `[:html
     [:head
      ~(analytics-1)
      ~(analytics-2)
      [:meta {:charset "utf-8"}]
      [:meta {:name "viewport" :content "width=device-width, initial-scale=1.0"}]
-     [:title ~(str (config/config :short-title) ": " title-text)]
+
+     ;; For Discord/FB previews. Stupid but that's the modern web
+     [:meta {:name "og:type" :content "article"}]
+     [:meta {:name "og:url" :content  ~page-url}]
+     [:meta {:name "og:title" :content ~title-text}]
+     [:meta {:name "og:description" :content ~description}]
+     ~(when image-url
+        `[:meta {:name "og:image" :content ~image-url}])
+
+     [:title ~page-title]
      [:link {:rel "stylesheet"
              :href "https://cdn.jsdelivr.net/npm/bootstrap@5.1.1/dist/css/bootstrap.min.css" 
              :integrity "sha384-F3w7mX95PdgyTmZZMECAngseQB83DfGTowi0iMjiWaeVhAn4FJkqJByhZMI3AhiU"
@@ -79,7 +100,7 @@
          `[:link {:rel "stylesheet" :href ~css}])
      [:link {:rel "preconnect" :href "https://fonts.gstatic.com"}]
      ;; Using slightly-bold font for links for whatever reason.
-     ;; TODO fonts should be specifyiable in config
+     ;; TODO fonts should be specifiable in config
      [:link {:rel "stylesheet" :href "https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;550&display=swap"}]
      [:link {:rel "stylesheet" :href "https://fonts.googleapis.com/css2?family=Varela+Round:wght@400;600&display=swap"}]
      ;; TODO this should be conditional on latex appearing on the page
@@ -143,7 +164,7 @@
      ~@(when (config/config :comments)
          `[[:script {:src "https://my.remarkbox.com/static/js/iframe-resizer/iframeResizer.min.js"}]
            [:script ~(deref comment-script)]])
-     ]])
+     ]]))
 
 (defn map-page
   [bm]

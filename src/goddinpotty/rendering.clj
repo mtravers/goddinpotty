@@ -188,7 +188,8 @@
             ;; changing my own mind about it.
             :class (str/join " "
                              (filter identity
-                                     (list (when (bd/page-empty? page) "empty")
+                                     (list "pagelink"
+                                           (when (bd/page-empty? page) "empty")
                                            (when (= current page-id) "self")
                                            (when-not (:include? page) "excluded")
                                            class)))})

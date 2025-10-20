@@ -108,6 +108,11 @@ a:hover {
     box-shadow: 0 0 0 5px #eeeee0;
 }
 
+/* TODO these should be a bit more visually distinctive, but not sure how  */
+.pagelink {
+  font-family: var(--header-face);
+}
+
 .external:hover {
     background-image: url(external-link.svg);
     background-position: center right;
