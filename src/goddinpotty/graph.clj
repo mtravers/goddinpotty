@@ -228,7 +228,7 @@
     [:div
      [:div.graph {:id id :style (and height (format "height: %spx;" height))}]
      [:script
-      (format "vegaEmbed.embed('#%s', %s);" id json)
+      (hiccup2/raw (format "vegaEmbed.embed('#%s', %s);" id json))
       ]]))
 
 (defn render-graph-embedded
@@ -273,6 +273,7 @@
      }
     ))
 
+;;; TODO in wrong place and doesn't work?
 (defn write-page-data
   [bm output-dir]
   (utils/write-json (str output-dir "/graphs/pages.json") (page-data bm)))

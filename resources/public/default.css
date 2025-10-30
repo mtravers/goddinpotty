@@ -109,6 +109,8 @@ a:hover {
 }
 
 /* TODO these should be a bit more visually distinctive, but not sure how  */
+/* TODO move text down 1px – can't figure out how, which seems absurd */
+/* TODO wanted to say   font-size: 13pt; but that fucks up links in headings. */
 .pagelink {
   font-family: var(--header-face);
 }
@@ -121,9 +123,10 @@ a:hover {
 }
 
 .empty {
-    pointer-events: none;
-    color: red;
-    opacity: 0.5;
+  pointer-events: none;
+  color: red;
+  opacity: 0.5;
+  font-family: var(--header-face);
 }
 
 .self {

@@ -169,9 +169,12 @@
 (defn map-page
   [bm]
   (page-hiccup
-   (graph/render-graph bm (config/config :output-dir) {:name "fullmap" ;warning: this name can't be the same as a page name!
-                                      :include-all? (config/config :unexclude?)
-                                      })
+   (graph/render-graph
+    bm
+    (config/config :output-dir)
+    {:name "fullmap" ;warning: this name can't be the same as a page name!
+     :include-all? (config/config :unexclude?)
+     })
    "Map"
    "Map"
    bm
@@ -222,7 +225,7 @@
 (defn about-content
   [bm]
   (when-let [block (bd/get-with-aliases bm about-block-title)]
-    (render/block-full-hiccup about-block-title bm)))
+   (render/block-full-hiccup about-block-title bm)))
 
 (defn about-widget
   [bm]
@@ -383,15 +386,15 @@
 
     (page-hiccup contents title-text title-hiccup block-map
                  :head-extra (graph/vega-lite-head) ;lite to support new dataviz
-                 ;; TODO wants to be configurable 
+                 ;; TODO wants to be configurable
                  ;; TODO also all widgets should be collapsible and the state remembered (map does this, but they all should)
                  :widgets [about-widget ;eg don't need this in my personal versioN!
                            search-widget
                            calendar-widget
                            page-contents-widget ;TODO only render when needed
                            map-widget
-                           page-hierarchy-widget
                            incoming-links-widget
+                           page-hierarchy-widget
                            twin-pages-widget])
     ))
 
