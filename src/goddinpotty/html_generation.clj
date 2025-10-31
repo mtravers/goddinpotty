@@ -4,9 +4,9 @@
             [me.raynes.fs :as fs]
             [goddinpotty.utils :as utils]
             [goddinpotty.templating :as templating]
+            [goddinpotty.graph :as graph]
             [goddinpotty.batadase :as bd]
             #_ [goddinpotty.recent :as recent]
-            [goddinpotty.index :as index]
             [goddinpotty.search :as search]
             [goddinpotty.config :as config]
             [goddinpotty.context :as context]
@@ -52,7 +52,7 @@
   (context/with-context [:page (:title block)]
     (let [fname (str "/" (utils/clean-page-title (:title block)))]
       (export-page (if (:special? block)
-                     ((:generator block) block-map)
+                     ((:generator block) block-map output-dir)
                      (page-hiccup block-map output-dir block))
                    fname
                    output-dir))))
@@ -87,10 +87,7 @@
    "/New.html"
    output-dir))
 
-(defn generate-global-map
-  [bm]
-   (templating/map-page bm)
-  )
+
 
 (defn generate-goddinpotty
   [block-map output-dir]
@@ -112,17 +109,16 @@
             :page? true
             })))
 
-#_
-(defn generated-pages
-  "Add a generated page to the block map"
-  [block-map pages]
-  (reduce (fn [bm [name page]]
-            (assoc bm name
-                   {:id name
-                    :title name
-                    :special? true                ;I miss OOP
-                    :generator generator
-                    :include? true
-                    :page? true
-                    }))
-          pages))
+(defn map-page
+  [bm output-dir]
+  (templating/page-hiccup
+   (graph/render-graph
+    bm
+    output-dir
+    {:name "fullmap" ;warning: this name can't be the same as a page name!
+     :include-all? (config/config :unexclude?)
+     })
+   "Map"
+   "Map"
+   bm
+   :head-extra (graph/vega-head)))

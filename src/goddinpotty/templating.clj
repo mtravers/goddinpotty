@@ -68,6 +68,7 @@
 
 ;;; TODO much of this should be configurable
 (defn page-hiccup
+  "The main page generator"
   [contents title-text title-hiccup block-map & {:keys [head-extra widgets]}]
   (let [page-title (str (config/config :short-title) ": " title-text)
         page-url (str (config/config :real-base-url)
@@ -166,19 +167,7 @@
            [:script ~(deref comment-script)]])
      ]]))
 
-(defn map-page
-  [bm]
-  (page-hiccup
-   (graph/render-graph
-    bm
-    (config/config :output-dir)
-    {:name "fullmap" ;warning: this name can't be the same as a page name!
-     :include-all? (config/config :unexclude?)
-     })
-   "Map"
-   "Map"
-   bm
-   :head-extra (graph/vega-head)))
+
 
 (defn render-date-range
   [[from to]]

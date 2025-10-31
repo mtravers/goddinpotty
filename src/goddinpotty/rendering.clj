@@ -3,7 +3,6 @@
             [goddinpotty.parser :as parser]
             [goddinpotty.batadase :as bd]
             [goddinpotty.database :as db]
-            [goddinpotty.graph :as graph]
             [goddinpotty.utils :as utils]
             [goddinpotty.context :as context]
             [goddinpotty.endure :as e]

@@ -17,12 +17,11 @@
 (defn add-generated-pages
   [bm]
   (-> bm
-      (merge (index/make-index-pages bm))
+      index/add-index-page
       ;; Out of service; Logseq doesn't generate per-block dates
       ;; Although could pull them from git with some work... TODO
       #_(html-gen/generated-page "New" html-gen/generate-recent-page) 
-      (html-gen/generated-page "Map" html-gen/generate-global-map)
-      ))
+      (html-gen/generated-page "Map" html-gen/map-page)))
 
 #_
 (defn block-map-json
@@ -116,7 +115,6 @@
 
 (defn replace-directory
   [old new]
-  (rename-dirs new (str new ".old"))       ;temp
   (rename-dirs old new)
   )  
 
@@ -136,7 +134,7 @@
     (log/info "Build stats:" (bd/stats @last-bm))
     #_ (dump bm)
     ;; Copy to
-    (replace-directory  output-dir (config/config :output-dir))
+    (replace-directory output-dir (config/config :output-dir))
     bm
   ))
 

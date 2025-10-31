@@ -5,6 +5,7 @@
             [goddinpotty.templating :as templating]
             [goddinpotty.rendering :as render]
             [goddinpotty.config :as config]
+            [goddinpotty.html-generation :as htmlg]
             [org.candelbio.multitool.core :as u]
             [clojure.string :as s]))
 
@@ -33,39 +34,26 @@
     :render #(format "%.1fK" (double (/ (bd/size %) 1000)))}
    ])
 
-;;; Copied with mods from html-gen due to namespace fuck
-(defn generated-page
-  "Add a generated page to the block map"
-  [name generator]
-  {:id name
-   :title name
-   :special? true                ;I miss OOP
-   :generator generator
-   :include? true
-   :display? true
-   :page? true
-   })
-
-;;; Returns map to merge into bm
-(defn make-index-pages
+;;; Now only one page with sorting via ag-grid
+(defn add-index-page
   [bm]
   (let [pages (remove :special? (bd/displayed-regular-pages bm))
         page-id (fn [name] (format "Index-%s" name))
         ]
-    {"Index"
-     (generated-page
-      "Index"
-      (fn [bm]
-        (let [hiccup
-              [:div#myGrid {:style "height:800px;"}]
-              title "Index"]
-          (templating/page-hiccup
-           hiccup title title bm
-                   :head-extra [[:script {:src "https://cdn.jsdelivr.net/npm/ag-grid-community/dist/ag-grid-community.min.js"}]
-                                [:script {:src "assets/grid.js"}]]
-                   :widgets [(templating/about-widget bm)
-                             (templating/search-widget bm)])
-          )))}))
+    (htmlg/generated-page
+     bm
+     "Index"
+     (fn [bm output-dir_]
+       (let [hiccup
+             [:div#myGrid {:style "height:800px;"}]
+             title "Index"]
+         (templating/page-hiccup
+          hiccup title title bm
+          :head-extra [[:script {:src "https://cdn.jsdelivr.net/npm/ag-grid-community/dist/ag-grid-community.min.js"}]
+                       [:script {:src "assets/grid.js"}]]
+          :widgets [(templating/about-widget bm)
+                    (templating/search-widget bm)])
+         )))))
 
 
 ;;; Dev only

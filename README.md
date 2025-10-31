@@ -81,3 +81,8 @@ There are a bunch of options in the config file and there probably should be mor
 
 TODO document them.
 
+# Testing
+
+    lein test
+    or (-main "resources/test/logseq-test-config.edn")
+    bin/serve.sh 2282 target/logseq-test

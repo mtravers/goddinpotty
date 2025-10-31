@@ -211,8 +211,9 @@
 (defn render-graph
   "Writes out the graph json and returns the hiccup to embed it"
   [bm output-dir {:keys [name width height controls?] :as options :or {height 1000}}]
-  (let [base-name (str "assets/graphs/" name ".json")]
-    (utils/write-json (str output-dir "/" base-name) (spec bm options))
+  (let [base-name (str "assets/graphs/" name ".json")
+        graph-path (str output-dir "/" base-name)]
+    (utils/write-json graph-path (spec bm options))
     (let [id (str "view_" name)]
       [:div
        [:div.graph {:id id :style (format "height: %spx;" (+ height (if controls? 300 0)))}]
