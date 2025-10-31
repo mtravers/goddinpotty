@@ -181,14 +181,14 @@
         page-id (:id page)
         page-title (:title page)]
     (if (and page (bd/displayed? page) page-title)
-      [:a (u/clean-map
+      [:a.pagelink
+       (u/clean-map
            {:href (utils/clean-page-title page-title)
             ;; TODO behavior with empties should be configurable, I keep
             ;; changing my own mind about it.
             :class (str/join " "
                              (filter identity
-                                     (list "pagelink"
-                                           (when (bd/page-empty? page) "empty")
+                                     (list (when (bd/page-empty? page) "empty")
                                            (when (= current page-id) "self")
                                            (when-not (:include? page) "excluded")
                                            class)))})

@@ -47,9 +47,9 @@
 
   ;; TODO shouldn't this be [:span.empty ...] ??? Are both of those needed or should they be collapsed
   (testing "link to real block"
-    (is (= [:span "foo " [:a {:href "bar"} "bar"] " baz " [:a.external {:href "yuck"} "ugh"]]
+    (is (= [:span "foo " [:a.pagelink {:href "bar"} "bar"] " baz " [:a.external {:href "yuck"} "ugh"]]
            (block-hiccup (fake-block "foo [[bar]] baz [ugh](yuck)") fake-block-map)))
-    (is (= [:span "foo " [:a {:href "bar"} "bar"] " and " [:a {:href "baz"} "baz"]]
+    (is (= [:span "foo " [:a.pagelink {:href "bar"} "bar"] " and " [:a.pagelink {:href "baz"} "baz"]]
            (block-hiccup (fake-block "foo [[bar]] and [[baz]]") fake-block-map)
          )))
 
@@ -58,7 +58,7 @@
            (block-hiccup (fake-block "foo [[zorch]] baz [ugh](yuck)") fake-block-map)))
     )
 
-  (is (= [:span "foo " [:a.external {:href "yuck"} "ugh"] " baz " [:a {:href "bar"} "bar"]]
+  (is (= [:span "foo " [:a.external {:href "yuck"} "ugh"] " baz " [:a.pagelink {:href "bar"} "bar"]]
          (block-hiccup (fake-block "foo [ugh](yuck) baz [[bar]]") fake-block-map)
          ))
   (is (= [:span "foo " [:a.external {:href "yuck"} "ugh"] " baz " [:a.external {:href "zippy"} "yow"]]
@@ -90,7 +90,7 @@ And its fallen Emanation, the Spectre and its cruel Shadow.") {}))))
  and so is this.```") {})))))
 
 (deftest markup-in-page-names-test
-  (is (= [:a {:href "__foo__"} [:i "foo"]] 
+  (is (= [:a.pagelink {:href "__foo__"} [:i "foo"]] 
          (block-hiccup (fake-block "[[__foo__]]")
                        (fake-block-map+
                         (prep-block
