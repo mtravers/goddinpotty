@@ -6,7 +6,7 @@
             [goddinpotty.rendering :as render]
             [goddinpotty.config :as config]
             [goddinpotty.html-generation :as htmlg]
-            [org.candelbio.multitool.core :as u]
+            [hyperphor.multitool.core :as u]
             [clojure.string :as s]))
 
 ;;; Used to generate a set of static pages, now a single page with ag-grid, much better!

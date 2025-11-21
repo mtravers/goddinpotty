@@ -1,8 +1,8 @@
 (ns goddinpotty.export.gdf
   (:require [goddinpotty.batadase :as bd]
             [goddinpotty.utils :as utils]
-            [org.candelbio.multitool.core :as u]
-            [org.candelbio.multitool.cljcore :as ju]
+            [hyperphor.multitool.core :as u]
+            [hyperphor.multitool.cljcore :as ju]
             ))
 
 ;;; For Gephi

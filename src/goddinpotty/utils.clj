@@ -2,8 +2,8 @@
   (:require [me.raynes.fs :as fs]
             [clojure.java.io :as io]
             [clojure.string :as s]
-            [org.candelbio.multitool.core :as u]
-            [org.candelbio.multitool.cljcore :as ju]
+            [hyperphor.multitool.core :as u]
+            [hyperphor.multitool.cljcore :as ju]
             [clojure.data.json :as json]
             ))
 

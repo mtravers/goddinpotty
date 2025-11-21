@@ -1,6 +1,6 @@
 (ns goddinpotty.twin-pages
-  (:require [org.candelbio.multitool.core :as u]
-            [org.candelbio.multitool.cljcore :as ju]
+  (:require [hyperphor.multitool.core :as u]
+            [hyperphor.multitool.cljcore :as ju]
             [hiccup2.core :as hiccup2]
             [clojure.string :as str]
             [goddinpotty.endure :as e]

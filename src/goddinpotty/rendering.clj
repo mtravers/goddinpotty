@@ -8,8 +8,8 @@
             [goddinpotty.endure :as e]
             [clojure.data.json :as json]
             [clojure.string :as str]
-            [org.candelbio.multitool.core :as u]
-            [org.candelbio.multitool.dev :as udev]
+            [hyperphor.multitool.core :as u]
+            [hyperphor.multitool.dev :as udev]
             [clojure.tools.logging :as log]
             [hiccup2.core :as hiccup2]
             )

@@ -1,6 +1,6 @@
 (ns goddinpotty.import.roam-images
-  (:require [org.candelbio.multitool.core :as u]
-            [org.candelbio.multitool.cljcore :as ju]
+  (:require [hyperphor.multitool.core :as u]
+            [hyperphor.multitool.cljcore :as ju]
             [me.raynes.fs :as fs]
             [goddinpotty.batadase :as bd]
             [goddinpotty.rendering :as render]

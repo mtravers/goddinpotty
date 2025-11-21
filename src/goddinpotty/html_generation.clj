@@ -1,5 +1,5 @@
 (ns goddinpotty.html-generation
-  (:require [org.candelbio.multitool.core :as u]
+  (:require [hyperphor.multitool.core :as u]
             [hiccup2.core :as hiccup2]
             [me.raynes.fs :as fs]
             [goddinpotty.utils :as utils]

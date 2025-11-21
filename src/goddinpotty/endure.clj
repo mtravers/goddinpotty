@@ -1,6 +1,6 @@
 (ns goddinpotty.endure
   (:require [alandipert.enduro :as e]
-            [org.candelbio.multitool.core :as u]))
+            [hyperphor.multitool.core :as u]))
 
 ;;; TODO also in voracious, sync these up.
 ;;; not → multitool, don't want to bring along the dependencies (includes postgres)

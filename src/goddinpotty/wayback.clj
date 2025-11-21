@@ -1,7 +1,7 @@
 (ns goddinpotty.wayback
   (:require [clj-http.client :as client]
-            [org.candelbio.multitool.core :as u]
-            [org.candelbio.multitool.cljcore :as ju]
+            [hyperphor.multitool.core :as u]
+            [hyperphor.multitool.cljcore :as ju]
             [clojure.string :as s]
             [clojure.tools.logging :as log]
             [clojure.java.shell :as sh]

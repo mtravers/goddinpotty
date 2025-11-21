@@ -4,8 +4,8 @@
             [goddinpotty.rendering :as rendering]
             [goddinpotty.config :as config]
             [me.raynes.fs :as fs]
-            [org.candelbio.multitool.core :as u]
-            [org.candelbio.multitool.cljcore :as ju]
+            [hyperphor.multitool.core :as u]
+            [hyperphor.multitool.cljcore :as ju]
             [clojure.java.shell :as sh]
             [clojure.tools.logging :as log]
             )

@@ -6,7 +6,7 @@
             [clj-http.client :as client]
             [clojure.string :as str]
             [clojure.data.json :as json]
-            [org.candelbio.multitool.core :as u]
+            [hyperphor.multitool.core :as u]
   ))
 
 ;;; Note: requires parsing whole graph, see database/parse

@@ -10,7 +10,7 @@
             [goddinpotty.import.edit-times :as et]
             [goddinpotty.context :as context]
             [goddinpotty.twin-pages :as tp]
-            [org.candelbio.multitool.core :as u]
+            [hyperphor.multitool.core :as u]
             [hiccup2.core :as hiccup2]
             ))
 

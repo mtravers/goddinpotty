@@ -4,8 +4,8 @@
             [goddinpotty.rendering :as render]
             [goddinpotty.utils :as utils]
             [clojure.string :as str]
-            [org.candelbio.multitool.core :as u]
-            [org.candelbio.multitool.cljcore :as ju]
+            [hyperphor.multitool.core :as u]
+            [hyperphor.multitool.cljcore :as ju]
             [clojure.tools.logging :as log]
             )
   )

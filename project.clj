@@ -4,7 +4,7 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :jvm-opts ["-Xmx6G"]
-  :dependencies [[org.clojure/clojure "1.11.3"]
+  :dependencies [[org.clojure/clojure "1.12.3"]
                  [me.raynes/fs "1.4.6"]
                  [ch.qos.logback/logback-classic "1.4.5"]
                  [org.clojure/data.json "2.5.0"]
@@ -12,7 +12,7 @@
 ;; Used by logseq-from-md, not there yet
 ;;                 [org.commonmark/commonmark "0.18.0"]
                  [html-to-md/html-to-md "0.3.0"]
-                 [org.candelbio/multitool "0.1.12"]
+                 [com.hyperphor/multitool "0.2.1"]
                  [com.taoensso/truss "1.6.0"]
                  [alandipert/enduro "1.2.0"] ;persistence for expensive calculations
                  [hiccup "2.0.0"]
