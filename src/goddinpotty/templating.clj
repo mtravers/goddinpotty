@@ -130,10 +130,10 @@
         ~@widgets
         ]
 
-       #_ "<!-- Post Con<tent Column -->"
+       #_ "<!-- Post Content Column -->"
        [:div.col-lg-7
-        #_ "<!-- Title -->"
-        [:div.ptitle
+        [:div.main
+         #_ "<!-- Title -->"
          [:h1 ~title-hiccup]
          ~contents
          ]
@@ -382,8 +382,8 @@
                            calendar-widget
                            page-contents-widget ;TODO only render when needed
                            map-widget
-                           incoming-links-widget
                            page-hierarchy-widget
+                           incoming-links-widget
                            twin-pages-widget])
     ))
 
