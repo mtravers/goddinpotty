@@ -3,7 +3,7 @@
             [goddinpotty.import.logseq :as sut]
             [goddinpotty.utils :as utils]
             [goddinpotty.config :as config]
-            [org.candelbio.multitool.core :as u]
+            [hyperphor.multitool.core :as u]
             ))
 
 ;;; These are sort of high-level integration tests, to prove that the basic machinery is working.

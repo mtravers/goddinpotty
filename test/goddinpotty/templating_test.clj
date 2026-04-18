@@ -1,7 +1,7 @@
 (ns goddinpotty.templating-test
   (:require [goddinpotty.templating :refer :all]
             [goddinpotty.database :as db]
-            [org.candelbio.multitool.core :as u]
+            [hyperphor.multitool.core :as u]
             [clojure.test :refer :all]))
 
 ;;; → utils
