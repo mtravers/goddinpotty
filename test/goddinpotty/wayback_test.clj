@@ -4,6 +4,7 @@
 
 (def s "- [Programming with Agents](https://alumni.media.mit.edu/~mt/diss/index.html)")
 
+;;; TODO not always reliable
 (deftest basic-wayback
   (let [res (process-string s)]
     (is (re-matches #"- \[Programming with Agents\]\(http://web.archive.org/web/.*\)" res))))

@@ -187,3 +187,6 @@ And its fallen Emanation, the Spectre and its cruel Shadow.")))))
   (is (= [:block [:bold "Sarvakarmaphalatyâga"] " . . . Years ago, "]
          (parse-to-ast "**Sarvakarmaphalatyâga** . . . Years ago, "))))
 
+(deftest slashes-in-text
+  (is (= [:block [:bold [:textier "foo/bar"]]]
+         (block-parser "**foo/bar**"))))
