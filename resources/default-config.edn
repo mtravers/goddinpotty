@@ -11,6 +11,9 @@
 
  ;; Custpmization
  :entry-tags ["EntryPoint"]
+ ;; Tags that, wherever they occur in a block, hide that block's children from normal
+ ;; display and reveal them in a hover popup instead. See design/ask-claude.md
+ :hover-tags ["AskClaude"]
  ;; These shell variables are deprecated, should do everything through aero configs
  :exit-tags #or [#split [#env GP_EXIT_TAGS] ["ExitPoint" "Private"]]
  :site-css ["../assets/default.css"]

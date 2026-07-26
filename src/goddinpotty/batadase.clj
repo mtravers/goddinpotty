@@ -47,6 +47,30 @@
   [block]
   (some (boundary-tags) (block-names block)))
 
+;;; Hover tags (default #AskClaude, see design/ask-claude.md): a configurable set of tags that,
+;;; wherever they occur in a block, hide that block's children from normal display and instead
+;;; make them appear in a popup revealed by hovering over the tag.
+(u/defn-memoized hover-tags
+  []
+  (set (config/config :hover-tags)))
+
+(defn hover-tag?
+  [tag]
+  (contains? (hover-tags) tag))
+
+;;; All hashtag names referenced anywhere in a block's parsed content (not just top-level)
+(defn block-hashtags
+  [block]
+  (keep (fn [node]
+          (and (vector? node)
+               (= :hashtag (first node))
+               (utils/parse-hashtag (second node))))
+        (tree-seq vector? seq (:parsed block))))
+
+(defn hover-tag-block?
+  [block]
+  (boolean (some hover-tag? (block-hashtags block))))
+
 ;;; Logseq makes a lot of these, I think for links to unrealized pages. They suck and the interfere with aliases, so weeding them early
 (defn block-empty?
   [block]

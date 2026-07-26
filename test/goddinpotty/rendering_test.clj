@@ -3,6 +3,7 @@
             [goddinpotty.parser :as parser]
             [goddinpotty.utils :as utils]
             [mock-clj.core :as mc]
+            [clojure.string :as str]
             [clojure.test :refer :all]))
 
 (defn with-config
@@ -143,6 +144,30 @@ And its fallen Emanation, the Spectre and its cruel Shadow.") {}))))
           " or "
           [:a.external {:href "http://link"} "normal"]])
       (block-content->hiccup "Blah blah [finished coherent essay]([[What Motivated Rescuers During the Holocaust?]])")))
+
+(deftest ask-claude-test
+  (testing "predicate fires on any occurrence of a hover tag in a block, not just alone"
+    (is (goddinpotty.batadase/hover-tag-block? (fake-block "#AskClaude")))
+    (is (goddinpotty.batadase/hover-tag-block? (fake-block "some text #AskClaude more text")))
+    (is (not (goddinpotty.batadase/hover-tag-block? (fake-block "no tag here")))))
+
+  (let [child (prep-block {:id 101 :content "mumbojumbo" :display? true :children []})
+        parent (assoc (fake-block "some text #AskClaude more text") :children [(:id child)])
+        bm (-> fake-block-map
+               (assoc (:id child) child)
+               (assoc (:id parent) parent))]
+    (testing "renders as a lozenge (inline, wherever the tag occurs) whose popup holds the hidden children"
+      (let [hiccup (block-hiccup parent bm)]
+        (is (some #(and (vector? %) (= :span.hover-tag-container (first %))) hiccup))
+        (is (some #(str/includes? (str %) "Ask Claude") hiccup)) ;; humanized tag text
+        (is (some #(str/includes? (str %) "mumbojumbo") hiccup))))
+
+    (testing "children are not also rendered as ordinary nested content"
+      (let [full (str (block-full-hiccup (:id parent) bm))
+            marker (str "{:id " (:id child))]
+        ;; the child's <ul id=...> appears once, from the popup rendering inside
+        ;; hover-tag-hiccup -- not a second time from normal recursion
+        (is (= 1 (count (re-seq (re-pattern (java.util.regex.Pattern/quote marker)) full))))))))
 
 (deftest hiccup-render-test
   (= [:table.table

@@ -20,6 +20,7 @@
 (declare block-content->hiccup)         ;allow recursion on this
 (declare block-full-hiccup)
 (declare block-full-hiccup-guts)
+(declare hover-tag-hiccup)
 
 ;;; Boostrap icons, see css and https://icons.getbootstrap.com/
 (defn icon
@@ -215,8 +216,22 @@
 
 (declare block-hiccup)
 
+;;; Hover tags, eg #AskClaude (see design/ask-claude.md and :hover-tags config).
+;;; The tag itself renders as a lozenge; the block's children are rendered here into a
+;;; popup revealed on hover, instead of appearing as normal nested content (see
+;;; block-full-hiccup-guts, which knows to skip them to avoid rendering twice).
 
+;;; "AskClaude" -> "Ask Claude"
+(defn- humanize-tag
+  [tag]
+  (str/replace tag #"(?<=[a-z0-9])(?=[A-Z])" " "))
 
+(defn hover-tag-hiccup
+  [bm block tag]
+  [:span.hover-tag-container
+   [:span.hover-tag-lozenge (humanize-tag tag)]
+   [:div.hover-tag-popup
+    (map #(block-full-hiccup % bm) (:children block))]])
 
 ;;; A much easier way to do sidenotes
 (declare ele->hiccup)
@@ -338,8 +353,10 @@
                              [:div.block-ref                   ;render a real blockref
                               (block-hiccup ref-block block-map)])
             :hashtag (let [ht (utils/parse-hashtag ele-content)]
-                       (or (bd/special-hashtag-handler block-map ht block)
-                           (page-link-by-name block-map ht)))
+                       (cond (bd/hover-tag? ht) (hover-tag-hiccup block-map block ht)
+                             :else
+                             (or (bd/special-hashtag-handler block-map ht block)
+                                 (page-link-by-name block-map ht))))
             :strikethrough [:s (recurse (utils/remove-double-delimiters ele-content))]
             :highlight [:mark (recurse (utils/remove-double-delimiters ele-content))]
             :italic `[:i ~@(maybe-conc-string (nrecurse (rest ast-ele)))]
@@ -431,8 +448,11 @@
            (icon "file-lock2")])
         (when-not (:page? block)        ;Page content is title and rendered elsewhere
           (block-hiccup block block-map))]
-       (map #(block-full-hiccup % block-map (inc depth))
-            (:children block))])))
+       ;; Blocks containing a hover tag (eg #AskClaude) render their children inside a
+       ;; hover popup (see hover-tag-hiccup below) rather than as normal nested content.
+       (when-not (bd/hover-tag-block? block)
+         (map #(block-full-hiccup % block-map (inc depth))
+              (:children block)))])))
 
 ;;; The real top-level call
 (defn block-full-hiccup

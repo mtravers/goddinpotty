@@ -375,6 +375,53 @@ iframe {
     border: 1px solid red;
 }
 
+/* Hover tags (eg #AskClaude) related: see design/ask-claude.md and :hover-tags config */
+
+.hover-tag-container {
+    position: relative;
+    display: inline-block;
+}
+
+.hover-tag-lozenge {
+    display: inline-block;
+    padding: 0px 10px;
+    border-radius: 999px;      /* pill shape */
+    background: #eef0f3;
+    border: 1px solid #d0d3d8;
+    color: #555;
+    font-size: 85%;
+    font-style: italic;
+    cursor: help;
+    user-select: none;
+}
+
+.hover-tag-container:hover .hover-tag-lozenge {
+    background: #dfe3e8;
+}
+
+.hover-tag-popup {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 5px;
+    min-width: 250px;
+    max-width: 400px;
+    padding: 10px;
+    background: white;
+    border: 1px solid gray;
+    border-radius: 5px;
+    box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.3);
+    font-size: 80%;
+    font-style: normal;
+    z-index: 999;
+    text-align: left;
+}
+
+.hover-tag-container:hover .hover-tag-popup {
+    display: block;
+}
+
 /* When we show all blocks, highlight the private ones */
 .excluded {
     background: lightgoldenrodyellow;
