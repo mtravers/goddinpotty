@@ -1,4 +1,4 @@
-OK I want all blocks headed by #AskClaude to render as hover pop-ups.
+# DONE OK I want all blocks headed by #AskClaude to render as hover pop-ups.
 
 eg
 - What was your face before you were born

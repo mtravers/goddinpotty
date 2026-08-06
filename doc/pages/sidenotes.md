@@ -1,0 +1,22 @@
+- Sidenotes are a complete hack on a couple of different levels.
+- # Usage
+- You make a sidenote by including a block reference to a block on the same page (typically the sidenote block will be a child of the referrer). Eg:
+	- Some text with a sidenote ((637fb0c7-6cd0-4775-b68b-40d6b0afe748))
+		- This is the sidenote
+		  id:: 637fb0c7-6cd0-4775-b68b-40d6b0afe748
+- If this works (see below) the sidenote block will be rendered as a sidenote and omitted from the usual render.
+- # Implementation
+	- # Parse and Render
+		- `sidenotes`  global mutable state that tracks detected sidenote blocks. Sidenotes are detected when they are rendered.
+		- `sidenote?` true if block is a sidenote (WARN depends on mutable state...)
+		- `*no-sidenotes*` Suppresses rendering of sidenotes in certain contexts
+		- `sidenote` renders a sidenote block
+		- `ele->hiccup` this is the main rendering fn. for `:block-ref` elements, it decides if something is a sidenote, and renders it accordingly.
+		- `block-full-hiccup` `block-full-hiccup-no-sidenotes` basic render, external calls
+		- `block-full-hiccup-guts` worker for the above
+		-
+	-
+	- # CSS
+	- Actually getting sidenotes to render cleanly in HTML is a headbanger of a task, see the appropriate class definitions for how I got this to (sort of) work.
+- # Elsewhere
+	- https://www.gwern.net/Sidenotes#

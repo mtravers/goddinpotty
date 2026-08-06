@@ -34,3 +34,9 @@
 
 
        
+(comment
+  (with-context [:foo 23]
+    (with-context [:bar 88]
+      (print :hey (get-context)))))
+
+;;; This is not at all what you want – cant handle recursion, where it is most needed!
