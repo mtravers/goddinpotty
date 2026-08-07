@@ -11,6 +11,13 @@ var index = elasticlunr(function () {
     this.addField('alias');
     this.addField('body');
     this.setRef('id');		// TODO is this used?
+    // Stemming fights the "expand" prefix search used for search-as-you-type:
+    // it only reduces a fully-typed word to its stem (eg "operators" -> "oper"),
+    // so a partial word being typed (eg "opera", "operat") usually isn't a
+    // prefix of that stem and fails to match until the word is complete.
+    // Dropping the stemmer keeps indexed terms as literal words, which prefix-
+    // matches consistently at every length typed.
+    this.pipeline.remove(elasticlunr.stemmer);
 });
 
 function Get(yourUrl){
