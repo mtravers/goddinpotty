@@ -1,6 +1,10 @@
 * Search bug
-"operators" does not turn up the page https://hyperphor.com/ammdi/__Operators-and-Things__
+DONE "operators" does not turn up the page https://hyperphor.com/ammdi/__Operators-and-Things__
 Maybe title isn't getting processed, or its a function of the italic markup?
+Confirmed: the search index's :title field used the raw page title (markup and all,
+eg "__Operators and Things__"), which broke elasticlunr tokenization and also meant
+the page had no plain-text rendering of its own title anywhere in the index. Fixed
+by stripping markup via a new goddinpotty.rendering/plain-title before indexing.
 
 
 * AskClaude popups

@@ -467,9 +467,9 @@
   [s]
   (re-matches #"(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})" s))
 
-(defn block-local-text
-  "just the text of a block, formatting removed"
-  [block-map block]
+(defn hiccup->text
+  "Extract just the text from a Hiccup form, formatting (and urls) removed"
+  [hiccup]
   (letfn [(text [thing]
             (cond (string? thing)
                   (if (url? thing)
@@ -481,7 +481,18 @@
                   (mapcat text (rest thing))
                   :else
                   ()))]
-    (str/join "" (text (block-hiccup block block-map)))))
+    (str/join "" (text hiccup))))
+
+(defn block-local-text
+  "just the text of a block, formatting removed"
+  [block-map block]
+  (hiccup->text (block-hiccup block block-map)))
+
+;;; Page titles can contain Roam/Logseq markup (eg __italic__ page names); strip it for
+;;; contexts like the search index that need plain text rather than markup source.
+(defn plain-title
+  [title]
+  (hiccup->text (block-content->hiccup title)))
 
 ;;; Used for search index
 (defn block-full-text

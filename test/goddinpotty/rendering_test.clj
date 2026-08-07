@@ -100,6 +100,12 @@ And its fallen Emanation, the Spectre and its cruel Shadow.") {}))))
                           :page? true
                           :content "eh"}))))))
 
+(deftest plain-title-test
+  (testing "markup is stripped from page titles, eg for the search index"
+    (is (= "foo" (plain-title "__foo__")))
+    (is (= "Operators and Things" (plain-title "__Operators and Things__")))
+    (is (= "foo" (plain-title "foo")))))
+
 (deftest italic-link-bug
   (testing "link inside italics"
     (is (= [:span

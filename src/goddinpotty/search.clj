@@ -18,7 +18,9 @@
      {:id index                          ;TODO not sure this is necessary, we don't use it
       :url (utils/clean-page-title (:title page))
       ;; If punctuation is causing problems, try fiddling with elasticlunr.tokenizer.seperator
-      :title (:title page)
+      ;; :title can contain raw markup (eg __italic__ page names), which breaks tokenization
+      ;; and search matching if left in, so strip it (see design/TODOs.org, "Search bug")
+      :title (render/plain-title (:title page))
       :alias (when-let [aliases (:alias page)]
                (str/join " " aliases))
       :body (render/block-full-text bm page)
