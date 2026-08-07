@@ -112,12 +112,16 @@
 (defn map-page
   [bm output-dir]
   (templating/page-hiccup
+   [:div
+    "Not really a map in any sense of the word. It's on my to-do list, make an actual 2D navigable plane layout, hopefully clustered sanely. But with constant positions, to the extent possible.  "
+
    (graph/render-graph
     bm
     output-dir
     {:name "fullmap" ;warning: this name can't be the same as a page name!
      :include-all? (config/config :unexclude?)
      })
+    ]
    "Map"
    "Map"
    bm

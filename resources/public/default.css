@@ -168,6 +168,12 @@ blockquote {
     font-size: 10pt;
 }
 
+/* Hover tags (eg #AskClaude) render as ugly clutter in the tight incoming-links
+   list, so just hide them there; see design/ask-claude.md */
+.incoming .hover-tag-container {
+    display: none;
+}
+
 .codeblock {
     white-space: break-spaces;    
 }

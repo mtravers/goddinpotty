@@ -1,5 +1,10 @@
+* Search bug
+"operators" does not turn up the page https://hyperphor.com/ammdi/__Operators-and-Things__
+Maybe title isn't getting processed, or its a function of the italic markup?
+
+
 * AskClaude popups
-TODO Looks like ass in sidebar, needs to be hidden.
+DONE Looks like ass in sidebar, needs to be hidden.
 
 
 * Collapsed panes
