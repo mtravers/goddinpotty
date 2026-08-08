@@ -108,48 +108,70 @@
    :links 12,
 })
 
+;;; :db/id is a Datascript-internal entity id: reassigned on every reindex of the graph,
+;;; so it can't be used for anything meant to survive across builds (see design/stable-block-ids.md).
+;;; :block/uuid is Logseq's real persistent identity for a block. This translates every
+;;; internal cross-reference (a block's own id, plus :parent/:left/:page, all of which
+;;; come off the wire as raw :db/id) through :block/uuid, once, right at the import
+;;; boundary -- everything downstream just sees a stable string :id and never touches :db/id.
+(defn- id->uuid-map
+  [blocks]
+  (into {} (map (juxt :db/id (comp str :block/uuid))) blocks))
+
+;;; Sanity check for the above: order-children (below) walks a block's children by
+;;; matching each child's :left against its parent's :id, so those two must agree
+;;; post-translation or children silently go missing (see order-children's own TODO).
+(defn- assert-left-refs-resolve
+  [db]
+  (doseq [[id {:keys [left]}] db]
+    (assert (or (nil? left) (contains? db left))
+            (str "Block " id "'s :left (" left ") does not match any known block :id")))
+  db)
+
 ;;; TODO do something with :block/refs and/or :block/path-refs probably?
 ;;; path-refs seems to be union of refs and parent?
 (defn logseq-nbb->blocks-base
   [blocks]
-  (->> blocks
-       (remove #(get-in % [:block/properties :ls-type])) ; stuff from whiteboards creeps in and breaks thigns
-       (map (fn [block]
-              ;; Sanity check, this condition causes problems further down (order-children produces nils)
-              (assert (not (= (:db/id block) (:db/id (:block/parent block))))
-                      (str "Block is its own parent: " (:db/id block)))
-               ;; TODO reexamine this – probably only pages should have title?
-               {:title (or
-                        ;; unlist because sometimes this is a set for no good reason
-                        (u/unlist (get-in block [:block/properties :title]))
-                        (:block/original-name block) ;??? Not sure what actual semnatics are, but this is often better TODO should name be alias?
-                        (:block/name block))
-                :id (:db/id block) ;note: has to be id so refs work
-                :uid (str (:block/uuid block))
-                :content (:block/content block) ;TODO strip out properties
-                :edit-time (utils/coerce-time (or (get block :block/updated-at)
-                                                  (get-in block [:block/properties :updated-at])))
-                :create-time (utils/coerce-time (or (get block :block/updated-at)
-                                                    (get-in block [:block/properties :created-at])))
+  (let [blocks (remove #(get-in % [:block/properties :ls-type]) blocks) ; stuff from whiteboards creeps in and breaks thigns
+        id->uuid (id->uuid-map blocks)]
+    (->> blocks
+         (map (fn [block]
+                ;; Sanity check, this condition causes problems further down (order-children produces nils)
+                (assert (not (= (:db/id block) (:db/id (:block/parent block))))
+                        (str "Block is its own parent: " (:db/id block)))
+                 ;; TODO reexamine this – probably only pages should have title?
+                 {:title (or
+                          ;; unlist because sometimes this is a set for no good reason
+                          (u/unlist (get-in block [:block/properties :title]))
+                          (:block/original-name block) ;??? Not sure what actual semnatics are, but this is often better TODO should name be alias?
+                          (:block/name block))
+                  :id (id->uuid (:db/id block)) ;note: has to be id so refs work
+                  :uid (str (:block/uuid block))
+                  :content (:block/content block) ;TODO strip out properties
+                  :edit-time (utils/coerce-time (or (get block :block/updated-at)
+                                                    (get-in block [:block/properties :updated-at])))
+                  :create-time (utils/coerce-time (or (get block :block/updated-at)
+                                                      (get-in block [:block/properties :created-at])))
 
-                :parent (get-in block [:block/parent :db/id])
-                :left (get-in block [:block/left :db/id])
-                :page? (boolean (:block/name block)) ;???
-                :page (:db/id (:block/page block))
-                :alias (or (get-in block [:block/properties :aliases]) ;not sure why but it appears both ways
-                           (get-in block [:block/properties :alias]))
-                ;; TODO not used yet – we pull out the useful ones, maybe don't need
-                :properties (get block :block/properties)
-                ;; path relative to repo root (used to be absolute, this changed around Logseq 0.9.1)
-                :file (get-in block [:block/file :file/path])
-                ;; Refs are computed later, but these would be useful as a check at least
-                ;; :refs (set (map :db/id [:block/refs block]))
-                }
-              ))
-       (u/index-by :id)
-       (add-children :parent :children)
-       (order-children)
-       ))
+                  :parent (id->uuid (get-in block [:block/parent :db/id]))
+                  :left (id->uuid (get-in block [:block/left :db/id]))
+                  :page? (boolean (:block/name block)) ;???
+                  :page (id->uuid (get-in block [:block/page :db/id]))
+                  :alias (or (get-in block [:block/properties :aliases]) ;not sure why but it appears both ways
+                             (get-in block [:block/properties :alias]))
+                  ;; TODO not used yet – we pull out the useful ones, maybe don't need
+                  :properties (get block :block/properties)
+                  ;; path relative to repo root (used to be absolute, this changed around Logseq 0.9.1)
+                  :file (get-in block [:block/file :file/path])
+                  ;; Refs are computed later, but these would be useful as a check at least
+                  ;; :refs (set (map :db/id [:block/refs block]))
+                  }
+                ))
+         (u/index-by :id)
+         assert-left-refs-resolve
+         (add-children :parent :children)
+         (order-children)
+         )))
 
 ;;; → Multitool, a variant of saferfly. Needs better name
 (defn safely-or
