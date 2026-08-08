@@ -1,3 +1,6 @@
+* OH MY FUCKING GOD FIX THIS
+The ids for blocks within a page are not stable, making links to them broken... what idiot wrote this? Come up with a plan to fix
+
 * Search bug
 DONE "operators" does not turn up the page https://hyperphor.com/ammdi/__Operators-and-Things__
 Maybe title isn't getting processed, or its a function of the italic markup?
@@ -23,7 +26,16 @@ And there should be a diff view (at least on github)
 [[1001.2485v2] Physics With Two Time Dimensions](https://arxiv.org/abs/1001.2485v2) (!)
 on Jacon Foster page
 
-** TODO BUG Weird Materialism has link to [[Weirding [[Dennett]]]] which is hidden evn though page exists and is published. (actually condense all these tiny pages, should have a macro for that)
+** DONE BUG Weird Materialism has link to [[Weirding [[Dennett]]]] which is hidden evn though page exists and is published. (actually condense all these tiny pages, should have a macro for that)
+The page-link grammar rule (resources/parser.ebnf) was #"\[\[.*?\]\]", non-greedy, so it
+stopped at the *first* "]]" it found. For a title that itself contains a page link, eg
+"Weirding [[Dennett]]", that meant "[[Weirding [[Dennett]]]]" parsed as page-link
+"[[Weirding [[Dennett]]" (missing its close) plus stray literal "]] " text -- the mangled
+title then failed to resolve to the real page, so it rendered as excluded/missing
+(rendering.clj's page-link, the [:span.empty ...] branch) even though the page exists and
+is published. Fixed by making the regex accept one level of nested [[...]] (same fix
+applied to the #[[...]] hashtag form, which has the identical issue). See
+goddinpotty.parser-test/nested-page-link-test.
 
 ** TODO Logseq HTML includes not supported (permission-structure)
 ** TODO a j page is getting published for some reason (Mar 4 2022)
