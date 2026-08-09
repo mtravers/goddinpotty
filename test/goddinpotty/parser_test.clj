@@ -49,6 +49,14 @@
 
 
 
+;;; design/TODOs.org: page titles that themselves contain a page-link, eg "Weirding [[Dennett]]",
+;;; broke because the page-link regex was non-greedy and stopped at the first "]]" it found.
+(deftest nested-page-link-test
+  (is (= [:block "See " [:page-link "[[Weirding [[Dennett]]]]"] " and stuff"]
+         (parse-to-ast "See [[Weirding [[Dennett]]]] and stuff")))
+  (is (= [:block [:hashtag "#[[Weirding [[Dennett]]]]"]]
+         (parse-to-ast "#[[Weirding [[Dennett]]]]"))))
+
 (deftest blockquote-parse-test
   (testing "simple blockquote"
     (is (= [:block [:blockquote [:block "Call me Ishmael."]]]

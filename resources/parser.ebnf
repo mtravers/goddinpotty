@@ -6,13 +6,16 @@ block = block-property* (heading | hiccup | blockquote | prop-block | (syntax-in
 
 <syntax-in-block> = ( image | alias | hashtag | page-link | block-ref | code-line | code-block | bold | italic | bare-url | hr | latex |  doublebraces ) (* add query later*)
 
-(* page links do not want their innards parsed *)
-page-link = #"\[\[.*?\]\]" 
+(* page links do not want their innards parsed.
+   The alternation lets the content include one level of nested [[...]], which
+   happens when the page title itself contains a page link, eg "Weirding [[Dennett]]" --
+   a plain non-greedy match instead stops at the first "]]" it finds, mangling the title. *)
+page-link = #"\[\[(?:[^\[\]]|\[\[[^\[\]]*\]\])*\]\]"
 
 (* TODO misnamed, this is just an external link *)
 alias = #"\[([^\[\]]+?)\]\(.+?\)"  (* Note this hairy but correct char class that means everything but square brackets *)
 image = #"!\[(.*?)\]\(.*?\)(\{.*\})?"   (* image = "!" alias doesn't quite work *)
-hashtag = #"\#[\w-:]+" | #"#\[\[.*?\]\]"
+hashtag = #"\#[\w-:]+" | #"#\[\[(?:[^\[\]]|\[\[[^\[\]]*\]\])*\]\]"
 block-ref = #"\s*\(\(([\w\s\d-]+)\)\)"
 block-property =  #"(\n)?.+?:: .+(\n)?"
 code-line = #"\`.*?\`"
