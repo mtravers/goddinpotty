@@ -220,6 +220,8 @@
 ;;; The tag itself renders as a lozenge; the block's children are rendered here into a
 ;;; popup revealed on hover, instead of appearing as normal nested content (see
 ;;; block-full-hiccup-guts, which knows to skip them to avoid rendering twice).
+;;; Clicking the lozenge (toggleHoverTag, in search.js) pins the popup into the page's
+;;; normal flow in a distinguished style, so the content stays visible without hovering.
 
 ;;; "AskClaude" -> "Ask Claude"
 (defn- humanize-tag
@@ -229,7 +231,7 @@
 (defn hover-tag-hiccup
   [bm block tag]
   [:span.hover-tag-container
-   [:span.hover-tag-lozenge (humanize-tag tag)]
+   [:span.hover-tag-lozenge {:onclick "toggleHoverTag(this)"} (humanize-tag tag)]
    [:div.hover-tag-popup
     (map #(block-full-hiccup % bm) (:children block))]])
 

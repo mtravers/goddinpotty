@@ -134,4 +134,12 @@ function maybeExposeLocal() {
 
 document.addEventListener("DOMContentLoaded", maybeExposeLocal);
 
+// Click-to-insert for hover tags (eg #AskClaude; see rendering.clj hover-tag-hiccup
+// and design/ask-claude.md). Hovering still shows a quick preview; clicking the
+// lozenge toggles the popup pinned into the page's normal flow instead of only
+// appearing as a floating overlay on hover, styled distinctly via the "inserted"
+// class in default.css. Clicking again un-pins it.
+function toggleHoverTag(lozenge) {
+    lozenge.closest('.hover-tag-container').classList.toggle('inserted');
+}
 
