@@ -397,12 +397,30 @@ iframe {
     color: #555;
     font-size: 85%;
     font-style: italic;
-    cursor: help;
+    cursor: pointer;
     user-select: none;
 }
 
 .hover-tag-container:hover .hover-tag-lozenge {
     background: #dfe3e8;
+}
+
+/* Clicked (pinned) state: toggled by toggleHoverTag in search.js. Switching the
+   container itself to block-level (rather than leaving it inline-block with a
+   block-level popup child) avoids a baseline-alignment trap: an inline-block's
+   baseline is its *last* line box, so any text following the container on the same
+   line would otherwise jump down to align with the bottom of the popup instead of
+   flowing normally beneath it. The lozenge also gets a "pressed" look. */
+.hover-tag-container.inserted {
+    display: block;
+}
+
+.hover-tag-container.inserted .hover-tag-lozenge {
+    background: #4a7c59;
+    border-color: #3d6649;
+    color: white;
+    font-style: normal;
+    cursor: pointer;
 }
 
 .hover-tag-popup {
@@ -424,8 +442,23 @@ iframe {
     text-align: left;
 }
 
-.hover-tag-container:hover .hover-tag-popup {
+.hover-tag-container:not(.inserted):hover .hover-tag-popup {
     display: block;
+}
+
+/* ...and the popup itself leaves the floating-overlay layout behind and drops into
+   the page's normal flow as a permanent, distinctly-styled callout (rather than
+   the transient hover preview above). */
+.hover-tag-container.inserted .hover-tag-popup {
+    display: block;
+    position: static;
+    margin: 10px 0;
+    min-width: 0;
+    max-width: none;
+    background: #f1f8f1;
+    border: 1px solid #4a7c59;
+    border-left: 4px solid #4a7c59;
+    box-shadow: none;
 }
 
 /* When we show all blocks, highlight the private ones */
@@ -435,13 +468,21 @@ iframe {
 }
 
 /* This makes internal hrefs scroll to visibility. See https://css-tricks.com/hash-tag-links-padding/ */
-ul::before { 
-  display: block; 
-  content: " "; 
-  margin-top: -65px; 
-  height: 65px; 
-  visibility: hidden; 
+ul::before {
+  display: block;
+  content: " ";
+  margin-top: -65px;
+  height: 65px;
+  visibility: hidden;
   pointer-events: none;
+}
+
+/* ...but a hover-tag-popup's nested <ul>s (see hover-tag-hiccup in rendering.clj) are
+   never #anchor scroll targets, so the -65px pulls the popup's real (clickable)
+   content up over the lozenge that opens it -- intercepting clicks meant for the
+   lozenge. Neutralize the trick there. */
+.hover-tag-popup ul::before {
+  display: none;
 }
 
 .ulz {
