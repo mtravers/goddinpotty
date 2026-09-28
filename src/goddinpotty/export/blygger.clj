@@ -556,6 +556,21 @@
       (fs/delete f))
     (fs/mkdirs dir-path)))
 
+;;; Every other page on the site is a flat, extensionless file at output-dir
+;;; root, so it's never ambiguous to Apache. The blyg mount is the site's
+;;; first real directory -- a bare request for it (no trailing slash)
+;;; triggers mod_dir's automatic slash-redirect, which (on this host, where
+;;; the ammdi subdomain is really the same docroot reached via an internal
+;;; .htaccess rewrite -- see hyperphor-git/.htaccess) leaks the rewritten
+;;; canonical path instead of preserving the subdomain. DirectorySlash Off
+;;; disables that redirect; Apache still serves DirectoryIndex directly for
+;;; the bare path, which works here because everything under blyg/ already
+;;; uses absolute URLs (site-page-html), so there's no relative-link base to
+;;; get wrong. Written fresh every build so it survives output-dir's wipe.
+(defn- write-mount-htaccess!
+  [base-dir]
+  (spit (str base-dir ".htaccess") "DirectorySlash Off\n"))
+
 (defn- write-surfaces!
   [bm state output-dir]
   (let [origin (blyg-origin)
@@ -565,6 +580,7 @@
         title (blyg-title)
         feed-window (or (config/config :blygger :feed-window) 50)]
     (ensure-mount-dir! base-dir)
+    (write-mount-htaccess! base-dir)
     (utils/write-json (str base-dir "blyg.json") (manifest origin items updated))
     (utils/write-json (str base-dir "items/index.json") (archive-index items updated))
     (spit (str base-dir "index.html") (site-page-html (archive-hiccup bm origin items)))

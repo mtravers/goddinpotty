@@ -223,3 +223,22 @@ vanishingly unlikely to match a real page title).
   server config change (the untracked `resources/.htaccess` is presumably the
   hook, if serving via Apache).
 
+## The mount is the site's first real directory
+
+Every other page is a flat, extensionless file at `output-dir` root, so a
+request for it is never ambiguous to Apache. `blyg/` is the first genuine
+subdirectory goddinpotty has ever published, and for `ammdi.hyperphor.com`
+that interacts badly with how the subdomain is set up: `hyperphor-git/.htaccess`
+maps `ammdi.hyperphor.com/*` into `/ammdi/*` on the *same* docroot via an
+internal `RewriteRule` (no `[R]`), keeping the address bar on the subdomain —
+this is invisible for flat-file pages. But a bare request for `/blyg` (no
+trailing slash) resolves to a real directory, which triggers `mod_dir`'s
+automatic slash-redirect; that redirect is built from the already-rewritten
+path on the canonical server name, so it leaks `hyperphor.com/ammdi/blyg/`
+instead of staying on the subdomain. `write-surfaces!` now writes a
+`.htaccess` with `DirectorySlash Off` into the mount root on every build
+(`write-mount-htaccess!`) to suppress that redirect — Apache still serves
+`index.html` directly for the bare path, which is safe here specifically
+because everything under `blyg/` uses absolute URLs (`site-page-html`), so
+there's no relative-link base to get wrong by skipping the trailing slash.
+
