@@ -20,6 +20,7 @@
   (:require [goddinpotty.batadase :as bd]
             [goddinpotty.config :as config]
             [goddinpotty.rendering :as r]
+            [goddinpotty.templating :as templating]
             [goddinpotty.utils :as utils]
             [clojure.set :as set]
             [clojure.string :as str]
@@ -442,21 +443,79 @@
          (str/join "\n" (map (partial feed-item-xml origin) events))
          "\n  </channel>\n</rss>\n")))
 
-;;; Minimal, non-fancy permalink page -- SHOULD serve HTML (§4), but the
-;;; reference client's masthead/carousel/blogroll presentation (css-contract.md)
-;;; is that client's promise, not the protocol's, and is out of scope here.
-(defn- permalink-hiccup
-  [origin entry]
-  (let [withdrawn? (= :withdrawn (:kind entry))]
-    [:html
-     [:head [:meta {:charset "utf-8"}] [:title (str "blyg " (:blyg-id entry))]]
-     [:body
-      [:div.blyg
-       [:article {:class (str "fragment" (when withdrawn? " withdrawn"))}
-        [:div.item-content (if withdrawn? "[withdrawn]" (hiccup2/raw (:content-html entry)))]
-        [:p.version-line "v" (:version entry)]
-        [:p [:a {:href (str origin "items/" (:blyg-id entry) ".json")} "JSON"]
-         " · " [:a {:href origin} "feed"]]]]]]))
+;;; HTML surface: reuses the site's own page-hiccup (nav/fonts/css/search) so
+;;; blyg pages read as part of the same site, not a bolted-on protocol demo.
+;;; Fragment-card layout borrows the shape (content, "Created"/"vN" timestamp
+;;; line, permalink) of reference blyg clients like blyg.aneeshsathe.com,
+;;; without their bespoke masthead art -- just enough for the surface to be a
+;;; legible little archive rather than raw JSON.
+
+(defn- human-date
+  [iso]
+  (.format (java.time.format.DateTimeFormatter/ofPattern "MMM d, yyyy" java.util.Locale/US)
+           (.atZone (java.time.Instant/parse iso) java.time.ZoneOffset/UTC)))
+
+(defn- fragment-card-hiccup
+  [origin entry & {:keys [permalink-page?]}]
+  (let [withdrawn? (= :withdrawn (:kind entry))
+        blyg-id (:blyg-id entry)]
+    [:article.card.my-3.fragment {:class (when withdrawn? "withdrawn")}
+     [:div.card-body
+      [:div.item-content
+       (if withdrawn?
+         [:p.text-muted "[withdrawn]"]
+         (hiccup2/raw (:content-html entry)))]
+      [:p.timestamps.text-muted.small
+       "Created " (human-date (:created entry))
+       (when (> (:version entry) 1)
+         (list " · updated " (human-date (:updated entry)) " · v" (:version entry)))]
+      (when-not permalink-page?
+        [:p [:a.permalink {:href (str origin "f/" blyg-id "/")} "Permalink"]])]]))
+
+;;; Excerpt for <title>/<h1> only -- strip the leading "From [Page](url)"
+;;; attribution line first, or every attributed item would be titled "From
+;;; <page title> <actual start of content>".
+(defn- title-excerpt
+  [content-md]
+  (excerpt (str/replace content-md #"(?s)^From \[[^\]]*\]\([^)]*\)\n\n" "") 60))
+
+(defn- permalink-page-hiccup
+  [bm origin entry]
+  (let [withdrawn? (= :withdrawn (:kind entry))
+        title (if withdrawn? "withdrawn" (title-excerpt (:content-md entry)))
+        contents
+        [:div.blyg
+         (fragment-card-hiccup origin entry :permalink-page? true)
+         [:p [:a {:href (str origin "items/" (:blyg-id entry) ".json")} "JSON"]
+          " · " [:a {:href origin} "Blyg"]]]]
+    (templating/page-hiccup contents title title bm :widgets [])))
+
+(defn- archive-hiccup
+  [bm origin items]
+  (let [entries (->> (vals items)
+                      (remove #(= :withdrawn (:kind %)))
+                      (sort-by :updated)
+                      reverse)
+        title (or (config/config :blygger :title) (config/config :short-title))
+        contents
+        [:div.blyg
+         [:p.blyg-links
+          [:a {:href (str origin "feed.xml")} "RSS"] " · "
+          [:a {:href (str origin "blyg.json")} "JSON manifest"]]
+         (if (seq entries)
+           (map (partial fragment-card-hiccup origin) entries)
+           [:p "Nothing published yet."])]]
+    (templating/page-hiccup contents title title bm :widgets [])))
+
+;;; page-hiccup's asset/nav hrefs (eg "assets/default.css", page-links like
+;;; "About") are relative, correct only for normal top-level pages living
+;;; directly at output-dir/<title>. Blyg pages nest one or two directories
+;;; deeper (blyg/, blyg/f/{id}/), so those same relative hrefs would resolve
+;;; to the wrong place -- absolutize against :real-base-url, same fix as
+;;; content_html already gets.
+(defn- site-page-html
+  [hiccup]
+  (absolutize-html (str (hiccup2/html hiccup)) (config/config :real-base-url)))
 
 ;;;; ⩇⩆⩇ Writing the surface ⩇⩆⩇
 
@@ -487,7 +546,7 @@
     (fs/mkdirs dir-path)))
 
 (defn- write-surfaces!
-  [state output-dir]
+  [bm state output-dir]
   (let [origin (blyg-origin)
         base-dir (str (str/replace output-dir #"/$" "") "/" (mount-path))
         items (:items state)
@@ -497,11 +556,12 @@
     (ensure-mount-dir! base-dir)
     (utils/write-json (str base-dir "blyg.json") (manifest origin items updated))
     (utils/write-json (str base-dir "items/index.json") (archive-index items updated))
+    (spit (str base-dir "index.html") (site-page-html (archive-hiccup bm origin items)))
     (doseq [entry (vals items)]
       (utils/write-json (str base-dir "items/" (:blyg-id entry) ".json") (item-json origin entry))
       (let [dir (str base-dir "f/" (:blyg-id entry) "/")]
         (fs/mkdirs dir)
-        (spit (str dir "index.html") (str (hiccup2/html (permalink-hiccup origin entry))))))
+        (spit (str dir "index.html") (site-page-html (permalink-page-hiccup bm origin entry)))))
     (spit (str base-dir "feed.xml") (feed-xml origin title items feed-window))
     (log/info "blyg: wrote" (count items) "items to" base-dir)))
 
@@ -558,7 +618,7 @@
       ;; run's unchanged-hash check skips re-writing files that never
       ;; actually made it to disk -- a silent, non-self-healing partial
       ;; publish. See design/blygger.md.
-      (do (write-surfaces! new-state output-dir)
+      (do (write-surfaces! bm new-state output-dir)
           (save-state! path new-state)
           new-state))))
 
@@ -587,6 +647,6 @@
         new-state (assoc state :items items)]
     (if dry-run?
       new-state
-      (do (write-surfaces! new-state output-dir) ;surfaces before state -- see note in publish!
+      (do (write-surfaces! bm new-state output-dir) ;surfaces before state -- see note in publish!
           (save-state! path new-state)
           new-state))))
