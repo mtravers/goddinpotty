@@ -31,9 +31,14 @@ file exists and this has been reviewed; `resources/ammdi-private.edn` (the local
 ## Scope (v1 / first cut)
 
 Implements protocol-v0.2 L1 publish side for **fragments only**:
-`blyg.json`, `feed.xml`, `items/index.json`, `items/{id}.json`, plus a minimal
-non-fancy permalink page at `f/{id}/`. Explicitly **not** implemented, in order
-of likely next-ness:
+`blyg.json`, `feed.xml`, `items/index.json`, `items/{id}.json`, an archive/home
+page at the mount root (`blyg/index.html`), and a permalink page per item at
+`f/{id}/`. Both HTML pages reuse the site's own `templating/page-hiccup` (nav,
+fonts, css, search widget) rather than serving bare unstyled markup, so `/blyg`
+reads as part of the same site; the fragment-card layout (content, "Created
+.../vN" line, permalink) takes cues from reference blyg clients like
+blyg.aneeshsathe.com without their bespoke masthead art. Explicitly **not**
+implemented, in order of likely next-ness:
 
 - **Threads / transclusion** (§10) — no `![[id]]` grammar support. Everything
   publishes as `kind: "fragment"`.
@@ -49,9 +54,24 @@ of likely next-ness:
   media list §5.4 describes. Fine for now; would need real work to do properly
   (media objects are supposed to be immutable-forever once published, which
   this doesn't track at all).
-- The reference client's presentation layer (masthead, version-nav carousel,
-  css-contract.md) is that client's promise, not the protocol's — not
-  replicated. The permalink page here is deliberately minimal.
+- The reference client's fuller presentation layer (masthead art, version-nav
+  carousel, thread views, css-contract.md) is that client's promise, not the
+  protocol's — not replicated. Archive/permalink pages here are plain
+  site-styled cards, no pagination on the archive page (fine at personal-blog
+  scale; would need one past a few hundred items). No search widget on these
+  two pages — search.js's result links assume the page loaded from
+  `output-dir` root, which isn't true for anything nested under `blyg/`.
+
+`page-hiccup`'s asset/nav hrefs (`assets/default.css`, page-links like
+`About`) are relative, correct only for normal pages living directly at
+`output-dir/<title>`. Blyg pages nest one or two directories deeper
+(`blyg/`, `blyg/f/{id}/`), so those same relative hrefs would resolve to the
+wrong place — `write-surfaces!` runs the whole rendered page through
+`absolutize-html` against `:real-base-url` before writing (`site-page-html`),
+same fix `content_html` already needed. The two blyg-relative links on the
+archive page (`feed.xml`, `blyg.json`) are built from `origin` (the blyg
+mount URL) rather than left relative, so blanket absolutization doesn't
+strip their `blyg/` prefix.
 
 ## Tag convention
 
@@ -203,3 +223,35 @@ vanishingly unlikely to match a real page title).
   server config change (the untracked `resources/.htaccess` is presumably the
   hook, if serving via Apache).
 
+## The mount is the site's first real directory
+
+Every other page is a flat, extensionless file at `output-dir` root, so a
+request for it is never ambiguous to Apache. `blyg/` is the first genuine
+subdirectory goddinpotty has ever published, and for `ammdi.hyperphor.com`
+that interacts badly with how the subdomain is set up: `hyperphor-git/.htaccess`
+maps `ammdi.hyperphor.com/*` into `/ammdi/*` on the *same* docroot via an
+internal `RewriteRule` (no `[R]`), keeping the address bar on the subdomain —
+this is invisible for flat-file pages. But a bare request for `/blyg` (no
+trailing slash) resolves to a real directory, which triggers `mod_dir`'s
+automatic slash-redirect; that redirect is built from the already-rewritten
+path on the canonical server name, so it leaks `hyperphor.com/ammdi/blyg/`
+instead of staying on the subdomain.
+
+**Tried and reverted:** a `.htaccess` with `DirectorySlash Off` written into
+the mount root on every build, meant to suppress that redirect entirely
+(Apache docs say it should still serve `DirectoryIndex` directly for the bare
+path). Deployed to production and broke `/blyg` outright (404) — reasoning
+about NFSN's actual Apache behavior from docs alone wasn't good enough, and
+this combines with the root `.htaccess`'s own `RewriteRule` in a way that
+wasn't fully understood before shipping it. Reverted both the live
+`ammdi/blyg/.htaccess` and the `write-mount-htaccess!` call that generated
+it. **Do not re-add `DirectorySlash Off` (or any other `.htaccess` tweak in
+the mount) without testing against a real request to the live host first** —
+the ugly-but-working redirect to `hyperphor.com/ammdi/blyg/` for the bare
+path is the current accepted behavior; only `/blyg/` (with slash, which is
+what every link goddinpotty emits actually uses) needs to work cleanly, and
+it does.
+
+# Stage 2
+
+OK, the whole point of this is to publish updates. So really whenever a public page changes, it should generate an automatic Blyg item
