@@ -359,13 +359,20 @@
                                  (:pinned c) (assoc :pinned true)))
                        (:changelog entry))}))
 
+;;; Defaults to "<short-title> Blyg" (eg "AMMDI Blyg") rather than bare
+;;; short-title, so the manifest/feed/archive page read as their own named
+;;; thing, distinct from the main site.
+(defn- blyg-title
+  []
+  (or (config/config :blygger :title) (str (config/config :short-title) " Blyg")))
+
 (defn- manifest
   [origin items updated]
   {:blyg "0.2"
    :level 1
    :generator "goddinpotty-blyg/0.1"
    :site origin
-   :title (or (config/config :blygger :title) (config/config :short-title))
+   :title (blyg-title)
    :author {:name (or (config/config :blygger :author-name) (config/config :short-title))
             :url origin}
    :feed "feed.xml"
@@ -459,18 +466,18 @@
   [origin entry & {:keys [permalink-page?]}]
   (let [withdrawn? (= :withdrawn (:kind entry))
         blyg-id (:blyg-id entry)]
-    [:article.card.my-3.fragment {:class (when withdrawn? "withdrawn")}
-     [:div.card-body
+    [:article.card.my-2.fragment {:class (when withdrawn? "withdrawn")}
+     [:div.card-body.py-2
       [:div.item-content
        (if withdrawn?
          [:p.text-muted "[withdrawn]"]
          (hiccup2/raw (:content-html entry)))]
-      [:p.timestamps.text-muted.small
+      [:p.meta-line.text-muted.small.mb-0
        "Created " (human-date (:created entry))
        (when (> (:version entry) 1)
-         (list " · updated " (human-date (:updated entry)) " · v" (:version entry)))]
-      (when-not permalink-page?
-        [:p [:a.permalink {:href (str origin "f/" blyg-id "/")} "Permalink"]])]]))
+         (list " · updated " (human-date (:updated entry)) " · v" (:version entry)))
+       (when-not permalink-page?
+         (list " · " [:a.permalink {:href (str origin "f/" blyg-id "/")} "Permalink"]))]]]))
 
 ;;; Excerpt for <title>/<h1> only -- strip the leading "From [Page](url)"
 ;;; attribution line first, or every attributed item would be titled "From
@@ -496,9 +503,13 @@
                       (remove #(= :withdrawn (:kind %)))
                       (sort-by :updated)
                       reverse)
-        title (or (config/config :blygger :title) (config/config :short-title))
+        title (blyg-title)
         contents
         [:div.blyg
+         [:p.blyg-tagline
+          "A blyg is a feed of short, quotable fragments -- notes, quotes,
+          and asides -- each independently linkable and versioned. "
+          [:a {:href "https://blygger.org/"} "What's a blyg?"]]
          [:p.blyg-links
           [:a {:href (str origin "feed.xml")} "RSS"] " · "
           [:a {:href (str origin "blyg.json")} "JSON manifest"]]
@@ -551,7 +562,7 @@
         base-dir (str (str/replace output-dir #"/$" "") "/" (mount-path))
         items (:items state)
         updated (overall-updated items)
-        title (or (config/config :blygger :title) (config/config :short-title))
+        title (blyg-title)
         feed-window (or (config/config :blygger :feed-window) 50)]
     (ensure-mount-dir! base-dir)
     (utils/write-json (str base-dir "blyg.json") (manifest origin items updated))
