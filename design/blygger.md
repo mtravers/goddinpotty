@@ -235,10 +235,23 @@ this is invisible for flat-file pages. But a bare request for `/blyg` (no
 trailing slash) resolves to a real directory, which triggers `mod_dir`'s
 automatic slash-redirect; that redirect is built from the already-rewritten
 path on the canonical server name, so it leaks `hyperphor.com/ammdi/blyg/`
-instead of staying on the subdomain. `write-surfaces!` now writes a
-`.htaccess` with `DirectorySlash Off` into the mount root on every build
-(`write-mount-htaccess!`) to suppress that redirect — Apache still serves
-`index.html` directly for the bare path, which is safe here specifically
-because everything under `blyg/` uses absolute URLs (`site-page-html`), so
-there's no relative-link base to get wrong by skipping the trailing slash.
+instead of staying on the subdomain.
 
+**Tried and reverted:** a `.htaccess` with `DirectorySlash Off` written into
+the mount root on every build, meant to suppress that redirect entirely
+(Apache docs say it should still serve `DirectoryIndex` directly for the bare
+path). Deployed to production and broke `/blyg` outright (404) — reasoning
+about NFSN's actual Apache behavior from docs alone wasn't good enough, and
+this combines with the root `.htaccess`'s own `RewriteRule` in a way that
+wasn't fully understood before shipping it. Reverted both the live
+`ammdi/blyg/.htaccess` and the `write-mount-htaccess!` call that generated
+it. **Do not re-add `DirectorySlash Off` (or any other `.htaccess` tweak in
+the mount) without testing against a real request to the live host first** —
+the ugly-but-working redirect to `hyperphor.com/ammdi/blyg/` for the bare
+path is the current accepted behavior; only `/blyg/` (with slash, which is
+what every link goddinpotty emits actually uses) needs to work cleanly, and
+it does.
+
+# Stage 2
+
+OK, the whole point of this is to publish updates. So really whenever a public page changes, it should generate an automatic Blyg item
