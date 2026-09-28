@@ -5,6 +5,7 @@
             [goddinpotty.graph :as graph]
             [goddinpotty.index :as index]
             [goddinpotty.import.logseq :as logseq]
+            [goddinpotty.export.blygger :as blygger]
             [me.raynes.fs :as fs]
             [clojure.string :as str]
             [clojure.tools.logging :as log]
@@ -125,6 +126,13 @@
     (graph/write-page-data bm output-dir)
     (html-gen/generate-goddinpotty bm output-dir)
     (html-gen/generate-index-redir output-dir)
+    ;; Into the temp dir, before the atomic swap below -- items/{id}.json must
+    ;; return 200 forever (protocol-v0.2 §4), so a full build that skipped
+    ;; this would break previously-published items. Let any misconfiguration
+    ;; fail the build loudly rather than silently shipping a stale/broken
+    ;; blyg surface.
+    (when (config/config :blygger :enabled?)
+      (blygger/publish! bm output-dir))
     ;; TODO options for writing all pages
     ;; Turning this off for now, Logseqe output is more important
     ;; Should be rationalized; html and md output should be modules
@@ -213,6 +221,32 @@
       do-post-generation)
   (log/info "Done")
   )
+
+;;; Update just the #blyg subtree without a full site rebuild (no HTML
+;;; generation, search index, or graph/map page) -- still has to re-extract
+;;; from Logseq via nbb (produce-bm) to see fresh content, but skips the
+;;; expensive part. See design/blygger.md.
+(defn refresh-blyg!
+  [config-or-path & {:keys [withdraw? dry-run?]}]
+  (if (map? config-or-path)
+    (config/set-config-map! config-or-path)
+    (config/set-config-path! (or config-or-path "default-config.edn")))
+  (reset)
+  (let [bm (-> (config/config) produce-bm tap)]
+    (blygger/publish! bm (config/config :output-dir) :withdraw? withdraw? :dry-run? dry-run?)
+    (log/info "Done")))
+
+;;; REPL convenience: republish from the already-loaded @last-bm (eg after main).
+(defn blyg-publish!
+  [& {:keys [withdraw? dry-run?]}]
+  (blygger/publish! @last-bm (config/config :output-dir) :withdraw? withdraw? :dry-run? dry-run?))
+
+(defn -main-refresh-blyg
+  "lein run -m goddinpotty.core/-main-refresh-blyg <config-file>"
+  [& [config-path]]
+  (refresh-blyg! config-path)
+  (when-not (= "repl" (:profile env/env))
+    (System/exit 0)))
 
 ;;; HACK why don't I just get direct access to Datomic and make life easier?
 ;;; Assumes config is already set

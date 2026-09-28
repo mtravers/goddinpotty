@@ -336,19 +336,36 @@
   [block-map block]
   (daily-notes-page? (block-page block-map block)))
 
+;;; The actual privacy boundary: an explicit exit tag (#Private/#ExitPoint/etc),
+;;; independent of the :excluded? journal-skip flag below. Used where "excluded"
+;;; needs to mean "author marked this private", not "site wouldn't display this
+;;; anyway" -- eg goddinpotty.export.blygger, which is its own entry point and
+;;; publishes blocks the main site wouldn't otherwise display.
+(defn privacy-exit-point?
+  [block-map block]
+  (boolean (some #(tagged-or-contained? block-map block %)
+                 (config/config :exit-tags))))
+
+(defn privacy-exit-point-why
+  [block-map block]
+  (u/some-thing #(tagged-or-contained? block-map block %)
+                (config/config :exit-tags)))
+
+;;; block-map's :excluded? is set purely by database.clj/exclude-blocks, a
+;;; performance hack to stop the entry/exit graph walk early on journal/daily-notes
+;;; pages when :daily-notes? is false -- it means "never displayed anyway", not
+;;; "privacy excluded". privacy-exit-point? above deliberately ignores it.
 (defn exit-point?
   [block-map block]
   (or (:excluded? block)
-      (some #(tagged-or-contained? block-map block %)
-            (config/config :exit-tags))))
+      (privacy-exit-point? block-map block)))
 
 (defn exit-point-why
   [block-map block]
   (cond (:excluded? block)
         :excluded
         :else
-        (u/some-thing #(tagged-or-contained? block-map block %)
-                      (config/config :exit-tags))))
+        (privacy-exit-point-why block-map block)))
 
 ;;; Temp
 (def min* (partial u/min-by identity))
