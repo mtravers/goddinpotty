@@ -479,6 +479,18 @@
   [bm page-name]
   (get (with-aliases bm) page-name))
 
+;;; Pages (eg #AskClaude) that are legit content but shouldn't appear as nodes in the
+;;; force-directed graph, since they rack up spurious, non-meaningful connections to
+;;; everything that uses the tag. Configured by page title, resolved through aliases.
+(u/defn-memoized graph-excluded-page-ids
+  [bm]
+  (set (keep (fn [title] (:id (get-with-aliases bm title)))
+             (config/config :graph-exclude-tags))))
+
+(defn graph-excluded?
+  [bm page]
+  (contains? (graph-excluded-page-ids bm) (:id page)))
+
 (defn get-with-inexact-aliases
   [bm page-name]
   (get (with-inexact-aliases bm) (inexact-match-string page-name)))

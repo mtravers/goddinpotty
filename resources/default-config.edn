@@ -14,6 +14,10 @@
  ;; Tags that, wherever they occur in a block, hide that block's children from normal
  ;; display and reveal them in a hover popup instead. See design/ask-claude.md
  :hover-tags ["AskClaude"]
+ ;; Page titles (eg tag pages) to omit as nodes from the force-directed graph/map page.
+ ;; They're still published normally; this only keeps them out of graph.clj's output,
+ ;; since a heavily-used tag like #AskClaude creates spurious hub connections there.
+ :graph-exclude-tags ["AskClaude"]
  ;; These shell variables are deprecated, should do everything through aero configs
  :exit-tags #or [#split [#env GP_EXIT_TAGS] ["ExitPoint" "Private"]]
  :site-css ["../assets/default.css"]

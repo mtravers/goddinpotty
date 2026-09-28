@@ -29,12 +29,14 @@
 (defn page-neighbors
   [bm from n max-degree]
   ;; TODO page-empty? here seems wrong, should be included in :included?
-  (let [neighbors (fn [b] (take max-degree (remove bd/page-empty? (map bm (bd/page-refs bm b)))))]
+  (let [neighbors (fn [b] (take max-degree (remove #(or (bd/page-empty? %) (bd/graph-excluded? bm %))
+                                                     (map bm (bd/page-refs bm b)))))]
     (u/neighborhood from n neighbors)))
 
 (defn graph-pages
   [block-map]
-  (bd/displayed-regular-pages block-map))
+  (remove (partial bd/graph-excluded? block-map)
+          (bd/displayed-regular-pages block-map)))
 
 (defn graph-data
   "center: name of central page"

@@ -1,18 +1,19 @@
-* OH MY FUCKING GOD FIX THIS
-The ids for blocks within a page are not stable, making links to them broken... what idiot wrote this? Come up with a plan to fix
+* Editability
 
-* Search bug
-DONE "operators" does not turn up the page https://hyperphor.com/ammdi/__Operators-and-Things__
-Maybe title isn't getting processed, or its a function of the italic markup?
-Confirmed: the search index's :title field used the raw page title (markup and all,
-eg "__Operators and Things__"), which broke elasticlunr tokenization and also meant
-the page had no plain-text rendering of its own title anywhere in the index. Fixed
-by stripping markup via a new goddinpotty.rendering/plain-title before indexing.
+Complete hack: Have a settiable app state just for me that ccauses edit links to render
 
+* Blygger
 
-* AskClaude popups
-DONE Looks like ass in sidebar, needs to be hidden.
+See separate doc
 
+* Weird idea
+
+I have all these half-assed pages eg [[The Left Has No Ideas]]. How about a link on these pages that will cause Claude to generate the actual page  (that is, do it on demand rather than by me adhead of itme),
+
+That is, /AskClaude that works at read-time. Doesn't fit into current static-site model, so for some future thing.
+
+* BUG: see page for longing, some of the sidebar has a rendering problem
+font too large
 
 * Collapsed panes
 use either the LogSeq flag or #AskClaude (customizable)
