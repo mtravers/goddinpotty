@@ -43,4 +43,20 @@
  :comments false                        ;Set to Remarkbox user key
  :mastodon-token nil                    ;Mastodon API key
  :link-new-tabs :external               ;Controls whether HTML links open in new tab. Can be changed to nil or :all
+
+ ;; Blygger (see design/blygger.md, https://blygger.org/spec/0.2/). Blocks tagged
+ ;; #<tag> (that the site already publishes) become versioned blyg items under
+ ;; :mount, at :real-base-url. Disabled by default: enabling it starts a real,
+ ;; subscribable feed, so it's an explicit per-graph opt-in.
+ :blygger {:enabled? false
+           :tag "blyg"
+           ;; REQUIRED when enabled: absolute path to a durable, git-tracked EDN
+           ;; file holding the block<->blyg-id mapping and version history. This
+           ;; is the one piece of state that can't be reconstructed -- it must
+           ;; NOT live under :output-dir (that gets wiped on every full build).
+           :state-file nil
+           :mount "blyg/"          ; site-relative mount under :real-base-url
+           :title nil              ; defaults to :short-title
+           :author-name nil        ; defaults to :short-title
+           :feed-window 50}
  }

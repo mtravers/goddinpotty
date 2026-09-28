@@ -1,0 +1,9 @@
+#merge
+[#include "default-config.edn"
+
+ {:real-base-url "https://example.com/"
+  :short-title "Test Garden"
+  :output-dir "target/blyg-test-output"
+  :blygger {:enabled? true
+            :tag "blyg"
+            :state-file "target/blyg-test-state.edn"}}]
