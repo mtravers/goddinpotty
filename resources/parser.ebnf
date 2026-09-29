@@ -4,7 +4,13 @@
 
 block = block-property* (heading | hiccup | blockquote | prop-block | (syntax-in-block / text)*) block-property*
 
-<syntax-in-block> = ( image | alias | hashtag | page-link | block-ref | code-line | code-block | bold | italic | bare-url | hr | latex |  doublebraces ) (* add query later*)
+<syntax-in-block> = ( escaped | image | alias | hashtag | page-link | block-ref | code-line | code-block | bold | italic | bare-url | hr | latex |  doublebraces ) (* add query later*)
+
+(* Backslash-escaped syntax character, eg \* for a literal asterisk that shouldn't
+   open/close bold or italic -- without this, a lone unmatched delimiter inside
+   bold/italic content (eg *W\** for italic "W*") breaks the whole markup rule's
+   match and the entire span falls back to unparsed literal text. *)
+escaped = #"\\[*_\\\[\]#]"
 
 (* page links do not want their innards parsed.
    The alternation lets the content include one level of nested [[...]], which

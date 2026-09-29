@@ -151,7 +151,11 @@
                          (if (str/starts-with? target "[[")
                            (md-page-link (utils/remove-double-delimiters target) text)
                            (second p)))
-                (:italic :bold) (second p)
+                ;; (second p) alone would drop every child after the first --
+                ;; harmless while italic/bold almost always had exactly one
+                ;; (a single merged string), but reachable now that an escaped
+                ;; char (eg *W\** -> [:italic "W" "*"]) can split it into more.
+                (:italic :bold) (str/join "" (map walk-node (rest p)))
                 (:image :code-block :code-line :hr) (second p)
                 :block-property ""
                 :bare-url (second p)

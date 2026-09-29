@@ -35,6 +35,7 @@
     ;; TODO this shit is ugly but I couldn't figure out better way
     :text                   (fn [s] s)
     :textier                (fn [s] s)
+    :escaped                (fn [s] (subs s 1)) ;drop the backslash, keep the literal char
     ;; This makes up for the fact that there are now two alternative italic syntaxes
     :italic                 (fn [s] `[:italic ~@(rest s)]) 
     }
