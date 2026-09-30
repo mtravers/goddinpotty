@@ -346,10 +346,14 @@
 (defn- item-json
   [origin entry]
   (let [withdrawn? (= :withdrawn (:kind entry))]
-    {:blyg "0.2"
+    {:blyg "0.3"
      :id (:blyg-id entry)
      :kind (name (:kind entry))
      :origin origin
+     ;; New in 0.3 (§5.8) -- origin-relative permalink path, emitted for
+     ;; withdrawn items too (the endcap's page is 200 forever). Matches our
+     ;; existing f/{id}/ convention exactly, so no new path scheme needed.
+     :page (str "f/" (:blyg-id entry) "/")
      :created (:created entry)
      :updated (:updated entry)
      :version (:version entry)
@@ -372,9 +376,15 @@
 
 (defn- manifest
   [origin items updated]
-  {:blyg "0.2"
+  {:blyg "0.3"
+   ;; L1: same-origin only. The real substance of 0.3 is L2 (cross-origin
+   ;; transclusion, stubs, lineage, Webmention) -- none of which this does;
+   ;; L1 is explicitly unchanged in substance from 0.2. Emitting :page
+   ;; below doesn't change this: §5.8 frames it as a general MAY, and
+   ;; readers MUST NOT gate behavior on :level regardless (§3.2).
    :level 1
    :generator "goddinpotty-blyg/0.1"
+   :generator_url "https://github.com/mtravers/goddinpotty"
    :site origin
    :title (blyg-title)
    :author {:name (or (config/config :blygger :author-name) (config/config :short-title))
@@ -494,12 +504,19 @@
   [bm origin entry]
   (let [withdrawn? (= :withdrawn (:kind entry))
         title (if withdrawn? "withdrawn" (title-excerpt (:content-md entry)))
+        item-url (str origin "items/" (:blyg-id entry) ".json")
         contents
         [:div.blyg
          (fragment-card-hiccup origin entry :permalink-page? true)
-         [:p [:a {:href (str origin "items/" (:blyg-id entry) ".json")} "JSON"]
+         [:p [:a {:href item-url} "JSON"]
           " · " [:a {:href origin} "Blyg"]]]]
-    (templating/page-hiccup contents title title bm :widgets [])))
+    (templating/page-hiccup contents title title bm
+                            :widgets []
+                            ;; §5.8 SHOULD: the way back from page to document
+                            ;; that Webmention verification needs (§15.4) --
+                            ;; costs nothing to emit even though we don't do
+                            ;; Webmention ourselves.
+                            :head-extra [[:link {:rel "alternate" :type "application/json" :href item-url}]])))
 
 (defn- archive-hiccup
   [bm origin items]
