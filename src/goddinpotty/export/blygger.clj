@@ -222,9 +222,16 @@
     (str "From " (md-page-link (:title page) nil (:id block)) "\n\n" body)
     body))
 
+;;; attribution? false for a promoted child (see publish!): the thread it
+;;; belongs to already carries one "From [Page]" line for the whole piece --
+;;; repeating it inside every transcluded child read as noise, not
+;;; provenance. A top-level fragment (never a child, attribution? defaults
+;;; true) still gets its own.
 (defn- item-full-content-md
-  [bm tag block]
-  (with-attribution-md bm block (item-content-md bm tag block)))
+  [bm tag block & {:keys [attribution?] :or {attribution? true}}]
+  (if attribution?
+    (with-attribution-md bm block (item-content-md bm tag block))
+    (item-content-md bm tag block)))
 
 ;;; A child's own blyg-id, already resolved in `items` (built in an earlier
 ;;; publish! pass -- see there) -- never the child's content itself, which
@@ -303,9 +310,12 @@
   [bm tag block]
   (with-attribution-hiccup bm block (item-content-hiccup bm tag block)))
 
+;;; attribution? false for a promoted child -- see item-full-content-md.
 (defn- item-content-html
-  [bm tag block]
-  (-> (item-full-content-hiccup bm tag block)
+  [bm tag block & {:keys [attribution?] :or {attribution? true}}]
+  (-> (if attribution?
+        (item-full-content-hiccup bm tag block)
+        (item-content-hiccup bm tag block))
       hiccup2/html
       str
       (absolutize-html (config/config :real-base-url))))
@@ -833,15 +843,23 @@
               (log/warn "blyg: withdrawing" (count withdrawn-ids) (str "item(s) no longer tagged #" tag ":") withdrawn-ids)
               (log/warn "blyg:" (count withdrawn-ids) (str "previously-published item(s) are no longer tagged #" tag)
                         "-- left untouched; pass :withdraw? true to withdraw them:" withdrawn-ids)))
+        ;; Needed by Phase 1 itself now (attribution?) as well as the
+        ;; visibility-flag pass below -- computed once, used both places.
+        child-ids (set (map :id promoted-children))
         ;; Phase 1: every fragment (leaves + promoted children) -- order
-        ;; doesn't matter, nothing here depends on anything else.
+        ;; doesn't matter, nothing here depends on anything else. A promoted
+        ;; child gets no "From [Page]" attribution of its own (attribution?
+        ;; false) -- the thread it's transcluded into already carries one
+        ;; for the whole piece; repeating it inside every child read as
+        ;; noise, not provenance.
         items-1a (reduce (fn [items block]
-                          (update items (:id block)
-                                  next-entry :fragment
-                                  (item-full-content-md bm tag block)
-                                  (item-content-html bm tag block)
-                                  nil
-                                  now))
+                          (let [attributed? (not (contains? child-ids (:id block)))]
+                            (update items (:id block)
+                                    next-entry :fragment
+                                    (item-full-content-md bm tag block :attribution? attributed?)
+                                    (item-content-html bm tag block :attribution? attributed?)
+                                    nil
+                                    now)))
                         (:items state)
                         fragment-candidates)
         ;; :thread-child? is presentation-only, not part of the hashed/
@@ -854,7 +872,6 @@
         ;; transclusion. Recomputed unconditionally every run (never sticky,
         ;; never version-gated), so a block that stops being a child goes
         ;; straight back to visible.
-        child-ids (set (map :id promoted-children))
         items-1 (reduce (fn [items block]
                           (update items (:id block) assoc :thread-child? (contains? child-ids (:id block))))
                         items-1a
@@ -929,34 +946,53 @@
   from the current bm, without touching content-md/content-hash/version. For
   when a rendering fix (not a content change) needs to reach already-published
   items -- an ordinary publish! wouldn't bump them since their hash is
-  unchanged."
+  unchanged.
+
+  Two phases, like publish!: fragments first, then threads, so a thread bakes
+  its children's freshly-resealed content-html rather than a pre-reseal
+  snapshot. (Prior single-pass version read child html from a fixed
+  orig-items, so a thread's transclusions never picked up a reseal of its own
+  children regardless of reduce-kv order.)"
   [bm output-dir & {:keys [dry-run?]}]
   (let [tag (or (config/config :blygger :tag) "blyg")
         path (state-file)
         state (load-state path)
-        ;; Child lookups for thread re-rendering always read this original
-        ;; map, not the in-progress accumulator below -- ids/versions never
-        ;; change here, so which one is used doesn't matter, but this avoids
-        ;; any mid-reduce-kv staleness question entirely.
         orig-items (:items state)
-        items (reduce-kv
-               (fn [items block-id entry]
-                 (cond (= :withdrawn (:kind entry)) items
-                       (not (contains? bm block-id))
-                       (do (log/warn "blyg reseal: block" block-id "not found in bm, leaving as-is")
-                           items)
-                       (= :thread (:kind entry))
-                       (let [block (get bm block-id)
-                             kids (body-children bm block)]
-                         (assoc items block-id
-                                (assoc entry :content-html
-                                       (thread-content-html bm tag orig-items block kids))))
-                       :else
-                       (assoc items block-id
-                              (assoc entry :content-html
-                                     (item-content-html bm tag (get bm block-id))))))
-               orig-items
-               orig-items)
+        missing? (fn [block-id]
+                   (when-not (contains? bm block-id)
+                     (log/warn "blyg reseal: block" block-id "not found in bm, leaving as-is")
+                     true))
+        ;; Phase 1: fragments (leaves + promoted children) -- threads
+        ;; untouched here, handled in phase 2 once children are current.
+        resealed-fragments
+        (reduce-kv
+         (fn [items block-id entry]
+           (cond (= :withdrawn (:kind entry)) items
+                 (= :thread (:kind entry)) items
+                 (missing? block-id) items
+                 :else
+                 (assoc items block-id
+                        (assoc entry :content-html
+                               (item-content-html bm tag (get bm block-id)
+                                                   :attribution? (not (:thread-child? entry)))))))
+         orig-items
+         orig-items)
+        ;; Phase 2: threads, reading children's content-html from
+        ;; resealed-fragments so transclusions bake the fresh version.
+        items
+        (reduce-kv
+         (fn [items block-id entry]
+           (cond (= :withdrawn (:kind entry)) items
+                 (not= :thread (:kind entry)) items
+                 (missing? block-id) items
+                 :else
+                 (let [block (get bm block-id)
+                       kids (body-children bm block)]
+                   (assoc items block-id
+                          (assoc entry :content-html
+                                 (thread-content-html bm tag resealed-fragments block kids))))))
+         resealed-fragments
+         resealed-fragments)
         new-state (assoc state :items items)]
     (if dry-run?
       new-state

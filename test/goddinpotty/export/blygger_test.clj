@@ -106,6 +106,16 @@
         (is (fs/exists? (str output-dir "/blyg/items/" (:blyg-id child1-entry) ".json")))
         (is (fs/exists? (str output-dir "/blyg/f/" (:blyg-id child1-entry) "/index.html")))
 
+        ;; Only the outermost (thread) block carries "From [Page]"
+        ;; attribution -- a promoted child's own content (both standalone
+        ;; and what gets baked into the thread's transclusion) must not
+        ;; repeat it.
+        (is (re-find #"From \[Thread Page\]" (:content-md thread-entry)))
+        (is (not (re-find #"From \[" (:content-md child1-entry))))
+        (is (not (re-find #"source-page" (:content-html child1-entry))))
+        (is (= 1 (count (re-seq #"source-page" (:content-html thread-entry))))
+            "exactly one attribution (the thread's own) -- not a second one leaking in from the transcluded child")
+
         ;; Children are real, independently fetchable items (json/permalink
         ;; above) but must NOT also appear as their own card in the
         ;; human-facing archive page or feed.xml -- that's the content

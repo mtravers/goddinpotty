@@ -597,6 +597,37 @@ reproduces the exact two-run scenario. Found and verified against the real
 block that triggered the report (`6abc03db...`, "Implementing threads and
 pinning" on the Blygger page) before shipping the fix.
 
+**Attribution leaking into transcluded children**: user report -- a
+transcluded child shouldn't carry its own "From [Page]" line inside a
+thread; only the thread's own top-level content should. Fixed by adding an
+`:attribution?` flag threaded through `item-full-content-md`/
+`item-content-html`, false for any block in `child-ids` (promoted children)
+during `publish!`'s Phase 1, true otherwise.
+
+Verifying this against real ammdi content surfaced a second, real bug in
+`reseal!` (the "re-render cached content-html without bumping version"
+escape hatch): its single `reduce-kv` pass read every child's content-html
+from a fixed `orig-items` snapshot taken before the pass started, so a
+thread's transclusions never picked up a reseal of its own children
+regardless of iteration order. Rewrote `reseal!` as two phases, same shape
+as `publish!`: fragments first, then threads reading from the
+phase-1-resealed map. Confirmed end-to-end against a scratch copy of the
+real state file (never the live one): the real "Implementing threads and
+pinning" thread's cached `content-html` had 6 `source-page` occurrences
+(one correct, five leaked from transcluded children, all predating this
+fix); an ordinary `publish!` correctly left it untouched at 6 (hash-gated,
+by design -- the thread's own content-md didn't change, so neither should
+its frozen snapshot); `reseal!` dropped it to exactly 1, with version,
+pins, content-md, and content-hash all unchanged.
+
+Operational consequence for already-published threads: a normal rebuild
+(`bin/blyg-update.sh` / `-main-refresh-blyg`) will **not** clear the
+duplicated attribution in existing threads, since nothing about their own
+content changed -- `reseal!` has to be run once, by hand from the REPL,
+to reach them. There's no `bin/` entry point for it yet (only
+`-main-refresh-blyg` → `publish!` exists); add one if this needs to become
+routine rather than a one-off.
+
 # Stage 2
 
 TODO small bug, AskClaude lozenges don't appear to work in blyg item
