@@ -110,9 +110,19 @@
                 :else block))
         (vals bm)))
 
+;;; Also the source of a #blyg thread's children (Stage 1.5 / design/blygger.md)
+;;; -- a tagged block with any (surviving) children becomes a thread whose
+;;; children get promoted to their own fragments, rather than flattened into
+;;; one blob the way a plain fragment's descendants are.
 (defn- body-children
   [bm block]
-  (->> (:children block) (map bm) (remove (partial excluded? bm))))
+  (->> (:children block)
+       (map bm)
+       (remove (fn [child]
+                 (when (excluded? bm child)
+                   (log/warn "blyg: excluding child block" (:id child) "- excluded:"
+                             (bd/privacy-exit-point-why bm child))
+                   true)))))
 
 ;;; A #blyg block's "source page" is worth attributing when it's a normal
 ;;; content page (not a journal/daily-notes entry, which has no meaningful
@@ -126,13 +136,18 @@
 
 ;;;; ⩇⩆⩇ Content: markdown ⩇⩆⩇
 
+;;; anchor, when given, is a block's own stable uuid -- the site already uses
+;;; it as the block's :id and as HTML anchor ids (design/done/stable-block-ids.md)
+;;; -- so attribution links can land on the exact #blyg block, not just the
+;;; top of its page.
 (defn- abs-page-url
-  [title]
-  (str (config/config :real-base-url) (utils/clean-page-title title)))
+  [title & [anchor]]
+  (str (config/config :real-base-url) (utils/clean-page-title title)
+       (when anchor (str "#" anchor))))
 
 (defn- md-page-link
-  [title & [link-text]]
-  (format "[%s](%s)" (or link-text title) (abs-page-url title)))
+  [title & [link-text anchor]]
+  (format "[%s](%s)" (or link-text title) (abs-page-url title anchor)))
 
 ;;; Cut down, absolutizing sibling of export.markdown/parsed->markdown: strips
 ;;; the blyg tag itself and points internal links at the live site rather than
@@ -167,22 +182,49 @@
               (str p)))]
     (str/trim (walk-node parsed))))
 
+(defn- own-content-md
+  [tag block]
+  (parsed->blyg-md tag (:parsed block)))
+
 (defn- item-content-md
   [bm tag block]
-  (let [own (parsed->blyg-md tag (:parsed block))
+  (let [own (own-content-md tag block)
         kids (body-children bm block)]
     (str/join "\n\n"
               (remove str/blank? (cons own (map (partial item-content-md bm tag) kids))))))
 
-;;; Attribution line prepended once, at the top level -- not part of the
-;;; recursive item-content-md above (which also handles the item's own
-;;; children), or every child would repeat it.
+;;; Attribution line prepended once, at the top level -- shared by both plain
+;;; fragments and threads (not folded into the recursive item-content-md, or
+;;; every child would repeat it).
+(defn- with-attribution-md
+  [bm block body]
+  (if-let [page (source-page bm block)]
+    (str "From " (md-page-link (:title page) nil (:id block)) "\n\n" body)
+    body))
+
 (defn- item-full-content-md
   [bm tag block]
-  (let [body (item-content-md bm tag block)]
-    (if-let [page (source-page bm block)]
-      (str "From " (md-page-link (:title page)) "\n\n" body)
-      body)))
+  (with-attribution-md bm block (item-content-md bm tag block)))
+
+;;; A child's own blyg-id, already resolved in `items` (built in an earlier
+;;; publish! pass -- see there) -- never the child's content itself, which
+;;; the directive doesn't carry (§10.1: no version in the grammar either).
+(defn- thread-transclusion-md
+  [items child]
+  (format "![[%s]]" (:blyg-id (get items (:id child)))))
+
+;;; Parent's own text + one directive per (already-promoted) child, in
+;;; order -- not recursive the way item-content-md is: children are
+;;; transcluded, not flattened into this block's own prose.
+(defn- thread-content-md
+  [tag items block kids]
+  (str/join "\n\n"
+            (remove str/blank? (cons (own-content-md tag block)
+                                      (map (partial thread-transclusion-md items) kids)))))
+
+(defn- thread-full-content-md
+  [bm tag items block kids]
+  (with-attribution-md bm block (thread-content-md tag items block kids)))
 
 ;;;; ⩇⩆⩇ Content: html ⩇⩆⩇
 
@@ -197,10 +239,14 @@
                      node))
                  parsed))
 
+(defn- own-content-hiccup
+  [bm tag block]
+  (let [stripped (assoc block :parsed (strip-tag-parsed tag (:parsed block)))]
+    [:p (r/block-hiccup stripped bm)]))
+
 (defn- item-content-hiccup
   [bm tag block]
-  (let [stripped (assoc block :parsed (strip-tag-parsed tag (:parsed block)))
-        own [:p (r/block-hiccup stripped bm)]
+  (let [own (own-content-hiccup bm tag block)
         kids (body-children bm block)]
     (if (seq kids)
       (into [:div own] (map (partial item-content-hiccup bm tag) kids))
@@ -225,18 +271,49 @@
                          (str/starts-with? url "/") (str attr "=\"" (str/replace base #"/+$" "") url "\"")
                          :else (str attr "=\"" base url "\""))))))
 
-;;; Same attribution line as item-full-content-md, prepended once at the top
-;;; level -- see there for why it's not folded into the recursive builder.
+;;; Same attribution line as with-attribution-md, prepended once at the top
+;;; level -- shared by plain fragments and threads.
+(defn- with-attribution-hiccup
+  [bm block body]
+  (if-let [page (source-page bm block)]
+    [:div [:p.source-page "From " [:a {:href (abs-page-url (:title page) (:id block))} (:title page)]] body]
+    body))
+
 (defn- item-full-content-hiccup
   [bm tag block]
-  (let [body (item-content-hiccup bm tag block)]
-    (if-let [page (source-page bm block)]
-      [:div [:p.source-page "From " [:a {:href (abs-page-url (:title page))} (:title page)]] body]
-      body)))
+  (with-attribution-hiccup bm block (item-content-hiccup bm tag block)))
 
 (defn- item-content-html
   [bm tag block]
   (-> (item-full-content-hiccup bm tag block)
+      hiccup2/html
+      str
+      (absolutize-html (config/config :real-base-url))))
+
+;;; Baked snapshot of a child's current content-html, wrapped per §10.2 --
+;;; bare blockquote + data attributes, no link inside (any provenance link
+;;; is presentation, not wire). No data-blyg-origin: own-origin only in v1
+;;; (see design/blygger.md Stage 1.5), so this is always the 0.2-compatible
+;;; form.
+(defn- thread-transclusion-hiccup
+  [items child]
+  (let [entry (get items (:id child))]
+    [:blockquote.blyg-transclusion
+     {:data-blyg-id (:blyg-id entry) :data-blyg-version (:version entry)}
+     (hiccup2/raw (:content-html entry))]))
+
+(defn- thread-content-hiccup
+  [bm tag items block kids]
+  (into [:div (own-content-hiccup bm tag block)]
+        (map (partial thread-transclusion-hiccup items) kids)))
+
+(defn- thread-full-content-hiccup
+  [bm tag items block kids]
+  (with-attribution-hiccup bm block (thread-content-hiccup bm tag items block kids)))
+
+(defn- thread-content-html
+  [bm tag items block kids]
+  (-> (thread-full-content-hiccup bm tag items block kids)
       hiccup2/html
       str
       (absolutize-html (config/config :real-base-url))))
@@ -296,8 +373,18 @@
 
 (defn- next-entry
   "New version of one item's state entry, or the same entry unchanged if
-  content-hash is unchanged (no publish event -- no version bump)."
-  [existing kind content-md content-html now]
+  content-hash is unchanged (no publish event -- no version bump). hash is
+  of content-md only (per spec, §5.1), so a thread's transclusions -- which
+  only embed child *ids*, never versions (directives don't carry versions,
+  §10.1) -- freezes correctly: a child's content changing alone doesn't
+  change its parent thread's content-md, so this returns `existing`
+  untouched and the freshly-computed content-html/transclusions here are
+  simply discarded. That's §10.4's snapshot-independence guarantee, not
+  something separately implemented -- a thread's baked snapshot only
+  changes when its own content-md does (own text, or which/how-ordered its
+  children are), exactly when 'republishing' should re-resolve it.
+  transclusions is nil for fragments (key omitted on the wire, §10.3)."
+  [existing kind content-md content-html transclusions now]
   (let [hash (content-hash content-md)]
     (cond
       (nil? existing)
@@ -309,6 +396,7 @@
        :content-md content-md
        :content-html content-html
        :content-hash hash
+       :transclusions transclusions
        :changelog [{:version 1 :at now :note nil}]}
 
       (and (= kind (:kind existing)) (= hash (:content-hash existing)))
@@ -323,6 +411,7 @@
                :content-md content-md
                :content-html content-html
                :content-hash hash
+               :transclusions transclusions
                :changelog (conj (:changelog existing) {:version v :at now :note nil}))))))
 
 (defn- withdraw-entry
@@ -335,6 +424,9 @@
            :content-md ""
            :content-html ""
            :content-hash (content-hash "")
+           ;; "a withdrawn thread's endcap carries []" (§10.3) -- fragments
+           ;; keep omitting the key (nil stays nil).
+           :transclusions (when (= :thread (:kind existing)) [])
            :changelog (conj (:changelog existing) {:version v :at now :note nil}))))
 
 ;;;; ⩇⩆⩇ Protocol surface builders ⩇⩆⩇
@@ -346,26 +438,30 @@
 (defn- item-json
   [origin entry]
   (let [withdrawn? (= :withdrawn (:kind entry))]
-    {:blyg "0.3"
-     :id (:blyg-id entry)
-     :kind (name (:kind entry))
-     :origin origin
-     ;; New in 0.3 (§5.8) -- origin-relative permalink path, emitted for
-     ;; withdrawn items too (the endcap's page is 200 forever). Matches our
-     ;; existing f/{id}/ convention exactly, so no new path scheme needed.
-     :page (str "f/" (:blyg-id entry) "/")
-     :created (:created entry)
-     :updated (:updated entry)
-     :version (:version entry)
-     :content_md (if withdrawn? "" (:content-md entry))
-     :content_html (if withdrawn? "" (:content-html entry))
-     :content_hash (:content-hash entry)
-     ;; TODO: populate media[] explicitly (images currently ride along inline
-     ;; in content_html, already-absolutized -- see design/blygger.md).
-     :media []
-     :changelog (mapv (fn [c] (cond-> {:version (:version c) :at (:at c) :note (:note c)}
-                                 (:pinned c) (assoc :pinned true)))
-                       (:changelog entry))}))
+    (cond-> {:blyg "0.3"
+             :id (:blyg-id entry)
+             :kind (name (:kind entry))
+             :origin origin
+             ;; New in 0.3 (§5.8) -- origin-relative permalink path, emitted for
+             ;; withdrawn items too (the endcap's page is 200 forever). Matches our
+             ;; existing f/{id}/ convention exactly, so no new path scheme needed.
+             :page (str "f/" (:blyg-id entry) "/")
+             :created (:created entry)
+             :updated (:updated entry)
+             :version (:version entry)
+             :content_md (if withdrawn? "" (:content-md entry))
+             :content_html (if withdrawn? "" (:content-html entry))
+             :content_hash (:content-hash entry)
+             ;; TODO: populate media[] explicitly (images currently ride along inline
+             ;; in content_html, already-absolutized -- see design/blygger.md).
+             :media []
+             :changelog (mapv (fn [c] (cond-> {:version (:version c) :at (:at c) :note (:note c)}
+                                         (:pinned c) (assoc :pinned true)))
+                               (:changelog entry))}
+      ;; Threads carry transclusions (§10.3); fragments omit the key
+      ;; entirely. (:transclusions entry) is truthy for both a live
+      ;; thread's populated vector and a withdrawn-former-thread's [].
+      (:transclusions entry) (assoc :transclusions (:transclusions entry)))))
 
 ;;; Defaults to "<short-title> Blyg" (eg "AMMDI Blyg") rather than bare
 ;;; short-title, so the manifest/feed/archive page read as their own named
@@ -498,7 +594,13 @@
 ;;; <page title> <actual start of content>".
 (defn- title-excerpt
   [content-md]
-  (excerpt (str/replace content-md #"(?s)^From \[[^\]]*\]\([^)]*\)\n\n" "") 60))
+  (excerpt (-> content-md
+               (str/replace #"(?s)^From \[[^\]]*\]\([^)]*\)\n\n" "")
+               ;; A thread's content-md is own-text + "![[id]]" directive
+               ;; lines -- strip those too, or a thread with little own text
+               ;; gets a title/<h1> full of raw directives.
+               (str/replace #"(?s)\n\n!\[\[[0-9a-z]{26}\]\]" ""))
+           60))
 
 (defn- permalink-page-hiccup
   [bm origin entry]
@@ -601,9 +703,13 @@
 (defn publish!
   "Scan `bm` for #<tag> blocks the site already publishes and (re)write the
   blyg surface into `output-dir`. Safe to call repeatedly -- version bumps
-  only on content change. Blocks previously published but no longer tagged
-  are left alone (and warned about) unless :withdraw? true. :dry-run? true
-  computes and logs the new state without writing anything."
+  only on content change. A tagged block with (surviving) children is a
+  thread; each child is promoted to its own ordinary fragment and the
+  parent transcludes them (see design/blygger.md Stage 1.5). A tagged block
+  with no children is a plain fragment, as always. Blocks previously
+  published but no longer tagged/promoted are left alone (and warned about)
+  unless :withdraw? true. :dry-run? true computes and logs the new state
+  without writing anything."
   [bm output-dir & {:keys [withdraw? dry-run?]}]
   (when-not (config/config :blygger :enabled?)
     (throw (ex-info "blyg is not enabled (:blyg :enabled? in config)" {})))
@@ -611,8 +717,20 @@
         path (state-file)
         state (load-state path)
         now (now-iso)
-        candidates (blyg-blocks bm tag)
-        current-ids (set (map :id candidates))
+        tagged (blyg-blocks bm tag)
+        ;; body-children already applies the privacy filter, so this split
+        ;; reflects *surviving* children, not raw tree structure -- a block
+        ;; whose only children are all privacy-excluded is correctly a leaf.
+        thread-blocks (filter #(seq (body-children bm %)) tagged)
+        leaf-blocks (remove #(seq (body-children bm %)) tagged)
+        promoted-children (mapcat (partial body-children bm) thread-blocks)
+        fragment-candidates (concat leaf-blocks promoted-children)
+        ;; Built from the same tagged/thread-blocks/promoted-children values
+        ;; the two phases below actually publish from, in one pass -- not a
+        ;; separate re-derivation, so this can't disagree with what gets
+        ;; published (a mismatch here means a real published item silently
+        ;; lands in withdrawn-ids).
+        current-ids (set (concat (map :id tagged) (map :id promoted-children)))
         prior-ids (set (keys (:items state)))
         withdrawn-ids (set/difference prior-ids current-ids)
         _ (when (seq withdrawn-ids)
@@ -620,27 +738,47 @@
               (log/warn "blyg: withdrawing" (count withdrawn-ids) (str "item(s) no longer tagged #" tag ":") withdrawn-ids)
               (log/warn "blyg:" (count withdrawn-ids) (str "previously-published item(s) are no longer tagged #" tag)
                         "-- left untouched; pass :withdraw? true to withdraw them:" withdrawn-ids)))
+        ;; Phase 1: every fragment (leaves + promoted children) -- order
+        ;; doesn't matter, nothing here depends on anything else.
         items-1 (reduce (fn [items block]
                           (update items (:id block)
                                   next-entry :fragment
                                   (item-full-content-md bm tag block)
                                   (item-content-html bm tag block)
+                                  nil
                                   now))
                         (:items state)
-                        candidates)
-        items-2 (if withdraw?
+                        fragment-candidates)
+        ;; Phase 2: threads, now that items-1 has every child's current
+        ;; blyg-id/version resolved to transclude.
+        items-2 (reduce (fn [items block]
+                          (let [kids (body-children bm block)
+                                transclusions (mapv (fn [k]
+                                                       (let [e (get items (:id k))]
+                                                         {:id (:blyg-id e) :version (:version e)}))
+                                                     kids)]
+                            (update items (:id block)
+                                    next-entry :thread
+                                    (thread-full-content-md bm tag items block kids)
+                                    (thread-content-html bm tag items block kids)
+                                    transclusions
+                                    now)))
+                        items-1
+                        thread-blocks)
+        items-3 (if withdraw?
                   (reduce (fn [items id]
                             (if (= :withdrawn (:kind (get items id)))
                               items
                               (update items id withdraw-entry now)))
-                          items-1
+                          items-2
                           withdrawn-ids)
-                  items-1)
-        new-state (assoc state :items items-2)
-        changed (filter (fn [[id e]] (not= e (get-in state [:items id]))) items-2)]
+                  items-2)
+        new-state (assoc state :items items-3)
+        changed (filter (fn [[id e]] (not= e (get-in state [:items id]))) items-3)]
     (if dry-run?
-      (do (log/info "blyg dry-run:" (count candidates) "candidate(s)," (count changed)
-                    "item(s) would change (new version or new item), no files written")
+      (do (log/info "blyg dry-run:" (count tagged) "tagged block(s)" (str "(" (count thread-blocks) " thread(s), "
+                    (count promoted-children) " promoted child/children)," ) (count changed)
+                    "item(s) would change (new version, new item, or kind change), no files written")
           new-state)
       ;; Surfaces before state, deliberately: if this crashes partway, an
       ;; unsaved state means the next run recomputes these same items as
@@ -663,18 +801,29 @@
   (let [tag (or (config/config :blygger :tag) "blyg")
         path (state-file)
         state (load-state path)
+        ;; Child lookups for thread re-rendering always read this original
+        ;; map, not the in-progress accumulator below -- ids/versions never
+        ;; change here, so which one is used doesn't matter, but this avoids
+        ;; any mid-reduce-kv staleness question entirely.
+        orig-items (:items state)
         items (reduce-kv
                (fn [items block-id entry]
                  (cond (= :withdrawn (:kind entry)) items
                        (not (contains? bm block-id))
                        (do (log/warn "blyg reseal: block" block-id "not found in bm, leaving as-is")
                            items)
+                       (= :thread (:kind entry))
+                       (let [block (get bm block-id)
+                             kids (body-children bm block)]
+                         (assoc items block-id
+                                (assoc entry :content-html
+                                       (thread-content-html bm tag orig-items block kids))))
                        :else
                        (assoc items block-id
                               (assoc entry :content-html
                                      (item-content-html bm tag (get bm block-id))))))
-               (:items state)
-               (:items state))
+               orig-items
+               orig-items)
         new-state (assoc state :items items)]
     (if dry-run?
       new-state

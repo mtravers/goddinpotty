@@ -375,16 +375,83 @@ folded into this one.
   anchor ids — see `design/done/stable-block-ids.md`), so the link lands on the
   exact block instead of the top of the page.
 
-**Open questions to settle while implementing, not blocking the plan:**
-- Exact `kind`/kind-detection wiring: `next-entry` currently takes `kind` as a
-  fixed `:fragment` argument from `publish!`'s reduce; needs to vary per-block now.
-- Whether `blygger_test.clj`'s hand-built fixture style (fake blocks, no live
-  Logseq) is enough to cover a parent-with-children case — should be, it's the
-  same pattern already used for `source-page-attribution-test`'s block trees.
-- Confirm real ammdi content actually has a `#blyg` parent+children case to
-  smoke-test against before calling this done, same verification approach as the
-  HTML-surface work (build from the `nbb-extract.edn` snapshot into a scratch dir,
-  never touching the live state file/output repo until reviewed).
+### Implemented (both parts)
+
+Part A shipped as #11. Part B shipped on `feature/blyg-threads`. Before writing
+any Part B code, checked the real ammdi `.blyg-state.edn` against the real bm
+(built from the `nbb-extract.edn` replay, same approach as the HTML-surface
+verification): **2 of 11** currently-published items have children and would
+convert fragment→thread — `13y1x5g2hfghfty85f10sg8gjv` (10 children) and
+`1563bb7ahney0aqqegzz122bbf`, the "Blygger page" block this whole feature was
+asked for (8 children, 1 privacy-excluded → 7). Reported that to the user
+before proceeding (a live feed with subscribers; not a call to make silently).
+
+Implementation notes, mostly matching the plan above:
+
+- `publish!` is now two-phase: Phase 1 publishes every fragment (leaf tagged
+  blocks + children promoted out of thread blocks) through the existing
+  `next-entry` machinery, unchanged; Phase 2 publishes threads, using Phase
+  1's resulting `items` map to resolve each child's current blyg-id/version
+  for `![[id]]` directives and `transclusions`. `current-ids` (withdrawal
+  diffing) is built from the exact same `tagged`/`thread-blocks`/
+  `promoted-children` values the two phases publish from, not a separate
+  derivation, per the advisor's warning about that being where silent
+  withdrawal bugs hide.
+- `next-entry` gained a `transclusions` param but needed no other change --
+  hashing is still content-md-only (per spec), and a thread's content-md only
+  embeds child *ids* (directives don't carry versions, §10.1), so a child's
+  content changing alone doesn't change its parent thread's hash. The
+  existing "return `existing` unchanged if hash matches" branch already
+  discards the freshly-computed (but identical-by-id-set) content-html in
+  that case. That *is* §10.4's snapshot-independence guarantee -- not
+  separately implemented, just a consequence of hashing the right thing.
+- `own-content-md`/`own-content-hiccup` factored out of `item-content-md`/
+  `item-content-hiccup` (which still recurse into children for an ordinary
+  fragment/promoted child) and reused for a thread's own text, which does
+  *not* recurse -- children are transcluded, not flattened.
+- **Real finding, not anticipated in the plan:** tested a "child has its own
+  explicit exit tag" case and initially got it wrong. `bd/tagged?`'s
+  "contained" convention (a `#Private` block nested one level under the
+  content it privatizes -- `batadase.clj`'s `tagged?`) checks a block's
+  *direct children's* refs too, not just its own. Putting `#Private` directly
+  in a child's own text makes `tagged-or-contained?` true for the **thread
+  parent** as well (the child is the parent's direct child), which gets the
+  whole thread excluded by `blyg-blocks`'s top-level filter before any
+  per-child logic runs -- not the "drop just that one point" behavior the
+  plan assumed. The correct way to privatize one point in a thread is the
+  normal site-wide nested convention: `#Private` on a child *of* the point
+  being privatized (two levels under the thread parent), which excludes only
+  that one child via `body-children`'s per-child filter without reaching the
+  parent. `thread-privacy-test` in `blygger_test.clj` covers this, and the
+  real ammdi Blygger-page thread turned out to already have exactly this
+  case live (one child legitimately excluded on the real run) -- good,
+  unplanned confirmation against real content.
+- `reseal!` is now kind-aware: a thread re-renders via `thread-content-html`
+  against its children's *existing* (unchanged) state entries, rather than
+  the plain `item-content-html` path, which would have silently flattened
+  children into the thread's body again instead of transcluding them.
+- `title-excerpt` (permalink `<title>`/`<h1>`) strips `![[id]]` directive
+  lines in addition to the existing "From [Page]" attribution strip, or a
+  thread with little own text gets a title full of raw directives.
+- Verified against real ammdi content (scratch state-file copy + scratch
+  output dir, same isolation as the HTML-surface work): both real threads
+  produced the exact predicted transclusion counts, `content_md`/
+  `transclusions` match the wire shape exactly, generated `<blockquote
+  class="blyg-transclusion" data-blyg-id=... data-blyg-version=...>`
+  elements are correct, and the absolute-URL-only invariant (the thing that
+  broke production once already in this feature's history, see above) holds
+  across all 29 generated pages.
+
+The "link to the #blyg block with `#id`" TODO is also done: `abs-page-url`/
+`md-page-link` take an optional anchor, and `with-attribution-md`/
+`-hiccup` pass the block's own `:id` (the stable uuid already used as its
+HTML anchor id, `design/done/stable-block-ids.md`), so every "From [Page
+Title]" attribution link -- thread or fragment, parent or promoted child --
+lands on the exact block instead of the top of the page.
+
+**Not done, deliberately out of scope for this stage** (see "Key
+simplification for v1" above): author-written `![[id]]`/`[[id]]` directives
+referencing arbitrary already-published items; nested/grandchild threads.
 
 # Stage 2
 
