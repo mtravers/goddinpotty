@@ -248,8 +248,8 @@
   (let [pg (fake-page 50 "Pin Page")
         output-dir (config/config :output-dir)]
 
-    (testing "#[[blyg/pin]] pins the current latest version"
-      (let [block (assoc (prep 51 "Hello world #blyg #[[blyg/pin]]") :parent 50)
+    (testing "#blyg-pin pins the current latest version"
+      (let [block (assoc (prep 51 "Hello world #blyg #blyg-pin") :parent 50)
             bm {50 pg 51 block}
             state (blygger/publish! bm output-dir)
             entry (get (:items state) 51)]
@@ -260,7 +260,7 @@
         (is (fs/exists? (str output-dir "/blyg/items/" (:blyg-id entry) "/v1.json")))))
 
     (testing "republishing unchanged is idempotent -- no duplicate/changed pin"
-      (let [block (assoc (prep 51 "Hello world #blyg #[[blyg/pin]]") :parent 50)
+      (let [block (assoc (prep 51 "Hello world #blyg #blyg-pin") :parent 50)
             bm {50 pg 51 block}
             before (blygger/load-state (config/config :blygger :state-file))
             after (blygger/publish! bm output-dir)]
@@ -269,7 +269,7 @@
     (testing "editing content after pinning bumps the version and pins v1 stays frozen;
               leaving the tag on pins the new version too (documented behavior,
               not a one-shot -- see design/blygger.md Stage 1.6)"
-      (let [block2 (assoc (prep 51 "Hello there #blyg #[[blyg/pin]]") :parent 50)
+      (let [block2 (assoc (prep 51 "Hello there #blyg #blyg-pin") :parent 50)
             bm2 {50 pg 51 block2}
             state (blygger/publish! bm2 output-dir)
             entry (get (:items state) 51)]
@@ -279,18 +279,19 @@
         (is (not= (get-in entry [:pins 1 :content-md]) (get-in entry [:pins 2 :content-md])))
         (is (fs/exists? (str output-dir "/blyg/items/" (:blyg-id entry) "/v2.json")))))
 
-    (testing "bare #blyg/pin (no double brackets) does NOT register as a pin request --
-              the hashtag grammar has no '/', so it parses as plain #blyg plus
-              literal '/pin' text, not a distinct tag"
-      (let [block (assoc (prep 52 "Bare form #blyg/pin") :parent 50)
+    (testing "#blyg-pin alone (no separate #blyg) still publishes AND pins --
+              the pin tag implies the main tag, so one tag does both"
+      (let [block (assoc (prep 52 "Implied publish #blyg-pin") :parent 50)
             bm {50 pg 52 block}
             state (blygger/publish! bm output-dir)
             entry (get (:items state) 52)]
-        (is (empty? (:pins entry)))))
+        (is (= :fragment (:kind entry)))
+        (is (not (re-find #"pin" (:content-md entry))))
+        (is (contains? (:pins entry) 1))))
 
     (testing "a thread's pin captures its baked transclusions too"
       (let [child (assoc (prep 54 "A point") :parent 53)
-            parent (assoc (prep 53 "Points #blyg #[[blyg/pin]]" :children [54]) :parent 50)
+            parent (assoc (prep 53 "Points #blyg #blyg-pin" :children [54]) :parent 50)
             bm {50 pg 53 parent 54 child}
             state (blygger/publish! bm output-dir)
             thread-entry (get (:items state) 53)]

@@ -540,41 +540,45 @@ stands."
   explicitly not our job to implement — we only need our half: making the
   cited version promise-keepable.
 
-**Resolved and implemented**: `#blyg/pin`, "stays pinning while the tag's
-on" semantics, both as proposed above.
+**Resolved and implemented, revised once after user feedback.** First pass
+used `#[[blyg/pin]]` (double-bracket form), required because the hashtag
+grammar's bare form is `#"\#[\w-:]+"` — no `/` — so bare `#blyg/pin` parses
+as the plain `#blyg` tag followed by literal, un-stripped `/pin` text, not a
+distinct tag. Reported as "that bites" — fair; double-bracket syntax for a
+meta/control tag is exactly the kind of friction that stops a tagging
+convention from being used. **Changed to `#blyg-pin`**: `-` *is* in the
+bare-form character class, so it's one clean token with plain `#` syntax,
+same as `#blyg` itself. **Also changed, per the same feedback: `#blyg-pin`
+now implies `#<tag>`** — a block carrying only `#blyg-pin` (no separate
+`#blyg`) still publishes *and* pins, one tag doing both instead of two.
 
-**Real constraint found during implementation, not anticipated above**: the
-tag MUST be written `#[[blyg/pin]]` (double-bracket page-link form), not
-bare `#blyg/pin`. The hashtag grammar's bare form is `#"\#[\w-:]+"` — no
-`/` — so bare `#blyg/pin` parses as the plain `#blyg` tag followed by
-literal, un-stripped `/pin` text, not a distinct tag at all (verified: it
-silently fails to register as a pin request, and the dangling `/pin` text
-leaks into rendered content). `pin-requested?`/`tag-block?` both go through
-`bd/block-hashtags`, which normalizes *either* written form down to a clean
-`"blyg/pin"` string via `utils/parse-hashtag` — so detection itself needed
-no new parsing, just the bracket requirement in how you type it.
-`pin-test`'s "bare form" case pins this down as a regression test.
+Implementation: `pin-tag` (`"<tag>-pin"`), `pin-requested?` (detection,
+reusing `tag-block?`), `blyg-tagged?` (`(or (tag-block? tag block)
+(pin-requested? block))` — the "implies" logic; `blyg-blocks` uses this
+instead of a bare `tag-block?` check now), `pin-entry` (the idempotent,
+irrevocable state mutation — snapshots `:content-md`/`:content-html`/
+`:content-hash`/`:transclusions` at the version's *current* content into a
+new `:pins` map on the entry, marks the matching changelog entry `:pinned
+true`; refuses to pin a withdrawn entry per §8 rule 2), `pin-json` (the
+flatter, media-less per-version wire shape §8 specifies), and a
+`write-surfaces!` step writing `items/{id}/v{n}.json` for every entry in
+every item's `:pins`, every build (same "regenerate from durable state on
+every run" discipline as everything else here, since `:output-dir` is wiped
+wholesale each time). `parsed->blyg-md` and `strip-tag-parsed` both strip
+`#blyg-pin` the same way they already stripped `#blyg`, so it doesn't leak
+into content. `publish!` runs pinning as a new Phase 3, after threads
+(Phase 2) so a pinned thread's snapshot includes its already-resolved
+`:transclusions`, before withdrawal.
 
-Implementation: `pin-tag`/`pin-requested?` (detection, reusing
-`tag-block?`), `pin-entry` (the idempotent, irrevocable state mutation --
-snapshots `:content-md`/`:content-html`/`:content-hash`/`:transclusions` at
-the version's *current* content into a new `:pins` map on the entry, marks
-the matching changelog entry `:pinned true`; refuses to pin a withdrawn
-entry per §8 rule 2), `pin-json` (the flatter, media-less per-version wire
-shape §8 specifies), and a `write-surfaces!` step writing
-`items/{id}/v{n}.json` for every entry in every item's `:pins`, every build
-(same "regenerate from durable state on every run" discipline as everything
-else here, since `:output-dir` is wiped wholesale each time). `parsed->blyg-md`
-and `strip-tag-parsed` both strip `#[[blyg/pin]]` the same way they already
-stripped `#blyg`, so it doesn't leak into content. `publish!` runs pinning
-as a new Phase 3, after threads (Phase 2) so a pinned thread's snapshot
-includes its already-resolved `:transclusions`, before withdrawal.
+"Stays pinning while the tag's on" semantics unchanged from the original
+proposal: if you leave `#blyg-pin` on and keep editing, every subsequent
+version published while it's present gets pinned too, not just the first.
 
 Verified against real ammdi content (scratch state-file + output dir, never
 touching the live ones): a full publish run with the new code produced
 identical visible-item counts to before (no real content has the tag yet,
 so zero pins created, zero regressions) — fixture tests in `pin-test`
-exercise the actual pin/unpin-is-impossible/idempotent-republish/thread-pin
+exercise the actual pin/implies-main-tag/idempotent-republish/thread-pin
 paths end to end.
 
 # Stage 2

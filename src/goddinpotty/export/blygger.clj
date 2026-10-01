@@ -83,19 +83,25 @@
   [tag block]
   (contains? (set (bd/block-hashtags block)) tag))
 
-;;; A block carrying this (in addition to #<tag>) gets its *current* latest
-;;; version pinned at publish time -- see design/blygger.md Stage 1.6 / §8.
-;;; MUST be written as #[[blyg/pin]], not bare #blyg/pin: the hashtag
-;;; grammar's bare form is #"\#[\w-:]+" (no "/"), so bare #blyg/pin parses as
-;;; the plain #blyg tag followed by literal, un-stripped "/pin" text -- not
-;;; a distinct tag at all. Only the double-bracket form produces one token.
+;;; A block carrying this gets its *current* latest version pinned at
+;;; publish time -- see design/blygger.md Stage 1.6 / §8. Hyphenated, not
+;;; #<tag>/pin: the hashtag grammar's bare form is #"\#[\w-:]+" -- "-" is
+;;; in that class, "/" isn't, so #blyg-pin is one clean token with plain #
+;;; syntax, where #blyg/pin would silently split into #blyg plus literal,
+;;; un-stripped "/pin" text. Implies #<tag> -- blyg-tagged? below treats a
+;;; #blyg-pin-only block (no separate #blyg needed) as a full candidate --
+;;; so #blyg-pin is both "publish this" and "pin it", in one tag.
 (defn- pin-tag
   []
-  (str (or (config/config :blygger :tag) "blyg") "/pin"))
+  (str (or (config/config :blygger :tag) "blyg") "-pin"))
 
 (defn- pin-requested?
   [block]
   (tag-block? (pin-tag) block))
+
+(defn- blyg-tagged?
+  [tag block]
+  (or (tag-block? tag block) (pin-requested? block)))
 
 ;;; Deliberately NOT bd/included?/bd/displayed?/bd/exit-point? -- those track
 ;;; whether the site's entry-tag graph walk would generate this block a page
@@ -108,14 +114,14 @@
   (bd/privacy-exit-point? bm block))
 
 (defn blyg-blocks
-  "Blocks tagged #<tag>, published regardless of whether the site's
-  entry-tag graph walk would otherwise reach them -- only an explicit exit
-  tag (#Private/#ExitPoint/etc) excludes one. Logs (and drops) any #<tag>
-  block an exit tag excludes, rather than silently publishing -- or silently
-  ignoring the author -- either way."
+  "Blocks tagged #<tag> (or #<tag>-pin, which implies #<tag>), published
+  regardless of whether the site's entry-tag graph walk would otherwise
+  reach them -- only an explicit exit tag (#Private/#ExitPoint/etc) excludes
+  one. Logs (and drops) any such block an exit tag excludes, rather than
+  silently publishing -- or silently ignoring the author -- either way."
   [bm tag]
   (keep (fn [block]
-          (cond (not (tag-block? tag block))
+          (cond (not (blyg-tagged? tag block))
                 nil
                 (excluded? bm block)
                 (do (log/warn "blyg: skipping" (:id block) "- excluded:"
@@ -793,9 +799,9 @@
   only on content change. A tagged block with (surviving) children is a
   thread; each child is promoted to its own ordinary fragment and the
   parent transcludes them (see design/blygger.md Stage 1.5). A tagged block
-  with no children is a plain fragment, as always. A block also carrying
-  #[[blyg/pin]] gets its current latest version pinned (§8, irrevocable,
-  idempotent -- see design/blygger.md Stage 1.6). Blocks previously
+  with no children is a plain fragment, as always. #<tag>-pin (implies
+  #<tag>, no need for both) gets its current latest version pinned (§8,
+  irrevocable, idempotent -- see design/blygger.md Stage 1.6). Blocks previously
   published but no longer tagged/promoted are left alone (and warned about)
   unless :withdraw? true. :dry-run? true computes and logs the new state
   without writing anything."
@@ -869,7 +875,7 @@
                                     now)))
                         items-1
                         thread-blocks)
-        ;; Phase 3: pins (§8, design/blygger.md Stage 1.6) -- #[[blyg/pin]]
+        ;; Phase 3: pins (§8, design/blygger.md Stage 1.6) -- #<tag>-pin
         ;; on any currently-tagged/promoted block pins that block's *current*
         ;; latest version (thread content included, now that items-2 has it
         ;; resolved). pin-entry is idempotent, so this is safe to run every
