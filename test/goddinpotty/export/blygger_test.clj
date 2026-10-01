@@ -32,19 +32,17 @@
 
 (deftest publish-round-trip-test
   (let [pg (fake-page 1 "Test Page")
-        child (assoc (prep 3 "more detail") :parent 2)
-        block (assoc (prep 2 "Hello world #blyg" :children [3]) :parent 1)
-        bm {1 pg 2 block 3 child}
+        block (assoc (prep 2 "Hello world #blyg") :parent 1)
+        bm {1 pg 2 block}
         output-dir (config/config :output-dir)]
 
-    (testing "first publish creates v1, strips the tag, keeps the child as body"
+    (testing "first publish creates v1, strips the tag"
       (let [state (blygger/publish! bm output-dir)
             entry (get (:items state) 2)]
         (is (= 1 (:version entry)))
         (is (= :fragment (:kind entry)))
         (is (= 26 (count (:blyg-id entry))))
         (is (not (re-find #"blyg" (:content-md entry))))
-        (is (re-find #"more detail" (:content-md entry)))
         (is (= 1 (count (:changelog entry))))
         (is (fs/exists? (str output-dir "/blyg/items/" (:blyg-id entry) ".json")))
         (is (fs/exists? (str output-dir "/blyg/blyg.json")))
@@ -57,7 +55,7 @@
         (is (= (get-in before [:items 2]) (get-in after [:items 2])))))
 
     (testing "content change bumps the version and appends a changelog entry"
-      (let [bm2 (assoc bm 2 (assoc (prep 2 "Hello there #blyg" :children [3]) :parent 1))
+      (let [bm2 (assoc bm 2 (assoc (prep 2 "Hello there #blyg") :parent 1))
             state (blygger/publish! bm2 output-dir)
             entry (get (:items state) 2)]
         (is (= 2 (:version entry)))
@@ -80,6 +78,113 @@
         (is (= "" (:content-html entry)))
         ;; still 200 forever: the file is still there, just an empty endcap
         (is (fs/exists? (str output-dir "/blyg/items/" (:blyg-id entry) ".json")))))))
+
+(deftest thread-test
+  (let [pg (fake-page 20 "Thread Page")
+        child1 (assoc (prep 22 "First point") :parent 21)
+        child2 (assoc (prep 23 "Second point") :parent 21)
+        parent (assoc (prep 21 "My points #blyg" :children [22 23]) :parent 20)
+        bm {20 pg 21 parent 22 child1 23 child2}
+        output-dir (config/config :output-dir)]
+
+    (testing "a tagged block with children becomes a thread; children are promoted to their own fragments"
+      (let [state (blygger/publish! bm output-dir)
+            items (:items state)
+            thread-entry (get items 21)
+            child1-entry (get items 22)
+            child2-entry (get items 23)]
+        (is (= :thread (:kind thread-entry)))
+        (is (= :fragment (:kind child1-entry)))
+        (is (= :fragment (:kind child2-entry)))
+        (is (re-find (re-pattern (str "!\\[\\[" (:blyg-id child1-entry) "\\]\\]")) (:content-md thread-entry)))
+        (is (re-find (re-pattern (str "!\\[\\[" (:blyg-id child2-entry) "\\]\\]")) (:content-md thread-entry)))
+        (is (= [{:id (:blyg-id child1-entry) :version (:version child1-entry)}
+                {:id (:blyg-id child2-entry) :version (:version child2-entry)}]
+               (:transclusions thread-entry)))
+        (is (re-find #"blyg-transclusion" (:content-html thread-entry)))
+        (is (re-find (re-pattern (str "data-blyg-id=\"" (:blyg-id child1-entry) "\"")) (:content-html thread-entry)))
+        (is (fs/exists? (str output-dir "/blyg/items/" (:blyg-id child1-entry) ".json")))
+        (is (fs/exists? (str output-dir "/blyg/f/" (:blyg-id child1-entry) "/index.html")))
+
+        ;; Children are real, independently fetchable items (json/permalink
+        ;; above) but must NOT also appear as their own card in the
+        ;; human-facing archive page or feed.xml -- that's the content
+        ;; showing up twice (once standalone, once transcluded in the
+        ;; thread) bug this guards against.
+        (is (true? (:thread-child? child1-entry)))
+        (is (true? (:thread-child? child2-entry)))
+        (is (not (:thread-child? thread-entry)))
+        (let [archive-html (slurp (str output-dir "/blyg/index.html"))
+              feed-xml (slurp (str output-dir "/blyg/feed.xml"))]
+          ;; present once, inside the thread's transclusion blockquote --
+          ;; not a second time as a standalone permalink/card
+          (is (= 1 (count (re-seq (re-pattern (:blyg-id child1-entry)) archive-html))))
+          (is (= 1 (count (re-seq (re-pattern (:blyg-id child2-entry)) archive-html))))
+          ;; The child's id legitimately appears inside the thread's own feed
+          ;; entry (baked into its transcluded content_html description) --
+          ;; what must NOT exist is a <blyg:id> for the child, which is only
+          ;; emitted for an item's *own* feed entry (feed-item-xml).
+          (is (not (re-find (re-pattern (str "<blyg:id>" (:blyg-id child1-entry) "</blyg:id>")) feed-xml)))
+          (is (not (re-find (re-pattern (str "<blyg:id>" (:blyg-id child2-entry) "</blyg:id>")) feed-xml))))))
+
+    (testing "republishing unchanged is a no-op for the thread and its children"
+      (let [before (blygger/load-state (config/config :blygger :state-file))
+            after (blygger/publish! bm output-dir)]
+        (is (= (:items before) (:items after)))))
+
+    (testing "editing a child's content bumps the child's version but does NOT
+              change the thread's already-baked snapshot (protocol §10.4) --
+              a thread's directives don't carry a version (§10.1), so the
+              thread's own content-md -- and thus whether it re-bumps -- only
+              changes when the directive list itself changes"
+      (let [bm2 (assoc bm 22 (assoc (prep 22 "First point, revised") :parent 21))
+            before (blygger/load-state (config/config :blygger :state-file))
+            after (blygger/publish! bm2 output-dir)
+            thread-before (get-in before [:items 21])
+            thread-after (get-in after [:items 21])
+            child1-after (get-in after [:items 22])]
+        (is (= 2 (:version child1-after)))
+        (is (= thread-before thread-after))))
+
+    (testing "removing a child from the parent's children changes the thread's
+              directive list, which bumps the thread's own version"
+      (let [bm3 (assoc bm 21 (assoc (prep 21 "My points #blyg" :children [22]) :parent 20))
+            state (blygger/publish! bm3 output-dir)
+            thread-entry (get (:items state) 21)]
+        (is (= 2 (:version thread-entry)))
+        (is (not (re-find #"Second point" (:content-md thread-entry))))))
+
+    (testing "a tagged block with no (surviving) children stays a plain fragment"
+      (let [leaf (assoc (prep 24 "Leaf #blyg") :parent 20)
+            bm4 (assoc bm 24 leaf)
+            state (blygger/publish! bm4 output-dir)
+            entry (get (:items state) 24)]
+        (is (= :fragment (:kind entry)))))))
+
+(deftest thread-privacy-test
+  (testing "a child privatized the normal nested-tag way (a #Private child
+            beneath it, bd/tagged?'s 'contained' convention) is excluded from
+            the thread individually -- rather than cascading up and
+            excluding the whole thread, which it would if the tag were on
+            the child itself (tagged?'s containment check looks at *direct*
+            children, so the tag has to be one level deeper than the point
+            it privatizes, same as anywhere else in this codebase)"
+    (let [pg (fake-page 40 "Thread Privacy Page")
+          private-page (fake-page 100 "Private")
+          private-tag-block (assoc (prep 44 "#Private") :parent 42 :refs #{100})
+          private-child (assoc (prep 42 "Secret point" :children [44]) :parent 41)
+          public-child (assoc (prep 43 "Public point") :parent 41)
+          parent (assoc (prep 41 "My points #blyg" :children [42 43]) :parent 40)
+          bm {40 pg 41 parent 42 private-child 43 public-child 44 private-tag-block 100 private-page}
+          output-dir (config/config :output-dir)
+          state (blygger/publish! bm output-dir)
+          items (:items state)
+          thread-entry (get items 41)]
+      (is (= :thread (:kind thread-entry)))
+      (is (nil? (get items 42)))
+      (is (some? (get items 43)))
+      (is (= 1 (count (:transclusions thread-entry))))
+      (is (= (:blyg-id (get items 43)) (:id (first (:transclusions thread-entry))))))))
 
 (deftest privacy-gate-test
   (testing "an explicitly tagged #Private block is skipped -- the real privacy boundary"

@@ -375,16 +375,177 @@ folded into this one.
   anchor ids — see `design/done/stable-block-ids.md`), so the link lands on the
   exact block instead of the top of the page.
 
-**Open questions to settle while implementing, not blocking the plan:**
-- Exact `kind`/kind-detection wiring: `next-entry` currently takes `kind` as a
-  fixed `:fragment` argument from `publish!`'s reduce; needs to vary per-block now.
-- Whether `blygger_test.clj`'s hand-built fixture style (fake blocks, no live
-  Logseq) is enough to cover a parent-with-children case — should be, it's the
-  same pattern already used for `source-page-attribution-test`'s block trees.
-- Confirm real ammdi content actually has a `#blyg` parent+children case to
-  smoke-test against before calling this done, same verification approach as the
-  HTML-surface work (build from the `nbb-extract.edn` snapshot into a scratch dir,
-  never touching the live state file/output repo until reviewed).
+### Implemented (both parts)
+
+Part A shipped as #11. Part B shipped on `feature/blyg-threads`. Before writing
+any Part B code, checked the real ammdi `.blyg-state.edn` against the real bm
+(built from the `nbb-extract.edn` replay, same approach as the HTML-surface
+verification): **2 of 11** currently-published items have children and would
+convert fragment→thread — `13y1x5g2hfghfty85f10sg8gjv` (10 children) and
+`1563bb7ahney0aqqegzz122bbf`, the "Blygger page" block this whole feature was
+asked for (8 children, 1 privacy-excluded → 7). Reported that to the user
+before proceeding (a live feed with subscribers; not a call to make silently).
+
+Implementation notes, mostly matching the plan above:
+
+- `publish!` is now two-phase: Phase 1 publishes every fragment (leaf tagged
+  blocks + children promoted out of thread blocks) through the existing
+  `next-entry` machinery, unchanged; Phase 2 publishes threads, using Phase
+  1's resulting `items` map to resolve each child's current blyg-id/version
+  for `![[id]]` directives and `transclusions`. `current-ids` (withdrawal
+  diffing) is built from the exact same `tagged`/`thread-blocks`/
+  `promoted-children` values the two phases publish from, not a separate
+  derivation, per the advisor's warning about that being where silent
+  withdrawal bugs hide.
+- `next-entry` gained a `transclusions` param but needed no other change --
+  hashing is still content-md-only (per spec), and a thread's content-md only
+  embeds child *ids* (directives don't carry versions, §10.1), so a child's
+  content changing alone doesn't change its parent thread's hash. The
+  existing "return `existing` unchanged if hash matches" branch already
+  discards the freshly-computed (but identical-by-id-set) content-html in
+  that case. That *is* §10.4's snapshot-independence guarantee -- not
+  separately implemented, just a consequence of hashing the right thing.
+- `own-content-md`/`own-content-hiccup` factored out of `item-content-md`/
+  `item-content-hiccup` (which still recurse into children for an ordinary
+  fragment/promoted child) and reused for a thread's own text, which does
+  *not* recurse -- children are transcluded, not flattened.
+- **Real finding, not anticipated in the plan:** tested a "child has its own
+  explicit exit tag" case and initially got it wrong. `bd/tagged?`'s
+  "contained" convention (a `#Private` block nested one level under the
+  content it privatizes -- `batadase.clj`'s `tagged?`) checks a block's
+  *direct children's* refs too, not just its own. Putting `#Private` directly
+  in a child's own text makes `tagged-or-contained?` true for the **thread
+  parent** as well (the child is the parent's direct child), which gets the
+  whole thread excluded by `blyg-blocks`'s top-level filter before any
+  per-child logic runs -- not the "drop just that one point" behavior the
+  plan assumed. The correct way to privatize one point in a thread is the
+  normal site-wide nested convention: `#Private` on a child *of* the point
+  being privatized (two levels under the thread parent), which excludes only
+  that one child via `body-children`'s per-child filter without reaching the
+  parent. `thread-privacy-test` in `blygger_test.clj` covers this, and the
+  real ammdi Blygger-page thread turned out to already have exactly this
+  case live (one child legitimately excluded on the real run) -- good,
+  unplanned confirmation against real content.
+- `reseal!` is now kind-aware: a thread re-renders via `thread-content-html`
+  against its children's *existing* (unchanged) state entries, rather than
+  the plain `item-content-html` path, which would have silently flattened
+  children into the thread's body again instead of transcluding them.
+- `title-excerpt` (permalink `<title>`/`<h1>`) strips `![[id]]` directive
+  lines in addition to the existing "From [Page]" attribution strip, or a
+  thread with little own text gets a title full of raw directives.
+- Verified against real ammdi content (scratch state-file copy + scratch
+  output dir, same isolation as the HTML-surface work): both real threads
+  produced the exact predicted transclusion counts, `content_md`/
+  `transclusions` match the wire shape exactly, generated `<blockquote
+  class="blyg-transclusion" data-blyg-id=... data-blyg-version=...>`
+  elements are correct, and the absolute-URL-only invariant (the thing that
+  broke production once already in this feature's history, see above) holds
+  across all 29 generated pages.
+
+The "link to the #blyg block with `#id`" TODO is also done: `abs-page-url`/
+`md-page-link` take an optional anchor, and `with-attribution-md`/
+`-hiccup` pass the block's own `:id` (the stable uuid already used as its
+HTML anchor id, `design/done/stable-block-ids.md`), so every "From [Page
+Title]" attribution link -- thread or fragment, parent or promoted child --
+lands on the exact block instead of the top of the page.
+
+**Not done, deliberately out of scope for this stage** (see "Key
+simplification for v1" above): author-written `![[id]]`/`[[id]]` directives
+referencing arbitrary already-published items; nested/grandchild threads.
+
+# Stage 1.6
+
+I'm told threads need to be pinned to be forkable by other people.
+
+## Claude thoughts
+
+Read protocol-v0.3.md §8 (Pins) and §5.6 (`forked_from`) against what's
+implemented. Short version: `forked_from` (L2, someone else's client) can
+only point at a **pinned** version of your item (§5.6 rule 2 — "the
+referenced version MUST be pinned... a pin is the only version anyone can
+promise a lineage still points at"), because by default we only ever serve
+the *latest* version of anything (§5.2, "the publisher's history stays
+private by default"). Pinning itself is an **L1** publish-side feature
+(explicitly listed under L1 in §3's conformance table, alongside threads) —
+we don't need any cross-origin machinery to do our half; we just need to
+make a specific version durably fetchable so an L2 reader elsewhere can cite
+it. Currently there is no trace of this beyond one dead field: `item-json`
+already has a no-op `(:pinned c) (assoc :pinned true)` in the changelog
+mapping, but nothing ever sets `:pinned`, and no version's content is
+retained anywhere past being superseded — `next-entry` overwrites
+`content-md`/`content-html` in place on every bump.
+
+**Real architectural constraint, not a choice: v1 can only pin the
+*currently-latest* version, at the moment you ask.** The state file has
+never retained old content (`:changelog` is metadata only — version/at/note
+— never content), and the protocol's whole design intent is that unpinned
+history stays genuinely withheld, not silently kept around "just in case."
+So "pin retroactively" (§8 rule 2, explicitly allowed) means *retroactively
+relative to when you decide to care*, not *resurrect content that already
+got overwritten*. Good news: this matches the actual use case fine — "I'm
+told to pin this so it's forkable" is naturally "pin it now, as it currently
+stands."
+
+**Design:**
+
+- **New state shape**: each item entry gains a `:pins` map, `version-number
+  -> {:content-md :content-html :content-hash :at}` — captured once, at the
+  moment a version is pinned, from exactly the content that version was
+  published with. Entirely additive; doesn't touch `:changelog`'s existing
+  shape except setting `:pinned true` on the relevant entry (the dead field
+  `item-json` is already wired for).
+- **Low-level primitive**: `pin!` (new fn, `blygger.clj`) takes a state atom
+  (or path) + block-id, pins that item's *current* latest version if not
+  already pinned (no-op if it already is — idempotent, matches "irrevocable"
+  rather than "re-pinnable"). This is the thing everything else calls.
+- **Authoring trigger — open question, proposing a default:** mirror how
+  `#blyg` itself works rather than inventing a REPL-only workflow: a
+  `#blyg/pin` tag (or `#pin`, bikeshed-able) on the same block. At publish
+  time, if present and the block's current latest version isn't pinned yet,
+  pin it. **Consequence worth being explicit about**: if the author keeps
+  editing *after* adding the tag and leaves it on, every subsequent version
+  published while it's present gets pinned too (each check is just "is the
+  *current* latest pinned yet" — there's no concept of "pin once then
+  ignore the tag"). That reads as reasonable default behavior ("pin this
+  thread's evolution from here on") rather than a footgun, but flagging it
+  since it's a real behavioral choice, not an accident. `pin!` itself (the
+  primitive above) is the fallback for "pin this one exact thing right now"
+  without relying on tag state, callable from the REPL same as
+  `blyg-publish!`/`refresh-blyg!` already are.
+- **Writing the surface**: `write-surfaces!` gets a new step, writing
+  `items/{blyg-id}/v{n}.json` for every entry in every item's `:pins` map,
+  every build (same discipline as `items/{id}.json` — these must never stop
+  being regenerated, since `:output-dir` is wiped and rebuilt wholesale each
+  time; `.blyg-state.edn` is the only durable copy, same as everything
+  else). New `pin-json` builder, not `item-json` reused: per §8's example
+  shape, a pinned document is flatter than a live item doc — `blyg`, `id`,
+  `kind`, `version`, `at`, `note`, `pinned: true`, `origin`, `author`,
+  `content_md`, `content_html`, `content_hash` — no `page`, no `changelog`,
+  and explicitly **no `media` array** (§8 rule 4).
+- **Threads pin the same way** (§8 rule 5) — a pinned thread version serves
+  its already-baked `content_html` (transclusion blockquotes included) and
+  its `transclusions` array as they stood at that version; nothing extra
+  needed beyond what `:pins` already captures, since we bake threads fully
+  at publish time regardless.
+- **Not doing in v1**: the optional human-readable `{page}v{n}/` page variant
+  (§8.4 — explicitly MAY, not required; the JSON promise is the whole
+  conformance requirement). Media retention (§8 rule 4, "media referenced by
+  any pinned version MUST be retained forever") is a real soft spot worth
+  naming honestly rather than overclaiming: images ride inline as already-
+  absolutized `<img src="https://ammdi.hyperphor.com/...">` URLs, so a
+  pinned version stays correct as long as the *main site* never deletes or
+  renames that image later — goddinpotty has no pin-aware image-retention
+  logic tied to this, same gap `media: []` already notes elsewhere in this
+  doc. `forked_from`/lineage itself (receiving/verifying a fork) is L2 and
+  explicitly not our job to implement — we only need our half: making the
+  cited version promise-keepable.
+
+**Open question for you, not resolved above**: tag name (`#blyg/pin` vs
+`#pin` vs something else), and whether the "stays pinning every version
+while the tag's on" behavior is actually what you want, or whether pinning
+should be closer to a one-shot act (eg auto-remove intent after the first
+pin, which would need some way to tell the author it fired, since there's
+no good way to auto-edit their Logseq block).
 
 # Stage 2
 
