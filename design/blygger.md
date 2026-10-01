@@ -453,6 +453,100 @@ lands on the exact block instead of the top of the page.
 simplification for v1" above): author-written `![[id]]`/`[[id]]` directives
 referencing arbitrary already-published items; nested/grandchild threads.
 
+# Stage 1.6
+
+I'm told threads need to be pinned to be forkable by other people.
+
+## Claude thoughts
+
+Read protocol-v0.3.md §8 (Pins) and §5.6 (`forked_from`) against what's
+implemented. Short version: `forked_from` (L2, someone else's client) can
+only point at a **pinned** version of your item (§5.6 rule 2 — "the
+referenced version MUST be pinned... a pin is the only version anyone can
+promise a lineage still points at"), because by default we only ever serve
+the *latest* version of anything (§5.2, "the publisher's history stays
+private by default"). Pinning itself is an **L1** publish-side feature
+(explicitly listed under L1 in §3's conformance table, alongside threads) —
+we don't need any cross-origin machinery to do our half; we just need to
+make a specific version durably fetchable so an L2 reader elsewhere can cite
+it. Currently there is no trace of this beyond one dead field: `item-json`
+already has a no-op `(:pinned c) (assoc :pinned true)` in the changelog
+mapping, but nothing ever sets `:pinned`, and no version's content is
+retained anywhere past being superseded — `next-entry` overwrites
+`content-md`/`content-html` in place on every bump.
+
+**Real architectural constraint, not a choice: v1 can only pin the
+*currently-latest* version, at the moment you ask.** The state file has
+never retained old content (`:changelog` is metadata only — version/at/note
+— never content), and the protocol's whole design intent is that unpinned
+history stays genuinely withheld, not silently kept around "just in case."
+So "pin retroactively" (§8 rule 2, explicitly allowed) means *retroactively
+relative to when you decide to care*, not *resurrect content that already
+got overwritten*. Good news: this matches the actual use case fine — "I'm
+told to pin this so it's forkable" is naturally "pin it now, as it currently
+stands."
+
+**Design:**
+
+- **New state shape**: each item entry gains a `:pins` map, `version-number
+  -> {:content-md :content-html :content-hash :at}` — captured once, at the
+  moment a version is pinned, from exactly the content that version was
+  published with. Entirely additive; doesn't touch `:changelog`'s existing
+  shape except setting `:pinned true` on the relevant entry (the dead field
+  `item-json` is already wired for).
+- **Low-level primitive**: `pin!` (new fn, `blygger.clj`) takes a state atom
+  (or path) + block-id, pins that item's *current* latest version if not
+  already pinned (no-op if it already is — idempotent, matches "irrevocable"
+  rather than "re-pinnable"). This is the thing everything else calls.
+- **Authoring trigger — open question, proposing a default:** mirror how
+  `#blyg` itself works rather than inventing a REPL-only workflow: a
+  `#blyg/pin` tag (or `#pin`, bikeshed-able) on the same block. At publish
+  time, if present and the block's current latest version isn't pinned yet,
+  pin it. **Consequence worth being explicit about**: if the author keeps
+  editing *after* adding the tag and leaves it on, every subsequent version
+  published while it's present gets pinned too (each check is just "is the
+  *current* latest pinned yet" — there's no concept of "pin once then
+  ignore the tag"). That reads as reasonable default behavior ("pin this
+  thread's evolution from here on") rather than a footgun, but flagging it
+  since it's a real behavioral choice, not an accident. `pin!` itself (the
+  primitive above) is the fallback for "pin this one exact thing right now"
+  without relying on tag state, callable from the REPL same as
+  `blyg-publish!`/`refresh-blyg!` already are.
+- **Writing the surface**: `write-surfaces!` gets a new step, writing
+  `items/{blyg-id}/v{n}.json` for every entry in every item's `:pins` map,
+  every build (same discipline as `items/{id}.json` — these must never stop
+  being regenerated, since `:output-dir` is wiped and rebuilt wholesale each
+  time; `.blyg-state.edn` is the only durable copy, same as everything
+  else). New `pin-json` builder, not `item-json` reused: per §8's example
+  shape, a pinned document is flatter than a live item doc — `blyg`, `id`,
+  `kind`, `version`, `at`, `note`, `pinned: true`, `origin`, `author`,
+  `content_md`, `content_html`, `content_hash` — no `page`, no `changelog`,
+  and explicitly **no `media` array** (§8 rule 4).
+- **Threads pin the same way** (§8 rule 5) — a pinned thread version serves
+  its already-baked `content_html` (transclusion blockquotes included) and
+  its `transclusions` array as they stood at that version; nothing extra
+  needed beyond what `:pins` already captures, since we bake threads fully
+  at publish time regardless.
+- **Not doing in v1**: the optional human-readable `{page}v{n}/` page variant
+  (§8.4 — explicitly MAY, not required; the JSON promise is the whole
+  conformance requirement). Media retention (§8 rule 4, "media referenced by
+  any pinned version MUST be retained forever") is a real soft spot worth
+  naming honestly rather than overclaiming: images ride inline as already-
+  absolutized `<img src="https://ammdi.hyperphor.com/...">` URLs, so a
+  pinned version stays correct as long as the *main site* never deletes or
+  renames that image later — goddinpotty has no pin-aware image-retention
+  logic tied to this, same gap `media: []` already notes elsewhere in this
+  doc. `forked_from`/lineage itself (receiving/verifying a fork) is L2 and
+  explicitly not our job to implement — we only need our half: making the
+  cited version promise-keepable.
+
+**Open question for you, not resolved above**: tag name (`#blyg/pin` vs
+`#pin` vs something else), and whether the "stays pinning every version
+while the tag's on" behavior is actually what you want, or whether pinning
+should be closer to a one-shot act (eg auto-remove intent after the first
+pin, which would need some way to tell the author it fired, since there's
+no good way to auto-edit their Logseq block).
+
 # Stage 2
 
 TODO small bug, AskClaude lozenges don't appear to work in blyg item
