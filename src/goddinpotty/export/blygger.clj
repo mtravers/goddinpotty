@@ -83,6 +83,20 @@
   [tag block]
   (contains? (set (bd/block-hashtags block)) tag))
 
+;;; A block carrying this (in addition to #<tag>) gets its *current* latest
+;;; version pinned at publish time -- see design/blygger.md Stage 1.6 / §8.
+;;; MUST be written as #[[blyg/pin]], not bare #blyg/pin: the hashtag
+;;; grammar's bare form is #"\#[\w-:]+" (no "/"), so bare #blyg/pin parses as
+;;; the plain #blyg tag followed by literal, un-stripped "/pin" text -- not
+;;; a distinct tag at all. Only the double-bracket form produces one token.
+(defn- pin-tag
+  []
+  (str (or (config/config :blygger :tag) "blyg") "/pin"))
+
+(defn- pin-requested?
+  [block]
+  (tag-block? (pin-tag) block))
+
 ;;; Deliberately NOT bd/included?/bd/displayed?/bd/exit-point? -- those track
 ;;; whether the site's entry-tag graph walk would generate this block a page
 ;;; (exit-point? also folds in :excluded?, database.clj's journal/daily-notes
@@ -161,7 +175,7 @@
                 :blockquote (str "> " (walk-node (second p)))
                 :page-link (md-page-link (utils/remove-double-delimiters (second p)))
                 :hashtag (let [name (utils/parse-hashtag (second p))]
-                           (if (= name tag) "" (md-page-link name (str "#" name))))
+                           (if (#{tag (pin-tag)} name) "" (md-page-link name (str "#" name))))
                 :alias (let [[_ text target] (r/parse-alias (second p))]
                          (if (str/starts-with? target "[[")
                            (md-page-link (utils/remove-double-delimiters target) text)
@@ -234,7 +248,7 @@
   [tag parsed]
   (walk/postwalk (fn [node]
                    (if (and (vector? node) (= :hashtag (first node))
-                            (= tag (utils/parse-hashtag (second node))))
+                            (#{tag (pin-tag)} (utils/parse-hashtag (second node))))
                      ""
                      node))
                  parsed))
@@ -429,6 +443,37 @@
            :transclusions (when (= :thread (:kind existing)) [])
            :changelog (conj (:changelog existing) {:version v :at now :note nil}))))
 
+;;; Pins an entry's *current* (latest) version -- idempotent (already-pinned
+;;; is a no-op), irrevocable once written (§8 rule 1: a pinned version file
+;;; MUST 200 forever, so this never un-pins). Can only ever pin the version
+;;; that's current *right now*: older, already-superseded versions were
+;;; never retained (see design/blygger.md Stage 1.6) -- "retroactive"
+;;; pinning here means "as it stands today", not resurrecting old content.
+;;; Snapshots :transclusions too, so a pinned thread version serves its
+;;; own baked transcludes-as-of-that-version (§8 rule 5).
+(defn- pin-entry
+  [entry]
+  (cond
+    (= :withdrawn (:kind entry))
+    (do (log/warn "blyg: not pinning" (:blyg-id entry) "- withdrawn, nothing to cite (§8 rule 2)")
+        entry)
+
+    (contains? (:pins entry) (:version entry))
+    entry
+
+    :else
+    (-> entry
+        (assoc-in [:pins (:version entry)]
+                  (cond-> {:content-md (:content-md entry)
+                           :content-html (:content-html entry)
+                           :content-hash (:content-hash entry)
+                           :at (:updated entry)}
+                    (:transclusions entry) (assoc :transclusions (:transclusions entry))))
+        (update :changelog
+                (fn [changelog]
+                  (mapv (fn [c] (if (= (:version c) (:version entry)) (assoc c :pinned true) c))
+                        changelog))))))
+
 ;;;; ⩇⩆⩇ Protocol surface builders ⩇⩆⩇
 
 (defn- overall-updated
@@ -462,6 +507,30 @@
       ;; entirely. (:transclusions entry) is truthy for both a live
       ;; thread's populated vector and a withdrawn-former-thread's [].
       (:transclusions entry) (assoc :transclusions (:transclusions entry)))))
+
+;;; A pinned version's document (§8) -- flatter than a live item doc: no
+;;; page, no changelog, no media (§8 rule 4 -- pinned media rides inline in
+;;; content_html, relying on the main site never deleting it). :pins entries
+;;; only exist for versions pin-entry actually captured, so `pin` here is
+;;; never nil for a version write-surfaces! is iterating.
+(defn- pin-json
+  [origin entry version]
+  (let [pin (get-in entry [:pins version])
+        note (:note (first (filter #(= version (:version %)) (:changelog entry))))]
+    (cond-> {:blyg "0.3"
+             :id (:blyg-id entry)
+             :kind (name (:kind entry))
+             :version version
+             :at (:at pin)
+             :note note
+             :pinned true
+             :origin origin
+             :author {:name (or (config/config :blygger :author-name) (config/config :short-title))
+                      :url origin}
+             :content_md (:content-md pin)
+             :content_html (:content-html pin)
+             :content_hash (:content-hash pin)}
+      (:transclusions pin) (assoc :transclusions (:transclusions pin)))))
 
 ;;; Defaults to "<short-title> Blyg" (eg "AMMDI Blyg") rather than bare
 ;;; short-title, so the manifest/feed/archive page read as their own named
@@ -704,7 +773,15 @@
       (utils/write-json (str base-dir "items/" (:blyg-id entry) ".json") (item-json origin entry))
       (let [dir (str base-dir "f/" (:blyg-id entry) "/")]
         (fs/mkdirs dir)
-        (spit (str dir "index.html") (site-page-html (permalink-page-hiccup bm origin entry)))))
+        (spit (str dir "index.html") (site-page-html (permalink-page-hiccup bm origin entry))))
+      ;; Pinned versions (§8) -- written fresh every build, same as
+      ;; items/{id}.json, since :output-dir gets wiped wholesale each time
+      ;; and .blyg-state.edn's :pins is the only durable copy.
+      (when (seq (:pins entry))
+        (let [pin-dir (str base-dir "items/" (:blyg-id entry) "/")]
+          (fs/mkdirs pin-dir)
+          (doseq [version (keys (:pins entry))]
+            (utils/write-json (str pin-dir "v" version ".json") (pin-json origin entry version))))))
     (spit (str base-dir "feed.xml") (feed-xml origin title items feed-window))
     (log/info "blyg: wrote" (count items) "items to" base-dir)))
 
@@ -716,7 +793,9 @@
   only on content change. A tagged block with (surviving) children is a
   thread; each child is promoted to its own ordinary fragment and the
   parent transcludes them (see design/blygger.md Stage 1.5). A tagged block
-  with no children is a plain fragment, as always. Blocks previously
+  with no children is a plain fragment, as always. A block also carrying
+  #[[blyg/pin]] gets its current latest version pinned (§8, irrevocable,
+  idempotent -- see design/blygger.md Stage 1.6). Blocks previously
   published but no longer tagged/promoted are left alone (and warned about)
   unless :withdraw? true. :dry-run? true computes and logs the new state
   without writing anything."
@@ -790,14 +869,25 @@
                                     now)))
                         items-1
                         thread-blocks)
+        ;; Phase 3: pins (§8, design/blygger.md Stage 1.6) -- #[[blyg/pin]]
+        ;; on any currently-tagged/promoted block pins that block's *current*
+        ;; latest version (thread content included, now that items-2 has it
+        ;; resolved). pin-entry is idempotent, so this is safe to run every
+        ;; publish! regardless of whether the tag was already seen before.
+        items-2a (reduce (fn [items block]
+                           (if (pin-requested? block)
+                             (update items (:id block) pin-entry)
+                             items))
+                         items-2
+                         (concat leaf-blocks thread-blocks promoted-children))
         items-3 (if withdraw?
                   (reduce (fn [items id]
                             (if (= :withdrawn (:kind (get items id)))
                               items
                               (update items id withdraw-entry now)))
-                          items-2
+                          items-2a
                           withdrawn-ids)
-                  items-2)
+                  items-2a)
         new-state (assoc state :items items-3)
         changed (filter (fn [[id e]] (not= e (get-in state [:items id]))) items-3)]
     (if dry-run?

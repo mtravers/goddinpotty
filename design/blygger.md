@@ -540,12 +540,42 @@ stands."
   explicitly not our job to implement — we only need our half: making the
   cited version promise-keepable.
 
-**Open question for you, not resolved above**: tag name (`#blyg/pin` vs
-`#pin` vs something else), and whether the "stays pinning every version
-while the tag's on" behavior is actually what you want, or whether pinning
-should be closer to a one-shot act (eg auto-remove intent after the first
-pin, which would need some way to tell the author it fired, since there's
-no good way to auto-edit their Logseq block).
+**Resolved and implemented**: `#blyg/pin`, "stays pinning while the tag's
+on" semantics, both as proposed above.
+
+**Real constraint found during implementation, not anticipated above**: the
+tag MUST be written `#[[blyg/pin]]` (double-bracket page-link form), not
+bare `#blyg/pin`. The hashtag grammar's bare form is `#"\#[\w-:]+"` — no
+`/` — so bare `#blyg/pin` parses as the plain `#blyg` tag followed by
+literal, un-stripped `/pin` text, not a distinct tag at all (verified: it
+silently fails to register as a pin request, and the dangling `/pin` text
+leaks into rendered content). `pin-requested?`/`tag-block?` both go through
+`bd/block-hashtags`, which normalizes *either* written form down to a clean
+`"blyg/pin"` string via `utils/parse-hashtag` — so detection itself needed
+no new parsing, just the bracket requirement in how you type it.
+`pin-test`'s "bare form" case pins this down as a regression test.
+
+Implementation: `pin-tag`/`pin-requested?` (detection, reusing
+`tag-block?`), `pin-entry` (the idempotent, irrevocable state mutation --
+snapshots `:content-md`/`:content-html`/`:content-hash`/`:transclusions` at
+the version's *current* content into a new `:pins` map on the entry, marks
+the matching changelog entry `:pinned true`; refuses to pin a withdrawn
+entry per §8 rule 2), `pin-json` (the flatter, media-less per-version wire
+shape §8 specifies), and a `write-surfaces!` step writing
+`items/{id}/v{n}.json` for every entry in every item's `:pins`, every build
+(same "regenerate from durable state on every run" discipline as everything
+else here, since `:output-dir` is wiped wholesale each time). `parsed->blyg-md`
+and `strip-tag-parsed` both strip `#[[blyg/pin]]` the same way they already
+stripped `#blyg`, so it doesn't leak into content. `publish!` runs pinning
+as a new Phase 3, after threads (Phase 2) so a pinned thread's snapshot
+includes its already-resolved `:transclusions`, before withdrawal.
+
+Verified against real ammdi content (scratch state-file + output dir, never
+touching the live ones): a full publish run with the new code produced
+identical visible-item counts to before (no real content has the tag yet,
+so zero pins created, zero regressions) — fixture tests in `pin-test`
+exercise the actual pin/unpin-is-impossible/idempotent-republish/thread-pin
+paths end to end.
 
 # Stage 2
 
