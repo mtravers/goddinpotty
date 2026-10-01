@@ -47,7 +47,8 @@
         (is (fs/exists? (str output-dir "/blyg/items/" (:blyg-id entry) ".json")))
         (is (fs/exists? (str output-dir "/blyg/blyg.json")))
         (is (fs/exists? (str output-dir "/blyg/items/index.json")))
-        (is (fs/exists? (str output-dir "/blyg/feed.xml")))))
+        (is (fs/exists? (str output-dir "/blyg/feed.xml")))
+        (is (not (re-find #"pin-badge" (slurp (str output-dir "/blyg/index.html")))))))
 
     (testing "republishing unchanged content is a no-op (no version bump)"
       (let [before (blygger/load-state (config/config :blygger :state-file))
@@ -296,7 +297,11 @@
         (is (contains? (:pins entry) 1))
         (is (= (:content-md entry) (:content-md (get-in entry [:pins 1]))))
         (is (true? (:pinned (first (:changelog entry)))))
-        (is (fs/exists? (str output-dir "/blyg/items/" (:blyg-id entry) "/v1.json")))))
+        (is (fs/exists? (str output-dir "/blyg/items/" (:blyg-id entry) "/v1.json")))
+        (is (re-find #"pin-badge" (slurp (str output-dir "/blyg/index.html")))
+            "archive page shows a pin badge for a pinned item")
+        (is (re-find #"pin-badge" (slurp (str output-dir "/blyg/f/" (:blyg-id entry) "/index.html")))
+            "permalink page shows a pin badge too")))
 
     (testing "republishing unchanged is idempotent -- no duplicate/changed pin"
       (let [block (assoc (prep 51 "Hello world #blyg #blyg-pin") :parent 50)

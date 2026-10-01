@@ -664,9 +664,14 @@
 (defn- fragment-card-hiccup
   [origin entry & {:keys [permalink-page?]}]
   (let [withdrawn? (= :withdrawn (:kind entry))
+        pinned? (seq (:pins entry))
         blyg-id (:blyg-id entry)]
     [:article.card.my-2.fragment {:class (when withdrawn? "withdrawn")}
      [:div.card-body.py-2
+      (when pinned?
+        [:span.pin-badge.float-end.text-muted.small
+         {:title "Pinned -- a version of this item is permanently citable/forkable (§8)"}
+         (r/icon "pin-angle-fill") " Pinned"])
       [:div.item-content
        (if withdrawn?
          [:p.text-muted "[withdrawn]"]
