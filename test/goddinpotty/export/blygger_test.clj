@@ -161,6 +161,35 @@
             entry (get (:items state) 24)]
         (is (= :fragment (:kind entry)))))))
 
+(deftest thread-child-becomes-its-own-thread-test
+  (testing "a block that was a promoted child in an earlier run, then later
+            becomes a #blyg thread in its own right, must not keep a stale
+            :thread-child? true -- it has to come back visible on the
+            archive page. Real bug, found from a real report: a block was
+            once a child, got restructured into its own #blyg-pin thread,
+            and silently vanished from the archive despite being correctly
+            published and pinned."
+    (let [pg (fake-page 60 "Flip Page")
+          output-dir (config/config :output-dir)
+          ;; Run 1: 61 is a plain child of thread 62 -- gets :thread-child? true.
+          child61 (assoc (prep 61 "Once a child") :parent 62)
+          parent62 (assoc (prep 62 "Parent #blyg" :children [61]) :parent 60)
+          bm1 {60 pg 61 child61 62 parent62}
+          _ (blygger/publish! bm1 output-dir)
+          ;; Run 2: 61 is restructured into its own thread, no longer under 62.
+          grandchild63 (assoc (prep 63 "A point") :parent 61)
+          child61-now-thread (assoc (prep 61 "Now its own thread #blyg" :children [63]) :parent 60)
+          parent62-no-kids (assoc (prep 62 "Parent #blyg") :parent 60)
+          bm2 {60 pg 61 child61-now-thread 62 parent62-no-kids 63 grandchild63}
+          state (blygger/publish! bm2 output-dir)
+          entry (get (:items state) 61)]
+      (is (= :thread (:kind entry)))
+      (is (not (:thread-child? entry)) "stale flag from run 1 must be cleared")
+      (is (fs/exists? (str output-dir "/blyg/index.html")))
+      (let [archive-html (slurp (str output-dir "/blyg/index.html"))]
+        (is (re-find (re-pattern (:blyg-id entry)) archive-html)
+            "now-a-thread block must appear in the visible archive")))))
+
 (deftest thread-privacy-test
   (testing "a child privatized the normal nested-tag way (a #Private child
             beneath it, bd/tagged?'s 'contained' convention) is excluded from

@@ -581,6 +581,22 @@ so zero pins created, zero regressions) — fixture tests in `pin-test`
 exercise the actual pin/implies-main-tag/idempotent-republish/thread-pin
 paths end to end.
 
+**Real bug found using real content after this shipped, unrelated to pins
+themselves**: a user report ("a post that should have been published isn't
+there") turned out to be the `:thread-child?` visibility flag (Stage 1.5's
+duplication fix) going stale. That flag is only re-marked for blocks
+currently in `fragment-candidates` (leaves + promoted children) -- a block
+that *was* a promoted child in an earlier run and later got restructured
+into its own top-level `#blyg`/`#blyg-pin` thread was never touched by that
+pass at all (thread entries don't exist until Phase 2 creates them), so it
+kept a stale `:thread-child? true` forever and silently stayed invisible on
+the archive page despite being correctly published and pinned underneath.
+Fixed with an explicit clearing pass over `thread-blocks` after Phase 2
+(`items-2-raw` → `items-2`). `thread-child-becomes-its-own-thread-test`
+reproduces the exact two-run scenario. Found and verified against the real
+block that triggered the report (`6abc03db...`, "Implementing threads and
+pinning" on the Blygger page) before shipping the fix.
+
 # Stage 2
 
 TODO small bug, AskClaude lozenges don't appear to work in blyg item

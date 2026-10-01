@@ -861,7 +861,7 @@
                         fragment-candidates)
         ;; Phase 2: threads, now that items-1 has every child's current
         ;; blyg-id/version resolved to transclude.
-        items-2 (reduce (fn [items block]
+        items-2-raw (reduce (fn [items block]
                           (let [kids (body-children bm block)
                                 transclusions (mapv (fn [k]
                                                        (let [e (get items (:id k))]
@@ -874,6 +874,18 @@
                                     transclusions
                                     now)))
                         items-1
+                        thread-blocks)
+        ;; A thread-blocks member must never stay marked :thread-child? --
+        ;; the fragment-candidates pass above can't do this (thread entries
+        ;; don't exist until the reduce just above creates them), so a block
+        ;; that *was* a promoted child in an earlier run and later became a
+        ;; #blyg-pin/#blyg thread in its own right kept a stale true flag
+        ;; forever, silently vanishing from the archive page despite being
+        ;; correctly published and pinned (real bug, found via a real report:
+        ;; the Blygger-page "Implementing threads and pinning" thread).
+        items-2 (reduce (fn [items block]
+                          (update items (:id block) assoc :thread-child? false))
+                        items-2-raw
                         thread-blocks)
         ;; Phase 3: pins (§8, design/blygger.md Stage 1.6) -- #<tag>-pin
         ;; on any currently-tagged/promoted block pins that block's *current*
