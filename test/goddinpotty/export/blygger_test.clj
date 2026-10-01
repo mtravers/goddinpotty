@@ -104,7 +104,28 @@
         (is (re-find #"blyg-transclusion" (:content-html thread-entry)))
         (is (re-find (re-pattern (str "data-blyg-id=\"" (:blyg-id child1-entry) "\"")) (:content-html thread-entry)))
         (is (fs/exists? (str output-dir "/blyg/items/" (:blyg-id child1-entry) ".json")))
-        (is (fs/exists? (str output-dir "/blyg/f/" (:blyg-id child1-entry) "/index.html")))))
+        (is (fs/exists? (str output-dir "/blyg/f/" (:blyg-id child1-entry) "/index.html")))
+
+        ;; Children are real, independently fetchable items (json/permalink
+        ;; above) but must NOT also appear as their own card in the
+        ;; human-facing archive page or feed.xml -- that's the content
+        ;; showing up twice (once standalone, once transcluded in the
+        ;; thread) bug this guards against.
+        (is (true? (:thread-child? child1-entry)))
+        (is (true? (:thread-child? child2-entry)))
+        (is (not (:thread-child? thread-entry)))
+        (let [archive-html (slurp (str output-dir "/blyg/index.html"))
+              feed-xml (slurp (str output-dir "/blyg/feed.xml"))]
+          ;; present once, inside the thread's transclusion blockquote --
+          ;; not a second time as a standalone permalink/card
+          (is (= 1 (count (re-seq (re-pattern (:blyg-id child1-entry)) archive-html))))
+          (is (= 1 (count (re-seq (re-pattern (:blyg-id child2-entry)) archive-html))))
+          ;; The child's id legitimately appears inside the thread's own feed
+          ;; entry (baked into its transcluded content_html description) --
+          ;; what must NOT exist is a <blyg:id> for the child, which is only
+          ;; emitted for an item's *own* feed entry (feed-item-xml).
+          (is (not (re-find (re-pattern (str "<blyg:id>" (:blyg-id child1-entry) "</blyg:id>")) feed-xml)))
+          (is (not (re-find (re-pattern (str "<blyg:id>" (:blyg-id child2-entry) "</blyg:id>")) feed-xml))))))
 
     (testing "republishing unchanged is a no-op for the thread and its children"
       (let [before (blygger/load-state (config/config :blygger :state-file))

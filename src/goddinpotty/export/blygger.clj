@@ -501,10 +501,14 @@
 
 (defn- feed-events
   "One entry per publish event, newest first, bounded to feed-window. A
-  withdrawn item contributes only its withdrawal event (§7)."
+  withdrawn item contributes only its withdrawal event (§7). Thread
+  children are excluded -- otherwise every point in a thread would also
+  show up as its own 'new' feed entry, duplicating what the thread's own
+  entry already carries transcluded."
   [items feed-window]
   (->> items
        vals
+       (remove :thread-child?)
        (mapcat (fn [entry]
                  (if (= :withdrawn (:kind entry))
                    [{:entry entry :event (last (:changelog entry))}]
@@ -622,8 +626,14 @@
 
 (defn- archive-hiccup
   [bm origin items]
-  (let [entries (->> (vals items)
-                      (remove #(= :withdrawn (:kind %)))
+  (let [;; Thread children are hidden here -- they're fully published,
+        ;; independently fetchable items (own items/{id}.json, own f/{id}/
+        ;; page, listed in items/index.json per §6.2), just not part of the
+        ;; human-facing chronological archive, where they'd otherwise show
+        ;; the same content twice: once standalone, once transcluded in
+        ;; their parent thread's card.
+        entries (->> (vals items)
+                      (remove #(or (= :withdrawn (:kind %)) (:thread-child? %)))
                       (sort-by :updated)
                       reverse)
         title (blyg-title)
@@ -740,7 +750,7 @@
                         "-- left untouched; pass :withdraw? true to withdraw them:" withdrawn-ids)))
         ;; Phase 1: every fragment (leaves + promoted children) -- order
         ;; doesn't matter, nothing here depends on anything else.
-        items-1 (reduce (fn [items block]
+        items-1a (reduce (fn [items block]
                           (update items (:id block)
                                   next-entry :fragment
                                   (item-full-content-md bm tag block)
@@ -748,6 +758,21 @@
                                   nil
                                   now))
                         (:items state)
+                        fragment-candidates)
+        ;; :thread-child? is presentation-only, not part of the hashed/
+        ;; versioned wire content -- a promoted child is still a fully
+        ;; conformant, independently fetchable fragment (its own
+        ;; items/{id}.json, its own f/{id}/ page, listed in items/index.json
+        ;; per §6.2's "every item ever published"), it's just hidden from
+        ;; the human-facing archive page and feed.xml so its content doesn't
+        ;; appear twice -- once standalone, once nested in its thread's
+        ;; transclusion. Recomputed unconditionally every run (never sticky,
+        ;; never version-gated), so a block that stops being a child goes
+        ;; straight back to visible.
+        child-ids (set (map :id promoted-children))
+        items-1 (reduce (fn [items block]
+                          (update items (:id block) assoc :thread-child? (contains? child-ids (:id block))))
+                        items-1a
                         fragment-candidates)
         ;; Phase 2: threads, now that items-1 has every child's current
         ;; blyg-id/version resolved to transclude.
