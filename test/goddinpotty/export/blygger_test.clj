@@ -47,7 +47,8 @@
         (is (fs/exists? (str output-dir "/blyg/items/" (:blyg-id entry) ".json")))
         (is (fs/exists? (str output-dir "/blyg/blyg.json")))
         (is (fs/exists? (str output-dir "/blyg/items/index.json")))
-        (is (fs/exists? (str output-dir "/blyg/feed.xml")))))
+        (is (fs/exists? (str output-dir "/blyg/feed.xml")))
+        (is (not (re-find #"pin-badge" (slurp (str output-dir "/blyg/index.html")))))))
 
     (testing "republishing unchanged content is a no-op (no version bump)"
       (let [before (blygger/load-state (config/config :blygger :state-file))
@@ -106,6 +107,16 @@
         (is (fs/exists? (str output-dir "/blyg/items/" (:blyg-id child1-entry) ".json")))
         (is (fs/exists? (str output-dir "/blyg/f/" (:blyg-id child1-entry) "/index.html")))
 
+        ;; Only the outermost (thread) block carries "From [Page]"
+        ;; attribution -- a promoted child's own content (both standalone
+        ;; and what gets baked into the thread's transclusion) must not
+        ;; repeat it.
+        (is (re-find #"From \[Thread Page\]" (:content-md thread-entry)))
+        (is (not (re-find #"From \[" (:content-md child1-entry))))
+        (is (not (re-find #"source-page" (:content-html child1-entry))))
+        (is (= 1 (count (re-seq #"source-page" (:content-html thread-entry))))
+            "exactly one attribution (the thread's own) -- not a second one leaking in from the transcluded child")
+
         ;; Children are real, independently fetchable items (json/permalink
         ;; above) but must NOT also appear as their own card in the
         ;; human-facing archive page or feed.xml -- that's the content
@@ -160,6 +171,35 @@
             state (blygger/publish! bm4 output-dir)
             entry (get (:items state) 24)]
         (is (= :fragment (:kind entry)))))))
+
+(deftest thread-child-becomes-its-own-thread-test
+  (testing "a block that was a promoted child in an earlier run, then later
+            becomes a #blyg thread in its own right, must not keep a stale
+            :thread-child? true -- it has to come back visible on the
+            archive page. Real bug, found from a real report: a block was
+            once a child, got restructured into its own #blyg-pin thread,
+            and silently vanished from the archive despite being correctly
+            published and pinned."
+    (let [pg (fake-page 60 "Flip Page")
+          output-dir (config/config :output-dir)
+          ;; Run 1: 61 is a plain child of thread 62 -- gets :thread-child? true.
+          child61 (assoc (prep 61 "Once a child") :parent 62)
+          parent62 (assoc (prep 62 "Parent #blyg" :children [61]) :parent 60)
+          bm1 {60 pg 61 child61 62 parent62}
+          _ (blygger/publish! bm1 output-dir)
+          ;; Run 2: 61 is restructured into its own thread, no longer under 62.
+          grandchild63 (assoc (prep 63 "A point") :parent 61)
+          child61-now-thread (assoc (prep 61 "Now its own thread #blyg" :children [63]) :parent 60)
+          parent62-no-kids (assoc (prep 62 "Parent #blyg") :parent 60)
+          bm2 {60 pg 61 child61-now-thread 62 parent62-no-kids 63 grandchild63}
+          state (blygger/publish! bm2 output-dir)
+          entry (get (:items state) 61)]
+      (is (= :thread (:kind entry)))
+      (is (not (:thread-child? entry)) "stale flag from run 1 must be cleared")
+      (is (fs/exists? (str output-dir "/blyg/index.html")))
+      (let [archive-html (slurp (str output-dir "/blyg/index.html"))]
+        (is (re-find (re-pattern (:blyg-id entry)) archive-html)
+            "now-a-thread block must appear in the visible archive")))))
 
 (deftest thread-privacy-test
   (testing "a child privatized the normal nested-tag way (a #Private child
@@ -243,6 +283,99 @@
           entry (get (:items state) 15)]
       (is (not (re-find #"From \[" (:content-md entry))))
       (is (not (re-find #"source-page" (:content-html entry)))))))
+
+(deftest pin-test
+  (let [pg (fake-page 50 "Pin Page")
+        output-dir (config/config :output-dir)]
+
+    (testing "#blyg-pin pins the current latest version"
+      (let [block (assoc (prep 51 "Hello world #blyg #blyg-pin") :parent 50)
+            bm {50 pg 51 block}
+            state (blygger/publish! bm output-dir)
+            entry (get (:items state) 51)]
+        (is (not (re-find #"pin" (:content-md entry))) "pin tag stripped like the main tag")
+        (is (contains? (:pins entry) 1))
+        (is (= (:content-md entry) (:content-md (get-in entry [:pins 1]))))
+        (is (true? (:pinned (first (:changelog entry)))))
+        (is (fs/exists? (str output-dir "/blyg/items/" (:blyg-id entry) "/v1.json")))
+        (is (re-find #"pin-badge" (slurp (str output-dir "/blyg/index.html")))
+            "archive page shows a pin badge for a pinned item")
+        (is (re-find #"pin-badge" (slurp (str output-dir "/blyg/f/" (:blyg-id entry) "/index.html")))
+            "permalink page shows a pin badge too")))
+
+    (testing "republishing unchanged is idempotent -- no duplicate/changed pin"
+      (let [block (assoc (prep 51 "Hello world #blyg #blyg-pin") :parent 50)
+            bm {50 pg 51 block}
+            before (blygger/load-state (config/config :blygger :state-file))
+            after (blygger/publish! bm output-dir)]
+        (is (= (get-in before [:items 51]) (get-in after [:items 51])))))
+
+    (testing "editing content after pinning bumps the version and pins v1 stays frozen;
+              leaving the tag on pins the new version too (documented behavior,
+              not a one-shot -- see design/blygger.md Stage 1.6)"
+      (let [block2 (assoc (prep 51 "Hello there #blyg #blyg-pin") :parent 50)
+            bm2 {50 pg 51 block2}
+            state (blygger/publish! bm2 output-dir)
+            entry (get (:items state) 51)]
+        (is (= 2 (:version entry)))
+        (is (contains? (:pins entry) 1))
+        (is (contains? (:pins entry) 2))
+        (is (not= (get-in entry [:pins 1 :content-md]) (get-in entry [:pins 2 :content-md])))
+        (is (fs/exists? (str output-dir "/blyg/items/" (:blyg-id entry) "/v2.json")))))
+
+    (testing "#blyg-pin alone (no separate #blyg) still publishes AND pins --
+              the pin tag implies the main tag, so one tag does both"
+      (let [block (assoc (prep 52 "Implied publish #blyg-pin") :parent 50)
+            bm {50 pg 52 block}
+            state (blygger/publish! bm output-dir)
+            entry (get (:items state) 52)]
+        (is (= :fragment (:kind entry)))
+        (is (not (re-find #"pin" (:content-md entry))))
+        (is (contains? (:pins entry) 1))))
+
+    (testing "a thread's pin captures its baked transclusions too"
+      (let [child (assoc (prep 54 "A point") :parent 53)
+            parent (assoc (prep 53 "Points #blyg #blyg-pin" :children [54]) :parent 50)
+            bm {50 pg 53 parent 54 child}
+            state (blygger/publish! bm output-dir)
+            thread-entry (get (:items state) 53)]
+        (is (= :thread (:kind thread-entry)))
+        (is (contains? (:pins thread-entry) (:version thread-entry)))
+        (is (seq (get-in thread-entry [:pins (:version thread-entry) :transclusions])))))))
+
+(deftest hover-tag-test
+  (let [pg (fake-page 60 "Hover Page")
+        ;; :include?/:display? false simulates content the main site's
+        ;; entry-tag walk never reached (eg a journal page) -- blyg
+        ;; publishes it anyway (ns docstring).
+        answer (-> (prep 62 "The hidden answer") (assoc :include? false :display? false :parent 61))
+        asker (assoc (prep 61 "A question #AskClaude #blyg" :children [62]) :parent 60)
+        bm {60 pg 61 asker 62 answer}
+        output-dir (config/config :output-dir)
+        state (blygger/publish! bm output-dir)
+        entry (get (:items state) 61)]
+
+    (testing "the hover tag's child doesn't get promoted/flattened as ordinary
+              blyg content -- it belongs to the popup alone, so the block
+              stays a plain fragment, not a thread"
+      (is (= :fragment (:kind entry))))
+
+    (testing "popup shows its actual content exactly once, even when the main
+              site's walk never reached it -- not an empty lozenge, and not
+              also duplicated outside the (hidden) popup"
+      (is (re-find #"hover-tag-lozenge" (:content-html entry)))
+      (is (re-find #"hover-tag-popup" (:content-html entry)))
+      (is (= 1 (count (re-seq #"hidden answer" (:content-html entry))))
+          "the answer must appear exactly once -- inside the popup, not also flattened outside it"))
+
+    (testing "own-content-hiccup wraps a block's content in <div>, not <p> --
+              a <p> ancestor gets auto-closed by the browser's HTML5 parser
+              the moment it hits the popup's block-level <div>, detaching
+              the popup from .hover-tag-container and silently breaking
+              every CSS rule that depends on that nesting (hover reveal,
+              click-to-pin)"
+      (is (not (re-find #"(?s)<p>(?:(?!</p>).)*?<span class=\"hover-tag-container\"" (:content-html entry)))
+          "the hover-tag-container must not be inside a <p>"))))
 
 (deftest mount-collides-with-tag-page-test
   (testing "the #blyg tag's own backlink page is written extensionless at

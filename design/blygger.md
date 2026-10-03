@@ -540,16 +540,123 @@ stands."
   explicitly not our job to implement — we only need our half: making the
   cited version promise-keepable.
 
-**Open question for you, not resolved above**: tag name (`#blyg/pin` vs
-`#pin` vs something else), and whether the "stays pinning every version
-while the tag's on" behavior is actually what you want, or whether pinning
-should be closer to a one-shot act (eg auto-remove intent after the first
-pin, which would need some way to tell the author it fired, since there's
-no good way to auto-edit their Logseq block).
+**Resolved and implemented, revised once after user feedback.** First pass
+used `#[[blyg/pin]]` (double-bracket form), required because the hashtag
+grammar's bare form is `#"\#[\w-:]+"` — no `/` — so bare `#blyg/pin` parses
+as the plain `#blyg` tag followed by literal, un-stripped `/pin` text, not a
+distinct tag. Reported as "that bites" — fair; double-bracket syntax for a
+meta/control tag is exactly the kind of friction that stops a tagging
+convention from being used. **Changed to `#blyg-pin`**: `-` *is* in the
+bare-form character class, so it's one clean token with plain `#` syntax,
+same as `#blyg` itself. **Also changed, per the same feedback: `#blyg-pin`
+now implies `#<tag>`** — a block carrying only `#blyg-pin` (no separate
+`#blyg`) still publishes *and* pins, one tag doing both instead of two.
+
+Implementation: `pin-tag` (`"<tag>-pin"`), `pin-requested?` (detection,
+reusing `tag-block?`), `blyg-tagged?` (`(or (tag-block? tag block)
+(pin-requested? block))` — the "implies" logic; `blyg-blocks` uses this
+instead of a bare `tag-block?` check now), `pin-entry` (the idempotent,
+irrevocable state mutation — snapshots `:content-md`/`:content-html`/
+`:content-hash`/`:transclusions` at the version's *current* content into a
+new `:pins` map on the entry, marks the matching changelog entry `:pinned
+true`; refuses to pin a withdrawn entry per §8 rule 2), `pin-json` (the
+flatter, media-less per-version wire shape §8 specifies), and a
+`write-surfaces!` step writing `items/{id}/v{n}.json` for every entry in
+every item's `:pins`, every build (same "regenerate from durable state on
+every run" discipline as everything else here, since `:output-dir` is wiped
+wholesale each time). `parsed->blyg-md` and `strip-tag-parsed` both strip
+`#blyg-pin` the same way they already stripped `#blyg`, so it doesn't leak
+into content. `publish!` runs pinning as a new Phase 3, after threads
+(Phase 2) so a pinned thread's snapshot includes its already-resolved
+`:transclusions`, before withdrawal.
+
+"Stays pinning while the tag's on" semantics unchanged from the original
+proposal: if you leave `#blyg-pin` on and keep editing, every subsequent
+version published while it's present gets pinned too, not just the first.
+
+Verified against real ammdi content (scratch state-file + output dir, never
+touching the live ones): a full publish run with the new code produced
+identical visible-item counts to before (no real content has the tag yet,
+so zero pins created, zero regressions) — fixture tests in `pin-test`
+exercise the actual pin/implies-main-tag/idempotent-republish/thread-pin
+paths end to end.
+
+**Real bug found using real content after this shipped, unrelated to pins
+themselves**: a user report ("a post that should have been published isn't
+there") turned out to be the `:thread-child?` visibility flag (Stage 1.5's
+duplication fix) going stale. That flag is only re-marked for blocks
+currently in `fragment-candidates` (leaves + promoted children) -- a block
+that *was* a promoted child in an earlier run and later got restructured
+into its own top-level `#blyg`/`#blyg-pin` thread was never touched by that
+pass at all (thread entries don't exist until Phase 2 creates them), so it
+kept a stale `:thread-child? true` forever and silently stayed invisible on
+the archive page despite being correctly published and pinned underneath.
+Fixed with an explicit clearing pass over `thread-blocks` after Phase 2
+(`items-2-raw` → `items-2`). `thread-child-becomes-its-own-thread-test`
+reproduces the exact two-run scenario. Found and verified against the real
+block that triggered the report (`6abc03db...`, "Implementing threads and
+pinning" on the Blygger page) before shipping the fix.
+
+**Attribution leaking into transcluded children**: user report -- a
+transcluded child shouldn't carry its own "From [Page]" line inside a
+thread; only the thread's own top-level content should. Fixed by adding an
+`:attribution?` flag threaded through `item-full-content-md`/
+`item-content-html`, false for any block in `child-ids` (promoted children)
+during `publish!`'s Phase 1, true otherwise.
+
+Verifying this against real ammdi content surfaced a second, real bug in
+`reseal!` (the "re-render cached content-html without bumping version"
+escape hatch): its single `reduce-kv` pass read every child's content-html
+from a fixed `orig-items` snapshot taken before the pass started, so a
+thread's transclusions never picked up a reseal of its own children
+regardless of iteration order. Rewrote `reseal!` as two phases, same shape
+as `publish!`: fragments first, then threads reading from the
+phase-1-resealed map. Confirmed end-to-end against a scratch copy of the
+real state file (never the live one): the real "Implementing threads and
+pinning" thread's cached `content-html` had 6 `source-page` occurrences
+(one correct, five leaked from transcluded children, all predating this
+fix); an ordinary `publish!` correctly left it untouched at 6 (hash-gated,
+by design -- the thread's own content-md didn't change, so neither should
+its frozen snapshot); `reseal!` dropped it to exactly 1, with version,
+pins, content-md, and content-hash all unchanged.
+
+Operational consequence for already-published threads: a normal rebuild
+(`bin/blyg-update.sh` / `-main-refresh-blyg`) will **not** clear the
+duplicated attribution in existing threads, since nothing about their own
+content changed -- `reseal!` has to be run once, by hand from the REPL,
+to reach them. There's no `bin/` entry point for it yet (only
+`-main-refresh-blyg` → `publish!` exists); add one if this needs to become
+routine rather than a one-off.
 
 # Stage 2
 
-TODO small bug, AskClaude lozenges don't appear to work in blyg item
+**AskClaude lozenges fixed (two real, separate bugs)**: live-tested in the
+browser against the actual "replies"/"conversation theory" threads on
+ammdi.hyperphor.com/Blygger and /Gordon-Pask, not just fixtures, since this
+one is UI behavior unit tests can't fully see.
+
+1. `body-children` didn't know a hover-tag block's (#AskClaude) children
+   belong exclusively to the hover popup -- it flattened/promoted them as
+   ordinary blyg content too, same as any other nested block. Visible
+   result: the answer appeared a second time, permanently, right below the
+   lozenge, outside the (correctly hidden) popup. `r/block-full-hiccup-guts`
+   already skips a hover-tag block's children for the main site; `body-children`
+   now does the same (returns `[]` when `bd/hover-tag-block?`).
+2. `own-content-hiccup` wrapped every block's content in `<p>`. A hover tag's
+   popup renders a block-level `<div>` (`r/hover-tag-hiccup`), and `<p>`
+   only permits phrasing content -- the moment the browser's HTML5 parser
+   hit that `<div>` it auto-closed the still-open `<p>`, detaching the
+   popup from `.hover-tag-container` into a sibling. Every CSS rule keyed
+   off that ancestry (hover reveal, click-to-pin) silently stopped
+   matching, even though the popup's own markup and content were fine.
+   Switched the wrapper to `<div>`, which has no such content-model
+   restriction.
+
+Also patched `:include?`/`:display?` true on a hover-tag block's descendant
+subtree before rendering (`patch-hover-tag-visibility`) -- blyg is its own
+entry point (ns docstring) and can publish a hover-tag block whose answer
+content the main site's entry-tag walk never reached (eg a journal page);
+without this the popup would render empty for exactly that content.
 
 
 OK, the whole point of this is to publish updates. So really whenever a public page changes, it should generate an automatic Blyg item.

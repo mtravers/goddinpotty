@@ -83,6 +83,26 @@
   [tag block]
   (contains? (set (bd/block-hashtags block)) tag))
 
+;;; A block carrying this gets its *current* latest version pinned at
+;;; publish time -- see design/blygger.md Stage 1.6 / §8. Hyphenated, not
+;;; #<tag>/pin: the hashtag grammar's bare form is #"\#[\w-:]+" -- "-" is
+;;; in that class, "/" isn't, so #blyg-pin is one clean token with plain #
+;;; syntax, where #blyg/pin would silently split into #blyg plus literal,
+;;; un-stripped "/pin" text. Implies #<tag> -- blyg-tagged? below treats a
+;;; #blyg-pin-only block (no separate #blyg needed) as a full candidate --
+;;; so #blyg-pin is both "publish this" and "pin it", in one tag.
+(defn- pin-tag
+  []
+  (str (or (config/config :blygger :tag) "blyg") "-pin"))
+
+(defn- pin-requested?
+  [block]
+  (tag-block? (pin-tag) block))
+
+(defn- blyg-tagged?
+  [tag block]
+  (or (tag-block? tag block) (pin-requested? block)))
+
 ;;; Deliberately NOT bd/included?/bd/displayed?/bd/exit-point? -- those track
 ;;; whether the site's entry-tag graph walk would generate this block a page
 ;;; (exit-point? also folds in :excluded?, database.clj's journal/daily-notes
@@ -94,14 +114,14 @@
   (bd/privacy-exit-point? bm block))
 
 (defn blyg-blocks
-  "Blocks tagged #<tag>, published regardless of whether the site's
-  entry-tag graph walk would otherwise reach them -- only an explicit exit
-  tag (#Private/#ExitPoint/etc) excludes one. Logs (and drops) any #<tag>
-  block an exit tag excludes, rather than silently publishing -- or silently
-  ignoring the author -- either way."
+  "Blocks tagged #<tag> (or #<tag>-pin, which implies #<tag>), published
+  regardless of whether the site's entry-tag graph walk would otherwise
+  reach them -- only an explicit exit tag (#Private/#ExitPoint/etc) excludes
+  one. Logs (and drops) any such block an exit tag excludes, rather than
+  silently publishing -- or silently ignoring the author -- either way."
   [bm tag]
   (keep (fn [block]
-          (cond (not (tag-block? tag block))
+          (cond (not (blyg-tagged? tag block))
                 nil
                 (excluded? bm block)
                 (do (log/warn "blyg: skipping" (:id block) "- excluded:"
@@ -114,15 +134,52 @@
 ;;; -- a tagged block with any (surviving) children becomes a thread whose
 ;;; children get promoted to their own fragments, rather than flattened into
 ;;; one blob the way a plain fragment's descendants are.
+;;;
+;;; A hover-tag block's (eg #AskClaude) children are the hover-popup answer,
+;;; not ordinary nested content -- r/block-full-hiccup-guts already knows to
+;;; skip them for the main site ("render inside a hover popup... rather than
+;;; as normal nested content"), and own-content-hiccup's call into
+;;; r/block-hiccup renders that popup (hidden via CSS) regardless. Without
+;;; this same skip here, body-children doesn't know the difference and
+;;; flattens/promotes them too -- duplicating the answer a second time,
+;;; visible in the normal flow outside the popup. Found via a real user
+;;; report ("AskClaude lozenges don't render properly on blyg pages"): the
+;;; popup itself was fine (display:none, right content) but a second copy
+;;; leaked out through ordinary flattening right next to the lozenge.
 (defn- body-children
   [bm block]
-  (->> (:children block)
-       (map bm)
-       (remove (fn [child]
-                 (when (excluded? bm child)
-                   (log/warn "blyg: excluding child block" (:id child) "- excluded:"
-                             (bd/privacy-exit-point-why bm child))
-                   true)))))
+  (if (bd/hover-tag-block? block)
+    []
+    (->> (:children block)
+         (map bm)
+         (remove (fn [child]
+                   (when (excluded? bm child)
+                     (log/warn "blyg: excluding child block" (:id child) "- excluded:"
+                               (bd/privacy-exit-point-why bm child))
+                     true))))))
+
+;;; r/hover-tag-hiccup (eg #AskClaude) renders a block's *children* through
+;;; the site's own r/block-full-hiccup, which gates each one on :display? --
+;;; the main entry-tag-walk flag this namespace otherwise deliberately
+;;; ignores (see ns docstring). A hover-tag block published via #blyg can
+;;; easily have children the main site's walk never reached (eg on a
+;;; journal page), so without this they'd render as an empty popup: lozenge
+;;; present, content silently dropped. Patch :include?/:display? true on
+;;; exactly the subtree hover-tag-hiccup will walk, stopping at any real
+;;; privacy exit tag -- same filter body-children applies one level at a
+;;; time, just recursive, since AskClaude answers can nest further.
+(defn- patch-hover-tag-visibility
+  [bm ids]
+  (reduce (fn [bm id]
+            (if-let [child (get bm id)]
+              (if (excluded? bm child)
+                bm
+                (-> bm
+                    (assoc id (assoc child :include? true :display? true))
+                    (patch-hover-tag-visibility (:children child))))
+              bm))
+          bm
+          ids))
 
 ;;; A #blyg block's "source page" is worth attributing when it's a normal
 ;;; content page (not a journal/daily-notes entry, which has no meaningful
@@ -161,7 +218,7 @@
                 :blockquote (str "> " (walk-node (second p)))
                 :page-link (md-page-link (utils/remove-double-delimiters (second p)))
                 :hashtag (let [name (utils/parse-hashtag (second p))]
-                           (if (= name tag) "" (md-page-link name (str "#" name))))
+                           (if (#{tag (pin-tag)} name) "" (md-page-link name (str "#" name))))
                 :alias (let [[_ text target] (r/parse-alias (second p))]
                          (if (str/starts-with? target "[[")
                            (md-page-link (utils/remove-double-delimiters target) text)
@@ -202,9 +259,16 @@
     (str "From " (md-page-link (:title page) nil (:id block)) "\n\n" body)
     body))
 
+;;; attribution? false for a promoted child (see publish!): the thread it
+;;; belongs to already carries one "From [Page]" line for the whole piece --
+;;; repeating it inside every transcluded child read as noise, not
+;;; provenance. A top-level fragment (never a child, attribution? defaults
+;;; true) still gets its own.
 (defn- item-full-content-md
-  [bm tag block]
-  (with-attribution-md bm block (item-content-md bm tag block)))
+  [bm tag block & {:keys [attribution?] :or {attribution? true}}]
+  (if attribution?
+    (with-attribution-md bm block (item-content-md bm tag block))
+    (item-content-md bm tag block)))
 
 ;;; A child's own blyg-id, already resolved in `items` (built in an earlier
 ;;; publish! pass -- see there) -- never the child's content itself, which
@@ -234,15 +298,27 @@
   [tag parsed]
   (walk/postwalk (fn [node]
                    (if (and (vector? node) (= :hashtag (first node))
-                            (= tag (utils/parse-hashtag (second node))))
+                            (#{tag (pin-tag)} (utils/parse-hashtag (second node))))
                      ""
                      node))
                  parsed))
 
+;;; :div, not :p -- a block's rendered content can itself contain block-level
+;;; HTML (a hover-tag's popup <div>, a :block-ref's <div.block-ref>, a code
+;;; block's <pre>...), and <p> only permits phrasing content. A browser
+;;; parsing a <div> while a <p> is still open auto-closes the <p> right
+;;; there per the HTML5 spec, silently detaching everything after it
+;;; (including a hover-tag's own lozenge wrapper) into a sibling of the
+;;; paragraph instead of staying nested -- which is exactly what broke
+;;; AskClaude popups on blyg pages: the popup <div> was always present with
+;;; the right content, just no longer inside .hover-tag-container, so every
+;;; CSS rule keying off that ancestry (hover reveal, click-to-pin) silently
+;;; stopped matching. <div> has no such content-model restriction.
 (defn- own-content-hiccup
   [bm tag block]
-  (let [stripped (assoc block :parsed (strip-tag-parsed tag (:parsed block)))]
-    [:p (r/block-hiccup stripped bm)]))
+  (let [stripped (assoc block :parsed (strip-tag-parsed tag (:parsed block)))
+        bm (patch-hover-tag-visibility bm (:children block))]
+    [:div (r/block-hiccup stripped bm)]))
 
 (defn- item-content-hiccup
   [bm tag block]
@@ -283,9 +359,12 @@
   [bm tag block]
   (with-attribution-hiccup bm block (item-content-hiccup bm tag block)))
 
+;;; attribution? false for a promoted child -- see item-full-content-md.
 (defn- item-content-html
-  [bm tag block]
-  (-> (item-full-content-hiccup bm tag block)
+  [bm tag block & {:keys [attribution?] :or {attribution? true}}]
+  (-> (if attribution?
+        (item-full-content-hiccup bm tag block)
+        (item-content-hiccup bm tag block))
       hiccup2/html
       str
       (absolutize-html (config/config :real-base-url))))
@@ -429,6 +508,37 @@
            :transclusions (when (= :thread (:kind existing)) [])
            :changelog (conj (:changelog existing) {:version v :at now :note nil}))))
 
+;;; Pins an entry's *current* (latest) version -- idempotent (already-pinned
+;;; is a no-op), irrevocable once written (§8 rule 1: a pinned version file
+;;; MUST 200 forever, so this never un-pins). Can only ever pin the version
+;;; that's current *right now*: older, already-superseded versions were
+;;; never retained (see design/blygger.md Stage 1.6) -- "retroactive"
+;;; pinning here means "as it stands today", not resurrecting old content.
+;;; Snapshots :transclusions too, so a pinned thread version serves its
+;;; own baked transcludes-as-of-that-version (§8 rule 5).
+(defn- pin-entry
+  [entry]
+  (cond
+    (= :withdrawn (:kind entry))
+    (do (log/warn "blyg: not pinning" (:blyg-id entry) "- withdrawn, nothing to cite (§8 rule 2)")
+        entry)
+
+    (contains? (:pins entry) (:version entry))
+    entry
+
+    :else
+    (-> entry
+        (assoc-in [:pins (:version entry)]
+                  (cond-> {:content-md (:content-md entry)
+                           :content-html (:content-html entry)
+                           :content-hash (:content-hash entry)
+                           :at (:updated entry)}
+                    (:transclusions entry) (assoc :transclusions (:transclusions entry))))
+        (update :changelog
+                (fn [changelog]
+                  (mapv (fn [c] (if (= (:version c) (:version entry)) (assoc c :pinned true) c))
+                        changelog))))))
+
 ;;;; ⩇⩆⩇ Protocol surface builders ⩇⩆⩇
 
 (defn- overall-updated
@@ -462,6 +572,30 @@
       ;; entirely. (:transclusions entry) is truthy for both a live
       ;; thread's populated vector and a withdrawn-former-thread's [].
       (:transclusions entry) (assoc :transclusions (:transclusions entry)))))
+
+;;; A pinned version's document (§8) -- flatter than a live item doc: no
+;;; page, no changelog, no media (§8 rule 4 -- pinned media rides inline in
+;;; content_html, relying on the main site never deleting it). :pins entries
+;;; only exist for versions pin-entry actually captured, so `pin` here is
+;;; never nil for a version write-surfaces! is iterating.
+(defn- pin-json
+  [origin entry version]
+  (let [pin (get-in entry [:pins version])
+        note (:note (first (filter #(= version (:version %)) (:changelog entry))))]
+    (cond-> {:blyg "0.3"
+             :id (:blyg-id entry)
+             :kind (name (:kind entry))
+             :version version
+             :at (:at pin)
+             :note note
+             :pinned true
+             :origin origin
+             :author {:name (or (config/config :blygger :author-name) (config/config :short-title))
+                      :url origin}
+             :content_md (:content-md pin)
+             :content_html (:content-html pin)
+             :content_hash (:content-hash pin)}
+      (:transclusions pin) (assoc :transclusions (:transclusions pin)))))
 
 ;;; Defaults to "<short-title> Blyg" (eg "AMMDI Blyg") rather than bare
 ;;; short-title, so the manifest/feed/archive page read as their own named
@@ -579,9 +713,14 @@
 (defn- fragment-card-hiccup
   [origin entry & {:keys [permalink-page?]}]
   (let [withdrawn? (= :withdrawn (:kind entry))
+        pinned? (seq (:pins entry))
         blyg-id (:blyg-id entry)]
     [:article.card.my-2.fragment {:class (when withdrawn? "withdrawn")}
      [:div.card-body.py-2
+      (when pinned?
+        [:span.pin-badge.float-end.text-muted.small
+         {:title "Pinned -- a version of this item is permanently citable/forkable (§8)"}
+         (r/icon "pin-angle-fill") " Pinned"])
       [:div.item-content
        (if withdrawn?
          [:p.text-muted "[withdrawn]"]
@@ -704,7 +843,15 @@
       (utils/write-json (str base-dir "items/" (:blyg-id entry) ".json") (item-json origin entry))
       (let [dir (str base-dir "f/" (:blyg-id entry) "/")]
         (fs/mkdirs dir)
-        (spit (str dir "index.html") (site-page-html (permalink-page-hiccup bm origin entry)))))
+        (spit (str dir "index.html") (site-page-html (permalink-page-hiccup bm origin entry))))
+      ;; Pinned versions (§8) -- written fresh every build, same as
+      ;; items/{id}.json, since :output-dir gets wiped wholesale each time
+      ;; and .blyg-state.edn's :pins is the only durable copy.
+      (when (seq (:pins entry))
+        (let [pin-dir (str base-dir "items/" (:blyg-id entry) "/")]
+          (fs/mkdirs pin-dir)
+          (doseq [version (keys (:pins entry))]
+            (utils/write-json (str pin-dir "v" version ".json") (pin-json origin entry version))))))
     (spit (str base-dir "feed.xml") (feed-xml origin title items feed-window))
     (log/info "blyg: wrote" (count items) "items to" base-dir)))
 
@@ -716,7 +863,9 @@
   only on content change. A tagged block with (surviving) children is a
   thread; each child is promoted to its own ordinary fragment and the
   parent transcludes them (see design/blygger.md Stage 1.5). A tagged block
-  with no children is a plain fragment, as always. Blocks previously
+  with no children is a plain fragment, as always. #<tag>-pin (implies
+  #<tag>, no need for both) gets its current latest version pinned (§8,
+  irrevocable, idempotent -- see design/blygger.md Stage 1.6). Blocks previously
   published but no longer tagged/promoted are left alone (and warned about)
   unless :withdraw? true. :dry-run? true computes and logs the new state
   without writing anything."
@@ -748,15 +897,23 @@
               (log/warn "blyg: withdrawing" (count withdrawn-ids) (str "item(s) no longer tagged #" tag ":") withdrawn-ids)
               (log/warn "blyg:" (count withdrawn-ids) (str "previously-published item(s) are no longer tagged #" tag)
                         "-- left untouched; pass :withdraw? true to withdraw them:" withdrawn-ids)))
+        ;; Needed by Phase 1 itself now (attribution?) as well as the
+        ;; visibility-flag pass below -- computed once, used both places.
+        child-ids (set (map :id promoted-children))
         ;; Phase 1: every fragment (leaves + promoted children) -- order
-        ;; doesn't matter, nothing here depends on anything else.
+        ;; doesn't matter, nothing here depends on anything else. A promoted
+        ;; child gets no "From [Page]" attribution of its own (attribution?
+        ;; false) -- the thread it's transcluded into already carries one
+        ;; for the whole piece; repeating it inside every child read as
+        ;; noise, not provenance.
         items-1a (reduce (fn [items block]
-                          (update items (:id block)
-                                  next-entry :fragment
-                                  (item-full-content-md bm tag block)
-                                  (item-content-html bm tag block)
-                                  nil
-                                  now))
+                          (let [attributed? (not (contains? child-ids (:id block)))]
+                            (update items (:id block)
+                                    next-entry :fragment
+                                    (item-full-content-md bm tag block :attribution? attributed?)
+                                    (item-content-html bm tag block :attribution? attributed?)
+                                    nil
+                                    now)))
                         (:items state)
                         fragment-candidates)
         ;; :thread-child? is presentation-only, not part of the hashed/
@@ -769,14 +926,13 @@
         ;; transclusion. Recomputed unconditionally every run (never sticky,
         ;; never version-gated), so a block that stops being a child goes
         ;; straight back to visible.
-        child-ids (set (map :id promoted-children))
         items-1 (reduce (fn [items block]
                           (update items (:id block) assoc :thread-child? (contains? child-ids (:id block))))
                         items-1a
                         fragment-candidates)
         ;; Phase 2: threads, now that items-1 has every child's current
         ;; blyg-id/version resolved to transclude.
-        items-2 (reduce (fn [items block]
+        items-2-raw (reduce (fn [items block]
                           (let [kids (body-children bm block)
                                 transclusions (mapv (fn [k]
                                                        (let [e (get items (:id k))]
@@ -790,14 +946,37 @@
                                     now)))
                         items-1
                         thread-blocks)
+        ;; A thread-blocks member must never stay marked :thread-child? --
+        ;; the fragment-candidates pass above can't do this (thread entries
+        ;; don't exist until the reduce just above creates them), so a block
+        ;; that *was* a promoted child in an earlier run and later became a
+        ;; #blyg-pin/#blyg thread in its own right kept a stale true flag
+        ;; forever, silently vanishing from the archive page despite being
+        ;; correctly published and pinned (real bug, found via a real report:
+        ;; the Blygger-page "Implementing threads and pinning" thread).
+        items-2 (reduce (fn [items block]
+                          (update items (:id block) assoc :thread-child? false))
+                        items-2-raw
+                        thread-blocks)
+        ;; Phase 3: pins (§8, design/blygger.md Stage 1.6) -- #<tag>-pin
+        ;; on any currently-tagged/promoted block pins that block's *current*
+        ;; latest version (thread content included, now that items-2 has it
+        ;; resolved). pin-entry is idempotent, so this is safe to run every
+        ;; publish! regardless of whether the tag was already seen before.
+        items-2a (reduce (fn [items block]
+                           (if (pin-requested? block)
+                             (update items (:id block) pin-entry)
+                             items))
+                         items-2
+                         (concat leaf-blocks thread-blocks promoted-children))
         items-3 (if withdraw?
                   (reduce (fn [items id]
                             (if (= :withdrawn (:kind (get items id)))
                               items
                               (update items id withdraw-entry now)))
-                          items-2
+                          items-2a
                           withdrawn-ids)
-                  items-2)
+                  items-2a)
         new-state (assoc state :items items-3)
         changed (filter (fn [[id e]] (not= e (get-in state [:items id]))) items-3)]
     (if dry-run?
@@ -821,34 +1000,53 @@
   from the current bm, without touching content-md/content-hash/version. For
   when a rendering fix (not a content change) needs to reach already-published
   items -- an ordinary publish! wouldn't bump them since their hash is
-  unchanged."
+  unchanged.
+
+  Two phases, like publish!: fragments first, then threads, so a thread bakes
+  its children's freshly-resealed content-html rather than a pre-reseal
+  snapshot. (Prior single-pass version read child html from a fixed
+  orig-items, so a thread's transclusions never picked up a reseal of its own
+  children regardless of reduce-kv order.)"
   [bm output-dir & {:keys [dry-run?]}]
   (let [tag (or (config/config :blygger :tag) "blyg")
         path (state-file)
         state (load-state path)
-        ;; Child lookups for thread re-rendering always read this original
-        ;; map, not the in-progress accumulator below -- ids/versions never
-        ;; change here, so which one is used doesn't matter, but this avoids
-        ;; any mid-reduce-kv staleness question entirely.
         orig-items (:items state)
-        items (reduce-kv
-               (fn [items block-id entry]
-                 (cond (= :withdrawn (:kind entry)) items
-                       (not (contains? bm block-id))
-                       (do (log/warn "blyg reseal: block" block-id "not found in bm, leaving as-is")
-                           items)
-                       (= :thread (:kind entry))
-                       (let [block (get bm block-id)
-                             kids (body-children bm block)]
-                         (assoc items block-id
-                                (assoc entry :content-html
-                                       (thread-content-html bm tag orig-items block kids))))
-                       :else
-                       (assoc items block-id
-                              (assoc entry :content-html
-                                     (item-content-html bm tag (get bm block-id))))))
-               orig-items
-               orig-items)
+        missing? (fn [block-id]
+                   (when-not (contains? bm block-id)
+                     (log/warn "blyg reseal: block" block-id "not found in bm, leaving as-is")
+                     true))
+        ;; Phase 1: fragments (leaves + promoted children) -- threads
+        ;; untouched here, handled in phase 2 once children are current.
+        resealed-fragments
+        (reduce-kv
+         (fn [items block-id entry]
+           (cond (= :withdrawn (:kind entry)) items
+                 (= :thread (:kind entry)) items
+                 (missing? block-id) items
+                 :else
+                 (assoc items block-id
+                        (assoc entry :content-html
+                               (item-content-html bm tag (get bm block-id)
+                                                   :attribution? (not (:thread-child? entry)))))))
+         orig-items
+         orig-items)
+        ;; Phase 2: threads, reading children's content-html from
+        ;; resealed-fragments so transclusions bake the fresh version.
+        items
+        (reduce-kv
+         (fn [items block-id entry]
+           (cond (= :withdrawn (:kind entry)) items
+                 (not= :thread (:kind entry)) items
+                 (missing? block-id) items
+                 :else
+                 (let [block (get bm block-id)
+                       kids (body-children bm block)]
+                   (assoc items block-id
+                          (assoc entry :content-html
+                                 (thread-content-html bm tag resealed-fragments block kids))))))
+         resealed-fragments
+         resealed-fragments)
         new-state (assoc state :items items)]
     (if dry-run?
       new-state
