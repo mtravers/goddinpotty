@@ -134,15 +134,52 @@
 ;;; -- a tagged block with any (surviving) children becomes a thread whose
 ;;; children get promoted to their own fragments, rather than flattened into
 ;;; one blob the way a plain fragment's descendants are.
+;;;
+;;; A hover-tag block's (eg #AskClaude) children are the hover-popup answer,
+;;; not ordinary nested content -- r/block-full-hiccup-guts already knows to
+;;; skip them for the main site ("render inside a hover popup... rather than
+;;; as normal nested content"), and own-content-hiccup's call into
+;;; r/block-hiccup renders that popup (hidden via CSS) regardless. Without
+;;; this same skip here, body-children doesn't know the difference and
+;;; flattens/promotes them too -- duplicating the answer a second time,
+;;; visible in the normal flow outside the popup. Found via a real user
+;;; report ("AskClaude lozenges don't render properly on blyg pages"): the
+;;; popup itself was fine (display:none, right content) but a second copy
+;;; leaked out through ordinary flattening right next to the lozenge.
 (defn- body-children
   [bm block]
-  (->> (:children block)
-       (map bm)
-       (remove (fn [child]
-                 (when (excluded? bm child)
-                   (log/warn "blyg: excluding child block" (:id child) "- excluded:"
-                             (bd/privacy-exit-point-why bm child))
-                   true)))))
+  (if (bd/hover-tag-block? block)
+    []
+    (->> (:children block)
+         (map bm)
+         (remove (fn [child]
+                   (when (excluded? bm child)
+                     (log/warn "blyg: excluding child block" (:id child) "- excluded:"
+                               (bd/privacy-exit-point-why bm child))
+                     true))))))
+
+;;; r/hover-tag-hiccup (eg #AskClaude) renders a block's *children* through
+;;; the site's own r/block-full-hiccup, which gates each one on :display? --
+;;; the main entry-tag-walk flag this namespace otherwise deliberately
+;;; ignores (see ns docstring). A hover-tag block published via #blyg can
+;;; easily have children the main site's walk never reached (eg on a
+;;; journal page), so without this they'd render as an empty popup: lozenge
+;;; present, content silently dropped. Patch :include?/:display? true on
+;;; exactly the subtree hover-tag-hiccup will walk, stopping at any real
+;;; privacy exit tag -- same filter body-children applies one level at a
+;;; time, just recursive, since AskClaude answers can nest further.
+(defn- patch-hover-tag-visibility
+  [bm ids]
+  (reduce (fn [bm id]
+            (if-let [child (get bm id)]
+              (if (excluded? bm child)
+                bm
+                (-> bm
+                    (assoc id (assoc child :include? true :display? true))
+                    (patch-hover-tag-visibility (:children child))))
+              bm))
+          bm
+          ids))
 
 ;;; A #blyg block's "source page" is worth attributing when it's a normal
 ;;; content page (not a journal/daily-notes entry, which has no meaningful
@@ -266,10 +303,22 @@
                      node))
                  parsed))
 
+;;; :div, not :p -- a block's rendered content can itself contain block-level
+;;; HTML (a hover-tag's popup <div>, a :block-ref's <div.block-ref>, a code
+;;; block's <pre>...), and <p> only permits phrasing content. A browser
+;;; parsing a <div> while a <p> is still open auto-closes the <p> right
+;;; there per the HTML5 spec, silently detaching everything after it
+;;; (including a hover-tag's own lozenge wrapper) into a sibling of the
+;;; paragraph instead of staying nested -- which is exactly what broke
+;;; AskClaude popups on blyg pages: the popup <div> was always present with
+;;; the right content, just no longer inside .hover-tag-container, so every
+;;; CSS rule keying off that ancestry (hover reveal, click-to-pin) silently
+;;; stopped matching. <div> has no such content-model restriction.
 (defn- own-content-hiccup
   [bm tag block]
-  (let [stripped (assoc block :parsed (strip-tag-parsed tag (:parsed block)))]
-    [:p (r/block-hiccup stripped bm)]))
+  (let [stripped (assoc block :parsed (strip-tag-parsed tag (:parsed block)))
+        bm (patch-hover-tag-visibility bm (:children block))]
+    [:div (r/block-hiccup stripped bm)]))
 
 (defn- item-content-hiccup
   [bm tag block]

@@ -343,6 +343,40 @@
         (is (contains? (:pins thread-entry) (:version thread-entry)))
         (is (seq (get-in thread-entry [:pins (:version thread-entry) :transclusions])))))))
 
+(deftest hover-tag-test
+  (let [pg (fake-page 60 "Hover Page")
+        ;; :include?/:display? false simulates content the main site's
+        ;; entry-tag walk never reached (eg a journal page) -- blyg
+        ;; publishes it anyway (ns docstring).
+        answer (-> (prep 62 "The hidden answer") (assoc :include? false :display? false :parent 61))
+        asker (assoc (prep 61 "A question #AskClaude #blyg" :children [62]) :parent 60)
+        bm {60 pg 61 asker 62 answer}
+        output-dir (config/config :output-dir)
+        state (blygger/publish! bm output-dir)
+        entry (get (:items state) 61)]
+
+    (testing "the hover tag's child doesn't get promoted/flattened as ordinary
+              blyg content -- it belongs to the popup alone, so the block
+              stays a plain fragment, not a thread"
+      (is (= :fragment (:kind entry))))
+
+    (testing "popup shows its actual content exactly once, even when the main
+              site's walk never reached it -- not an empty lozenge, and not
+              also duplicated outside the (hidden) popup"
+      (is (re-find #"hover-tag-lozenge" (:content-html entry)))
+      (is (re-find #"hover-tag-popup" (:content-html entry)))
+      (is (= 1 (count (re-seq #"hidden answer" (:content-html entry))))
+          "the answer must appear exactly once -- inside the popup, not also flattened outside it"))
+
+    (testing "own-content-hiccup wraps a block's content in <div>, not <p> --
+              a <p> ancestor gets auto-closed by the browser's HTML5 parser
+              the moment it hits the popup's block-level <div>, detaching
+              the popup from .hover-tag-container and silently breaking
+              every CSS rule that depends on that nesting (hover reveal,
+              click-to-pin)"
+      (is (not (re-find #"(?s)<p>(?:(?!</p>).)*?<span class=\"hover-tag-container\"" (:content-html entry)))
+          "the hover-tag-container must not be inside a <p>"))))
+
 (deftest mount-collides-with-tag-page-test
   (testing "the #blyg tag's own backlink page is written extensionless at
             output-dir/blyg by html-generation before blygger/publish! runs --

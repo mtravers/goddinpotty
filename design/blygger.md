@@ -630,7 +630,33 @@ routine rather than a one-off.
 
 # Stage 2
 
-TODO small bug, AskClaude lozenges don't appear to work in blyg item
+**AskClaude lozenges fixed (two real, separate bugs)**: live-tested in the
+browser against the actual "replies"/"conversation theory" threads on
+ammdi.hyperphor.com/Blygger and /Gordon-Pask, not just fixtures, since this
+one is UI behavior unit tests can't fully see.
+
+1. `body-children` didn't know a hover-tag block's (#AskClaude) children
+   belong exclusively to the hover popup -- it flattened/promoted them as
+   ordinary blyg content too, same as any other nested block. Visible
+   result: the answer appeared a second time, permanently, right below the
+   lozenge, outside the (correctly hidden) popup. `r/block-full-hiccup-guts`
+   already skips a hover-tag block's children for the main site; `body-children`
+   now does the same (returns `[]` when `bd/hover-tag-block?`).
+2. `own-content-hiccup` wrapped every block's content in `<p>`. A hover tag's
+   popup renders a block-level `<div>` (`r/hover-tag-hiccup`), and `<p>`
+   only permits phrasing content -- the moment the browser's HTML5 parser
+   hit that `<div>` it auto-closed the still-open `<p>`, detaching the
+   popup from `.hover-tag-container` into a sibling. Every CSS rule keyed
+   off that ancestry (hover reveal, click-to-pin) silently stopped
+   matching, even though the popup's own markup and content were fine.
+   Switched the wrapper to `<div>`, which has no such content-model
+   restriction.
+
+Also patched `:include?`/`:display?` true on a hover-tag block's descendant
+subtree before rendering (`patch-hover-tag-visibility`) -- blyg is its own
+entry point (ns docstring) and can publish a hover-tag block whose answer
+content the main site's entry-tag walk never reached (eg a journal page);
+without this the popup would render empty for exactly that content.
 
 
 OK, the whole point of this is to publish updates. So really whenever a public page changes, it should generate an automatic Blyg item.
