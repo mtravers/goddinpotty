@@ -493,3 +493,12 @@ ul::before {
 .local {
     display: none;
 }
+
+/* Blyg */
+.blyg .card {
+  background-color: #eff7ff;
+}
+
+.blyg .pin-badge {
+  font-size: 0.75rem;
+}
