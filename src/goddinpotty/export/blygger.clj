@@ -792,12 +792,37 @@
 ;;; page-hiccup's asset/nav hrefs (eg "assets/default.css", page-links like
 ;;; "About") are relative, correct only for normal top-level pages living
 ;;; directly at output-dir/<title>. Blyg pages nest one or two directories
-;;; deeper (blyg/, blyg/f/{id}/), so those same relative hrefs would resolve
-;;; to the wrong place -- absolutize against :real-base-url, same fix as
-;;; content_html already gets.
+;;; deeper (blyg/, blyg/f/{id}/), so those same relative hrefs resolve to the
+;;; wrong place as-is -- they need re-pointing up to the site root.
+;;;
+;;; Use a "../" prefix rather than absolutizing against :real-base-url: the
+;;; site is served from more than one root (ammdi.hyperphor.com/ AND
+;;; hyperphor.com/ammdi/), so baking in one absolute origin breaks navigation
+;;; for anyone reading via the other, and root-relative "/Index" is wrong
+;;; under the subdirectory root too. Depth is how many directories below the
+;;; site root the page sits: blyg/index.html is 1, blyg/f/{id}/index.html
+;;; is 3.
+;;;
+;;; This is display chrome only. Item content_html keeps its absolute URLs
+;;; (see absolutize-html) -- that gets syndicated into feed.xml and
+;;; items/{id}.json and read far from this site, where a relative link is
+;;; meaningless.
+(defn- relativize-html
+  [html depth]
+  (let [prefix (apply str (repeat depth "../"))]
+    (str/replace html #"(src|href)=\"([^\"]*)\""
+                 (fn [[whole attr url]]
+                   (cond (str/blank? url) whole
+                         (absolute-url? url) whole
+                         ;; Root-relative would also need rewriting, but
+                         ;; page-hiccup doesn't emit it -- leave alone
+                         ;; rather than guess at the intent.
+                         (str/starts-with? url "/") whole
+                         :else (str attr "=\"" prefix url "\""))))))
+
 (defn- site-page-html
-  [hiccup]
-  (absolutize-html (str (hiccup2/html hiccup)) (config/config :real-base-url)))
+  [hiccup depth]
+  (relativize-html (str (hiccup2/html hiccup)) depth))
 
 ;;;; ⩇⩆⩇ Writing the surface ⩇⩆⩇
 
@@ -834,16 +859,20 @@
         items (:items state)
         updated (overall-updated items)
         title (blyg-title)
-        feed-window (or (config/config :blygger :feed-window) 50)]
+        feed-window (or (config/config :blygger :feed-window) 50)
+        ;; How many directories the mount itself sits below the site root --
+        ;; "blyg/" is 1, but :blygger :mount is configurable and may nest.
+        mount-depth (count (remove str/blank? (str/split (mount-path) #"/")))]
     (ensure-mount-dir! base-dir)
     (utils/write-json (str base-dir "blyg.json") (manifest origin items updated))
     (utils/write-json (str base-dir "items/index.json") (archive-index items updated))
-    (spit (str base-dir "index.html") (site-page-html (archive-hiccup bm origin items)))
+    (spit (str base-dir "index.html") (site-page-html (archive-hiccup bm origin items) mount-depth))
     (doseq [entry (vals items)]
       (utils/write-json (str base-dir "items/" (:blyg-id entry) ".json") (item-json origin entry))
       (let [dir (str base-dir "f/" (:blyg-id entry) "/")]
         (fs/mkdirs dir)
-        (spit (str dir "index.html") (site-page-html (permalink-page-hiccup bm origin entry))))
+        ;; f/{id}/ puts a permalink two levels below the mount.
+        (spit (str dir "index.html") (site-page-html (permalink-page-hiccup bm origin entry) (+ mount-depth 2))))
       ;; Pinned versions (§8) -- written fresh every build, same as
       ;; items/{id}.json, since :output-dir gets wiped wholesale each time
       ;; and .blyg-state.edn's :pins is the only durable copy.

@@ -116,6 +116,15 @@
        ~(render/page-link-by-name block-map (config/config :main-page) :class "navbar-brand")
        ;; TODO make active page machinery mork
        [:ul.navbar-nav.ml-auto
+        ;; Relative, not "/blyg" -- the site is served from more than one
+        ;; root (ammdi.hyperphor.com/ and hyperphor.com/ammdi/), so a
+        ;; root-relative href lands outside the site under the latter. Blyg
+        ;; pages re-point this upward via blygger/relativize-html.
+        [:li.nav-item                   ;TODO conditional on :blyg enabled
+         [:a.pagelink
+          {:href "blyg/"
+           :class "nav-link"}
+          "Blyg"]]
         ~@(for [page (config/config :right-navbar)]
             [:li.nav-item
              (if (vector? page) 

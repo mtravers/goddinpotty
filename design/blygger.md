@@ -658,6 +658,34 @@ entry point (ns docstring) and can publish a hover-tag block whose answer
 content the main site's entry-tag walk never reached (eg a journal page);
 without this the popup would render empty for exactly that content.
 
+**Page chrome made relative again** (`relativize-html`, replacing the
+`absolutize-html` call in `site-page-html`). Blyg pages nest below the site
+root, so `page-hiccup`'s relative nav/asset hrefs need re-pointing upward;
+the first cut did that by absolutizing against `:real-base-url`, which
+worked but baked one origin into every nav link and "All Pages" entry.
+
+The constraint that decides this: **the site is served from two roots** --
+`ammdi.hyperphor.com/` *and* `hyperphor.com/ammdi/` (both confirmed live).
+So an absolute origin sends every subdirectory-root reader over to the
+subdomain mid-navigation, and root-relative (`/Index`) is wrong there too,
+landing outside the site entirely. A `../`-prefix keyed to the page's depth
+below the site root is the only form correct under both -- 1 for
+`blyg/index.html`, 3 for `blyg/f/{id}/index.html`, computed from
+`mount-path` so a nested `:blygger :mount` still works.
+
+What deliberately stays absolute: item `content_html` (`absolutize-html`,
+untouched) and the blyg-internal permalink/feed/manifest URLs built from
+`origin`. That HTML is syndicated into `feed.xml` and `items/{id}.json` and
+read far away from this site, where a relative link means nothing -- and
+§5.8 permalinks are canonical identity, not navigation.
+
+Also fixed the navbar "Blyg" entry in `templating.clj`, which was hardcoded
+root-relative `/blyg` -- same two-roots problem, and it affected every page
+on the main site, not just blyg ones. Now `blyg/`, which
+`relativize-html` re-points on blyg's own nested pages.
+`relative-page-chrome-test` covers all of this (chrome relative, no
+root-relative, correct depth per page, content_html still absolute).
+
 
 OK, the whole point of this is to publish updates. So really whenever a public page changes, it should generate an automatic Blyg item.
 

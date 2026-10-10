@@ -3,6 +3,7 @@
             [goddinpotty.parser :as parser]
             [goddinpotty.config :as config]
             [me.raynes.fs :as fs]
+            [clojure.string :as str]
             [clojure.test :refer :all]))
 
 (defn with-blygger-config
@@ -376,6 +377,43 @@
               click-to-pin)"
       (is (not (re-find #"(?s)<p>(?:(?!</p>).)*?<span class=\"hover-tag-container\"" (:content-html entry)))
           "the hover-tag-container must not be inside a <p>"))))
+
+(deftest relative-page-chrome-test
+  (let [pg (fake-page 70 "Link Page")
+        block (assoc (prep 71 "Linked up #blyg") :parent 70)
+        bm {70 pg 71 block}
+        output-dir (config/config :output-dir)
+        state (blygger/publish! bm output-dir)
+        entry (get (:items state) 71)
+        archive (slurp (str output-dir "/blyg/index.html"))
+        permalink (slurp (str output-dir "/blyg/f/" (:blyg-id entry) "/index.html"))
+        ;; hrefs/srcs pointing back into the site's own pages and assets,
+        ;; ignoring anything already absolute (external links, and the
+        ;; blyg-internal permalink/feed/JSON urls, which stay absolute).
+        site-links (fn [html] (->> (re-seq #"(?:src|href)=\"([^\"]*)\"" html)
+                                   (map second)
+                                   (remove #(re-find #"^(?:[a-z][a-z0-9+.-]*:|//|#)" %))))]
+
+    (testing "page chrome (nav, css) is relative, not absolute -- the site is
+              served from two roots (ammdi.hyperphor.com/ and
+              hyperphor.com/ammdi/), so a baked-in origin breaks one of them"
+      (is (seq (site-links archive)))
+      (is (not-any? #(str/starts-with? % "https://") (site-links archive)))
+      (is (not-any? #(str/starts-with? % "https://") (site-links permalink))))
+
+    (testing "...and root-relative is wrong too, for the same reason -- the
+              subdirectory root would send them to the server root"
+      (is (not-any? #(str/starts-with? % "/") (site-links archive)))
+      (is (not-any? #(str/starts-with? % "/") (site-links permalink))))
+
+    (testing "each page's ../ depth matches where it actually sits: the
+              archive is 1 below the site root, a permalink 3"
+      (is (some #(= "../assets/default.css" %) (site-links archive)))
+      (is (some #(= "../../../assets/default.css" %) (site-links permalink))))
+
+    (testing "item content_html keeps absolute urls -- it gets syndicated into
+              feed.xml and items/{id}.json and read away from this site"
+      (is (re-find #"https://example\.com/Link-Page" (:content-html entry))))))
 
 (deftest mount-collides-with-tag-page-test
   (testing "the #blyg tag's own backlink page is written extensionless at
